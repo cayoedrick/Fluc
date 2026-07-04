@@ -2,15 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { FlucState, Conta, Cartao, Categoria, Lancamento, Cofrinho, CofrinhoHistorico } from '../types';
 import { getDefaultState } from '../data/defaults';
 import { auth } from '../lib/firebase';
-import { subscribeToData, saveData, fetchData } from '../services/db';
+import { subscribeToData, saveData } from '../services/db';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 export function useFlucState() {
+  const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
   const [state, setState] = useState<FlucState>(() => {
     const saved = localStorage.getItem('fluc_financial_state');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Make sure it has all required keys
         if (parsed.contas && parsed.cartoes && parsed.categorias && parsed.lancamentos && parsed.cofrinhos) {
           return {
             ...getDefaultState(),
@@ -27,8 +28,15 @@ export function useFlucState() {
     return getDefaultState();
   });
 
-  const isSyncing = useRef(false);
   const skipNextSave = useRef(false);
+
+  // Auth State Listener
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
   // Helper to merge local and remote states taking newest items by updatedAt
   const mergeStates = (local: FlucState, remote: FlucState): FlucState => {
@@ -70,31 +78,24 @@ export function useFlucState() {
           const localUpdate = localItem.updatedAt || 0;
           const remoteUpdate = remoteItem.updatedAt || 0;
           
-          // Prioritize by most recent updatedAt
           if (localUpdate > remoteUpdate) {
             resultMap.set(localItem.id, localItem);
           }
-          // if equal or remote is higher, keep remote (which is already in the map)
         }
       });
 
       (merged as any)[colKey] = Array.from(resultMap.values());
     }
 
-    // Handle theme and other metadata
     const localMod = local.lastModifiedAt || 0;
     const remoteMod = remote.lastModifiedAt || 0;
     
-    // Theme merge
     if (remoteMod > localMod && remote.theme) {
       merged.theme = remote.theme;
     }
     
-    // Metadata merge
     merged.lastModifiedAt = Math.max(localMod, remoteMod);
     
-    // Critical fix: If remote is newer or equal, adopt its sync status 
-    // to prevent redundant re-uploads of the same state.
     if (remoteMod >= localMod) {
       merged.lastSyncUpload = remote.lastSyncUpload;
     } else {
@@ -104,10 +105,11 @@ export function useFlucState() {
     return merged;
   };
 
-  // Sync with Firestore when authenticated
+  // Real-time Sync with Firestore
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (!currentUser) return;
 
+    // Real-time listener: onSnapshot replaces one-time get()
     const unsubscribe = subscribeToData('state', (remoteState) => {
       if (remoteState) {
         setState(prev => {
@@ -116,17 +118,14 @@ export function useFlucState() {
           const localUp = prev.lastSyncUpload || 0;
           const localMod = prev.lastModifiedAt || 0;
 
-          // Avoid processing if it's exactly what we already have
           if (remoteUp === localUp && remoteMod <= localMod) return prev;
           
-          // Data verification and merging (conferência)
           const merged = mergeStates(prev, remoteState);
-          
-          // Only update if there are actual changes
           const hasChanges = JSON.stringify(merged) !== JSON.stringify(prev);
+          
           if (!hasChanges) return prev;
 
-          console.log("Real-time sync: Received update from another device.");
+          console.log("Real-time sync: Active listener updated state from server.");
           skipNextSave.current = true;
           return {
             ...merged,
@@ -137,26 +136,24 @@ export function useFlucState() {
     });
 
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, [currentUser]);
 
-  // Save to localStorage and Firestore on change
+  // Persistence: Save to localStorage and Firestore on change
   useEffect(() => {
     localStorage.setItem('fluc_financial_state', JSON.stringify(state));
 
-    if (auth.currentUser) {
+    if (currentUser) {
       if (skipNextSave.current) {
         skipNextSave.current = false;
         return;
       }
 
-      // Immediate save: sends data to server whenever a change is detected
       const timeout = setTimeout(async () => {
-        if (!auth.currentUser) return;
+        if (!currentUser) return;
         
         const lastMod = state.lastModifiedAt || 0;
         const lastUp = state.lastSyncUpload || 0;
 
-        // Only save if there are actual unsaved local changes
         if (lastMod <= lastUp) return;
 
         const now = Date.now();
@@ -165,7 +162,6 @@ export function useFlucState() {
         try {
           await saveData('state', stateWithUpload);
           setState(prev => {
-            // Check if any newer modifications happened during the save
             const currentMod = prev.lastModifiedAt || 0;
             if (currentMod > lastMod) return prev; 
             
@@ -175,80 +171,35 @@ export function useFlucState() {
         } catch (e) {
           console.error("Sync save failed", e);
         }
-      }, 1000); // 1s debounce for responsiveness vs quota balance
+      }, 1000);
 
       return () => clearTimeout(timeout);
     }
-  }, [state]);
+  }, [state, currentUser]);
 
-  // Periodic 5-second sync check (Analysis & Force Sync)
+  // Periodic 5-second sanity check for unsaved local changes
   useEffect(() => {
-    if (!auth.currentUser) return;
-
-    let isCheckInProgress = false;
+    if (!currentUser) return;
 
     const interval = setInterval(async () => {
-      if (isCheckInProgress || document.hidden) return;
-      isCheckInProgress = true;
+      if (document.hidden) return;
 
-      try {
-        // 1. Force Download & Verification (Conferência)
-        const remoteState = await fetchData('state') as FlucState | null;
+      setState(prev => {
+        const lastMod = prev.lastModifiedAt || 0;
+        const lastUp = prev.lastSyncUpload || 0;
         
-        if (remoteState) {
-          setState(prev => {
-            const remoteUp = remoteState.lastSyncUpload || 0;
-            const remoteMod = remoteState.lastModifiedAt || 0;
-            const localUp = prev.lastSyncUpload || 0;
-            const localMod = prev.lastModifiedAt || 0;
-
-            // Only merge if remote has newer info
-            if (remoteUp === localUp && remoteMod <= localMod) {
-              return prev;
-            }
-
-            const merged = mergeStates(prev, remoteState);
-            
-            // Check if anything actually changed after merge
-            if (merged.lastModifiedAt === localMod && 
-                merged.lastSyncUpload === localUp &&
-                merged.contas.length === prev.contas.length &&
-                merged.lancamentos.length === prev.lancamentos.length) {
-              if (JSON.stringify(merged) === JSON.stringify(prev)) return prev;
-            }
-
-            console.log("Forced sync: Discrepancies resolved.");
-            skipNextSave.current = true;
-            return {
-              ...merged,
-              lastSyncDownload: Date.now()
-            };
-          });
+        if (lastMod > lastUp) {
+          const now = Date.now();
+          const stateWithUpload = { ...prev, lastSyncUpload: now };
+          saveData('state', stateWithUpload).catch(err => console.error("Periodic upload failed", err));
+          return stateWithUpload;
         }
-
-        // 2. Force Upload: If local has unsaved changes, push them
-        setState(prev => {
-          const lastMod = prev.lastModifiedAt || 0;
-          const lastUp = prev.lastSyncUpload || 0;
-          
-          if (lastMod > lastUp) {
-            const now = Date.now();
-            const stateWithUpload = { ...prev, lastSyncUpload: now };
-            saveData('state', stateWithUpload).catch(err => console.error("Periodic upload failed", err));
-            return stateWithUpload;
-          }
-          return prev;
-        });
-
-      } catch (error) {
-        console.error("Periodic sync check error:", error);
-      } finally {
-        isCheckInProgress = false;
-      }
+        return prev;
+      });
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [auth.currentUser]);
+  }, [currentUser]);
 
   // Helper to enrich state items with updatedAt timestamps when modified or created
   const enrichStateWithTimestamps = (prev: FlucState, next: FlucState): FlucState => {
