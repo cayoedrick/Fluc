@@ -1,22 +1,35 @@
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { ref, set, onValue, off } from 'firebase/database';
 import { db, auth } from '../lib/firebase';
 import { FlucState } from '../types';
 
-export const saveData = async (collection: string, data: FlucState) => {
+export const saveData = async (path: string, data: FlucState): Promise<void> => {
   if (!auth.currentUser) return;
-  const docRef = doc(db, 'users', auth.currentUser.uid, 'data', collection);
-  await setDoc(docRef, data);
+  const dbRef = ref(db, `users/${auth.currentUser.uid}/${path}`);
+  await set(dbRef, data);
 };
 
-export const subscribeToData = (collection: string, callback: (data: FlucState | null, hasPendingWrites: boolean) => void) => {
+export const subscribeToData = (path: string, callback: (data: FlucState | null, isSyncing: boolean) => void) => {
   if (!auth.currentUser) return () => {};
-  const docRef = doc(db, 'users', auth.currentUser.uid, 'data', collection);
-  return onSnapshot(docRef, (doc) => {
-    const hasPendingWrites = doc.metadata.hasPendingWrites;
-    if (doc.exists()) {
-      callback(doc.data() as FlucState, hasPendingWrites);
+  
+  const dbRef = ref(db, `users/${auth.currentUser.uid}/${path}`);
+  
+  // Connection state monitoring
+  const connectedRef = ref(db, '.info/connected');
+  let isConnected = false;
+  
+  onValue(connectedRef, (snap) => {
+    isConnected = !!snap.val();
+  });
+
+  const onDataChange = onValue(dbRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback(snapshot.val() as FlucState, !isConnected);
     } else {
-      callback(null, hasPendingWrites);
+      callback(null, !isConnected);
     }
   });
+
+  return () => {
+    off(dbRef, 'value', onDataChange);
+  };
 };
