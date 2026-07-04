@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Download, Upload, Trash2, Database, AlertTriangle, Sparkles, HelpCircle, Sun, Moon, Palette, ShieldCheck } from 'lucide-react';
 import { FlucState } from '../types';
+import { GoogleLoginButton } from './GoogleLoginButton';
 
 interface ConfiguracoesViewProps {
   state: FlucState;
@@ -169,6 +170,20 @@ export function ConfiguracoesView({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Conta & Sincronização Submenu */}
+      <div id="config-conta-sincronizacao" className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-6 rounded-[24px] space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2.5 rounded-[12px] bg-indigo-500/15 text-indigo-500">
+            <ShieldCheck size={18} />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-[var(--text-general)]">Conta</h3>
+            <p className="text-xs text-[var(--text-discreto)]">Gerencie seu login</p>
+          </div>
+        </div>
+        <GoogleLoginButton />
       </div>
 
       {/* 2. Local JSON Backup and Restore Submenu */}
