@@ -476,8 +476,6 @@ export default function App() {
         onClose={() => setIsSidebarOpen(false)}
         theme={state.theme}
         onThemeToggle={handleThemeToggle}
-        lastSyncUpload={state.lastSyncUpload}
-        lastSyncDownload={state.lastSyncDownload}
       />
 
       {/* Main Screen Content */}

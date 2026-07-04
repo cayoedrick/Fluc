@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FlucState, Conta, Cartao, Categoria, Lancamento, Cofrinho, CofrinhoHistorico } from '../types';
 import { getDefaultState } from '../data/defaults';
-import { auth } from '../lib/firebase';
-import { subscribeToData, saveData } from '../services/db';
 
 export function useFlucState() {
   const [state, setState] = useState<FlucState>(() => {
@@ -26,44 +24,9 @@ export function useFlucState() {
     return getDefaultState();
   });
 
-  const isSyncing = useRef(false);
-
-  // Sync with Firestore when authenticated
-  useEffect(() => {
-    if (!auth.currentUser) return;
-
-    const unsubscribe = subscribeToData('state', (remoteState) => {
-      if (remoteState) {
-        isSyncing.current = true;
-        setState(prev => ({
-          ...prev,
-          ...remoteState,
-          lastSyncDownload: new Date().toISOString()
-        } as FlucState));
-        setTimeout(() => { isSyncing.current = false; }, 100);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [auth.currentUser]);
-
-  // Save to localStorage and Firestore on change
+  // Save to localStorage on change
   useEffect(() => {
     localStorage.setItem('fluc_financial_state', JSON.stringify(state));
-
-    if (auth.currentUser && !isSyncing.current) {
-      const stateToSave = { ...state, lastSyncUpload: new Date().toISOString() };
-      saveData('state', stateToSave);
-      
-      // Request background sync
-      if ('serviceWorker' in navigator && 'SyncManager' in window) {
-        navigator.serviceWorker.ready.then((swRegistration) => {
-          return (swRegistration as any).sync.register('sync');
-        }).catch((err) => {
-          console.error('[App] Background sync registration failed:', err);
-        });
-      }
-    }
   }, [state]);
 
   // Helper to enrich state items with updatedAt timestamps when modified or created

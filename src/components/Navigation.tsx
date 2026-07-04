@@ -8,15 +8,10 @@ import {
   PiggyBank, 
   Settings, 
   X,
-  Lock,
   Sun,
   Moon,
-  Download,
-  CloudCheck,
-  CloudUpload
+  Download
 } from 'lucide-react';
-import { auth, db } from '../lib/firebase';
-import { onSnapshot, doc } from 'firebase/firestore';
 
 interface NavigationProps {
   currentView: ViewType;
@@ -25,11 +20,9 @@ interface NavigationProps {
   onClose: () => void;
   theme: 'dark' | 'clean';
   onThemeToggle: () => void;
-  lastSyncUpload?: string;
-  lastSyncDownload?: string;
 }
 
-export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, onThemeToggle, lastSyncUpload, lastSyncDownload }: NavigationProps) {
+export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, onThemeToggle }: NavigationProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -38,7 +31,6 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
     }
     return false;
   });
-  const [hasPendingWrites, setHasPendingWrites] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -58,17 +50,6 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
-
-  useEffect(() => {
-    let unsubscribe: () => void;
-    if (auth.currentUser) {
-      const userDocRef = doc(db, 'users', auth.currentUser.uid);
-      unsubscribe = onSnapshot(userDocRef, { includeMetadataChanges: true }, (snapshot) => {
-        setHasPendingWrites(snapshot.metadata.hasPendingWrites);
-      });
-    }
-    return () => unsubscribe && unsubscribe();
   }, []);
 
   const handleInstallClick = async () => {
@@ -188,27 +169,6 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
             </button>
           )}
 
-          <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-discreto)]">
-            {hasPendingWrites ? (
-              <>
-                <CloudUpload size={14} className="text-amber-500 animate-pulse" />
-                <span>Sincronizando...</span>
-              </>
-            ) : (
-              <>
-                <CloudCheck size={14} className="text-emerald-500" />
-                <span>Sincronizado</span>
-              </>
-            )}
-          </div>
-          <div className="flex flex-col gap-1 text-[10px] text-[var(--text-discreto)] mt-2">
-            {lastSyncUpload && (
-              <p>Último Envio: {new Date(lastSyncUpload).toLocaleString('pt-BR')}</p>
-            )}
-            {lastSyncDownload && (
-              <p>Última Atualização: {new Date(lastSyncDownload).toLocaleString('pt-BR')}</p>
-            )}
-          </div>
           <p className="text-[10px] text-[var(--text-discreto)] mt-1 opacity-70">Versão 1.0.0 • Fluc PWA</p>
         </div>
       </div>
