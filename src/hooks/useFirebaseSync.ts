@@ -329,8 +329,16 @@ export function useFirebaseSync() {
       addLog('Autenticação', `Login efetuado com sucesso para: ${result.user.email}`, 'success');
     } catch (e: any) {
       console.error('Google Sign In Error', e);
-      addLog('Autenticação', `Falha ao fazer login com o Google: ${e.message}`, 'error');
-      setAuthError(e.message || String(e));
+      const errCode = e.code || '';
+      const errMsg = e.message || String(e);
+      
+      if (errCode === 'auth/popup-closed-by-user' || errMsg.includes('auth/popup-closed-by-user')) {
+        addLog('Autenticação', 'A janela de login do Google foi fechada antes de concluir o processo.', 'warning');
+        setAuthError('auth/popup-closed-by-user');
+      } else {
+        addLog('Autenticação', `Falha ao fazer login com o Google: ${errMsg}`, 'error');
+        setAuthError(errMsg);
+      }
     }
   }, [isConfigured, addLog]);
 

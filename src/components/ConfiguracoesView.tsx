@@ -68,32 +68,6 @@ export function ConfiguracoesView({
   } = syncProps;
 
   const [showLogs, setShowLogs] = useState(false);
-  const [showConfigForm, setShowConfigForm] = useState(false);
-  const [customConfig, setCustomConfig] = useState<FirebaseConfig>(() => {
-    return getFirebaseConfig() || {
-      apiKey: '',
-      authDomain: '',
-      projectId: '',
-      storageBucket: '',
-      messagingSenderId: '',
-      appId: ''
-    };
-  });
-
-  const handleConfigSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const config: FirebaseConfig = {
-      apiKey: formData.get('apiKey') as string,
-      projectId: formData.get('projectId') as string,
-      authDomain: formData.get('authDomain') as string || `${formData.get('projectId')}.firebaseapp.com`,
-      storageBucket: formData.get('storageBucket') as string || `${formData.get('projectId')}.appspot.com`,
-      messagingSenderId: formData.get('messagingSenderId') as string || '',
-      appId: formData.get('appId') as string || ''
-    };
-    saveCustomFirebaseConfig(config);
-    alert('Configurações salvas! A página será recarregada para aplicar.');
-  };
 
   const handleManualSync = async () => {
     const success = await syncNow(state, onUpdateLocalState);
@@ -273,7 +247,7 @@ export function ConfiguracoesView({
                 {syncStatus === 'offline' && <CloudOff className="text-amber-500" size={22} />}
                 {syncStatus === 'error' && <AlertTriangle className="text-[var(--color-despesa)]" size={22} />}
                 {syncStatus === 'pending' && <Cloud className="text-[var(--text-discreto)]" size={22} />}
-                {syncStatus === 'not_configured' && <CloudOff className="text-[var(--text-discreto)]" size={22} />}
+                {syncStatus === 'not_configured' && <Cloud className="text-[var(--text-discreto)]" size={22} />}
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text-discreto)]">Status da Nuvem</span>
@@ -285,7 +259,7 @@ export function ConfiguracoesView({
                     {syncStatus === 'offline' && 'Modo Offline (Sem Internet)'}
                     {syncStatus === 'error' && 'Erro de Sincronização'}
                     {syncStatus === 'pending' && 'Conecte sua Conta'}
-                    {syncStatus === 'not_configured' && 'Aguardando Configuração'}
+                    {syncStatus === 'not_configured' && 'Conecte sua Conta'}
                   </h4>
                   {isOnline ? (
                     <span className="w-2 h-2 rounded-full bg-[var(--color-receita)] animate-ping" title="Online" />
@@ -297,7 +271,7 @@ export function ConfiguracoesView({
             </div>
 
             {/* Sync trigger button */}
-            {isConfigured && user && (
+            {user && (
               <button
                 disabled={syncStatus === 'syncing' || syncStatus === 'checking'}
                 onClick={handleManualSync}
@@ -326,14 +300,7 @@ export function ConfiguracoesView({
             </div>
 
             <div>
-              {!isConfigured ? (
-                <button
-                  onClick={() => setShowConfigForm(!showConfigForm)}
-                  className="py-2.5 px-4 bg-amber-500/10 hover:bg-amber-500/25 text-amber-600 border border-amber-500/20 text-xs font-bold rounded-[12px] transition-all cursor-pointer shrink-0"
-                >
-                  Configurar Firebase
-                </button>
-              ) : user ? (
+              {user ? (
                 <button
                   onClick={logout}
                   className="py-2.5 px-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 text-xs font-bold rounded-[12px] transition-all cursor-pointer shrink-0"
@@ -357,17 +324,29 @@ export function ConfiguracoesView({
           {/* Auth Error troubleshooting notice */}
           {authError && (
             <div className="border-t border-[var(--bg-tertiary)]/60 pt-3.5 mt-2 space-y-2.5">
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-[14px] text-xs text-[var(--text-general)]">
-                <div className="flex items-center justify-between gap-2 font-bold text-red-500 mb-1">
-                  <span className="flex items-center gap-1.5">
+              <div className={`p-4 rounded-[14px] text-xs text-[var(--text-general)] ${
+                authError.includes('popup-closed-by-user')
+                  ? 'bg-amber-500/10 border border-amber-500/20'
+                  : 'bg-red-500/10 border border-red-500/20'
+              }`}>
+                <div className="flex items-center justify-between gap-2 font-bold mb-1">
+                  <span className={`flex items-center gap-1.5 ${
+                    authError.includes('popup-closed-by-user') ? 'text-amber-600' : 'text-red-500'
+                  }`}>
                     <AlertTriangle size={15} />
                     {authError.includes('auth/unauthorized-domain') 
                       ? 'Domínio não Autorizado no Firebase' 
+                      : authError.includes('popup-closed-by-user')
+                      ? 'Login Cancelado'
                       : 'Erro de Autenticação'}
                   </span>
                   <button 
                     onClick={() => setAuthError(null)}
-                    className="text-[10px] bg-red-500/10 hover:bg-red-500/25 px-2 py-0.5 rounded-[6px] text-red-500 font-bold"
+                    className={`text-[10px] px-2 py-0.5 rounded-[6px] font-bold ${
+                      authError.includes('popup-closed-by-user')
+                        ? 'bg-amber-500/10 hover:bg-amber-500/25 text-amber-600'
+                        : 'bg-red-500/10 hover:bg-red-500/25 text-red-500'
+                    }`}
                   >
                     Ocultar Aviso
                   </button>
@@ -399,6 +378,10 @@ export function ConfiguracoesView({
                       </button>
                     </div>
                   </div>
+                ) : authError.includes('popup-closed-by-user') ? (
+                  <p className="text-[11px] text-[var(--text-discreto)] leading-relaxed mt-1 font-normal">
+                    A janela de login com o Google foi fechada antes da conclusão do processo. Se deseja conectar sua conta para sincronizar seus dados em tempo real, clique em <strong>Conectar com Google</strong> novamente.
+                  </p>
                 ) : (
                   <p className="text-[11px] text-[var(--text-discreto)] font-mono break-words mt-1">
                     {authError}
@@ -454,85 +437,6 @@ export function ConfiguracoesView({
           </div>
         )}
 
-        {/* Firebase Config Form Fallback / Guide */}
-        {(!isConfigured || showConfigForm) && (
-          <div className="border-t border-[var(--bg-tertiary)]/40 pt-4 mt-2 space-y-3.5">
-            <div className="p-3.5 bg-amber-500/5 border border-amber-500/15 rounded-[14px]">
-              <h4 className="text-xs font-bold text-amber-600 flex items-center gap-1">
-                <AlertTriangle size={13} />
-                <span>Instruções de Configuração</span>
-              </h4>
-              <p className="text-[10px] text-[var(--text-discreto)] mt-1.5 leading-relaxed">
-                Para ativar a sincronização na nuvem, você pode definir as variáveis de ambiente do Firebase no seu arquivo <strong>.env</strong>, ou pode colar as chaves do seu projeto Firebase Console diretamente abaixo (armazenadas com total segurança localmente em seu navegador).
-              </p>
-            </div>
-
-            <form onSubmit={handleConfigSubmit} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-[var(--text-general)] text-[11px]">API Key *</label>
-                  <input
-                    type="text"
-                    required
-                    name="apiKey"
-                    defaultValue={customConfig.apiKey}
-                    className="w-full bg-[var(--bg-app)] border border-[var(--bg-tertiary)] focus:border-[var(--bg-secondary)] rounded-[10px] px-3 py-2 text-xs outline-none text-[var(--text-general)] font-mono"
-                    placeholder="AIzaSy..."
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-[var(--text-general)] text-[11px]">Project ID *</label>
-                  <input
-                    type="text"
-                    required
-                    name="projectId"
-                    defaultValue={customConfig.projectId}
-                    className="w-full bg-[var(--bg-app)] border border-[var(--bg-tertiary)] focus:border-[var(--bg-secondary)] rounded-[10px] px-3 py-2 text-xs outline-none text-[var(--text-general)] font-mono"
-                    placeholder="fluc-financeiro"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-[var(--text-general)] text-[11px]">Auth Domain</label>
-                  <input
-                    type="text"
-                    name="authDomain"
-                    defaultValue={customConfig.authDomain}
-                    className="w-full bg-[var(--bg-app)] border border-[var(--bg-tertiary)] focus:border-[var(--bg-secondary)] rounded-[10px] px-3 py-2 text-xs outline-none text-[var(--text-general)] font-mono"
-                    placeholder="fluc-financeiro.firebaseapp.com"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-[var(--text-general)] text-[11px]">App ID</label>
-                  <input
-                    type="text"
-                    name="appId"
-                    defaultValue={customConfig.appId}
-                    className="w-full bg-[var(--bg-app)] border border-[var(--bg-tertiary)] focus:border-[var(--bg-secondary)] rounded-[10px] px-3 py-2 text-xs outline-none text-[var(--text-general)] font-mono"
-                    placeholder="1:1234:web:abcd..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end pt-1">
-                {isConfigured && (
-                  <button
-                    type="button"
-                    onClick={removeCustomFirebaseConfig}
-                    className="py-2 px-3.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 text-xs font-semibold rounded-[10px] cursor-pointer transition-all"
-                  >
-                    Excluir Configuração
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  className="py-2 px-4 bg-[var(--bg-secondary)] text-white text-xs font-bold rounded-[10px] cursor-pointer hover:opacity-90 transition-all"
-                >
-                  Salvar Configurações
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
       </div>
 
       {/* 2. Local JSON Backup and Restore Submenu */}
