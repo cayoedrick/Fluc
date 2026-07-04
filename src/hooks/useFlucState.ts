@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FlucState, Conta, Cartao, Categoria, Lancamento, Cofrinho, CofrinhoHistorico } from '../types';
 import { getDefaultState } from '../data/defaults';
 import { auth } from '../lib/firebase';
-import { subscribeToData, saveData } from '../services/db';
+import { subscribeToData, saveData, fetchData } from '../services/db';
 
 export function useFlucState() {
   const [state, setState] = useState<FlucState>(() => {
@@ -150,6 +150,57 @@ export function useFlucState() {
       return () => clearTimeout(timeout);
     }
   }, [state]);
+
+  // Periodic 5-second sync check (Analysis & Force Sync)
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const interval = setInterval(async () => {
+      try {
+        // 1. Force Download: Analyze data on server to ensure local is up to date
+        const remoteState = await fetchData('state') as FlucState | null;
+        
+        if (remoteState) {
+          setState(prev => {
+            // Verify and merge taking newest items (prio to most recent)
+            const merged = mergeStates(prev, remoteState);
+            const hasChangesFromRemote = JSON.stringify(merged) !== JSON.stringify(prev);
+            
+            if (hasChangesFromRemote) {
+              console.log("Forced sync: Discrepancies detected and fixed by 5s check.");
+              skipNextSave.current = true;
+              return {
+                ...merged,
+                lastSyncDownload: Date.now()
+              };
+            }
+            return prev;
+          });
+        }
+
+        // 2. Force Upload check: Ensure local changes are always on server
+        // This acts as a backup to the immediate save useEffect
+        setState(prev => {
+          const lastUpload = prev.lastSyncUpload || 0;
+          const timeSinceLastSync = Date.now() - lastUpload;
+          
+          // If we haven't synced for more than 15s but have state, re-verify upload
+          if (timeSinceLastSync > 15000) {
+            const now = Date.now();
+            const stateWithUpload = { ...prev, lastSyncUpload: now };
+            saveData('state', stateWithUpload);
+            return stateWithUpload;
+          }
+          return prev;
+        });
+
+      } catch (error) {
+        console.error("Periodic sync check error:", error);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [auth.currentUser]);
 
   // Helper to enrich state items with updatedAt timestamps when modified or created
   const enrichStateWithTimestamps = (prev: FlucState, next: FlucState): FlucState => {
