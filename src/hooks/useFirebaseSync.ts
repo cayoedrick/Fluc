@@ -315,11 +315,13 @@ export function useFirebaseSync() {
   const loginWithGoogle = useCallback(async () => {
     if (!isConfigured) {
       addLog('Autenticação', 'Erro: Firebase não configurado no aplicativo.', 'error');
+      setAuthError('Firebase não configurado.');
       return;
     }
 
     addLog('Autenticação', 'Iniciando login com a conta Google...', 'info');
     setAuthError(null);
+    setAuthLoading(true);
     try {
       const auth = getFirebaseAuth();
       const provider = getGoogleProvider();
@@ -339,6 +341,8 @@ export function useFirebaseSync() {
         addLog('Autenticação', `Falha ao fazer login com o Google: ${errMsg}`, 'error');
         setAuthError(errMsg);
       }
+    } finally {
+      setAuthLoading(false);
     }
   }, [isConfigured, addLog]);
 

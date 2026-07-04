@@ -309,13 +309,18 @@ export function ConfiguracoesView({
                 </button>
               ) : (
                 <button
+                  disabled={authLoading}
                   onClick={loginWithGoogle}
-                  className="py-2.5 px-4 bg-[var(--bg-secondary)] text-white text-xs font-bold rounded-[12px] transition-all cursor-pointer shrink-0 flex items-center gap-2"
+                  className="py-2.5 px-4 bg-[var(--bg-secondary)] text-white text-xs font-bold rounded-[12px] transition-all cursor-pointer shrink-0 flex items-center gap-2 disabled:opacity-60"
                 >
-                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M12.24 10.285V13.4h6.887C18.2 15.614 15.645 18 12.24 18c-3.86 0-7-3.14-7-7s3.14-7 7-7c1.71 0 3.27.61 4.5 1.615l2.42-2.42C17.43 1.58 14.97 1 12.24 1 6.58 1 2 5.58 2 11.24s4.58 10.24 10.24 10.24c5.79 0 10.24-4.11 10.24-10.24 0-.695-.08-1.355-.22-1.955H12.24z"/>
-                  </svg>
-                  <span>Conectar com Google</span>
+                  {authLoading ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12.24 10.285V13.4h6.887C18.2 15.614 15.645 18 12.24 18c-3.86 0-7-3.14-7-7s3.14-7 7-7c1.71 0 3.27.61 4.5 1.615l2.42-2.42C17.43 1.58 14.97 1 12.24 1 6.58 1 2 5.58 2 11.24s4.58 10.24 10.24 10.24c5.79 0 10.24-4.11 10.24-10.24 0-.695-.08-1.355-.22-1.955H12.24z"/>
+                    </svg>
+                  )}
+                  <span>{authLoading ? 'Conectando...' : 'Conectar com Google'}</span>
                 </button>
               )}
             </div>
