@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Conta, Cartao, Categoria, Lancamento } from '../types';
 import { 
   Plus, 
-  Bell, 
-  Lock, 
   ChevronLeft, 
   ChevronRight, 
   Filter, 
@@ -23,6 +21,7 @@ import {
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
 import { FloatingInfoModal } from './FloatingInfoModal';
+import { SyncStatusIcon } from './SyncStatusIcon';
 
 interface ExtratoViewProps {
   contas: Conta[];
@@ -30,6 +29,7 @@ interface ExtratoViewProps {
   categorias: Categoria[];
   lancamentos: Lancamento[];
   onOpenAddModal: () => void;
+  onOpenSyncModal: () => void;
   isDateInMonthYear: (dateStr: string, monthYearStr: string) => boolean;
   onDeleteLancamento?: (id: string, mode: 'este' | 'futuros' | 'todos') => void;
   onEditLancamento?: (id: string, updatedFields: Partial<Lancamento>, mode: 'este' | 'futuros' | 'todos') => void;
@@ -42,6 +42,7 @@ export function ExtratoView({
   categorias,
   lancamentos,
   onOpenAddModal,
+  onOpenSyncModal,
   isDateInMonthYear,
   onDeleteLancamento,
   onEditLancamento,
@@ -272,19 +273,7 @@ export function ExtratoView({
           >
             <Plus size={20} className="stroke-[2.5]" />
           </button>
-
-          <button
-            className="w-10 h-10 rounded-full bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-discreto)] hover:text-[var(--text-general)] transition-all cursor-pointer"
-            onClick={() => alert('Nenhuma nova notificação.')}
-          >
-            <Bell size={18} />
-          </button>
-
-          <button
-            className="w-10 h-10 rounded-full bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-discreto)]"
-          >
-            <Lock size={18} />
-          </button>
+          <SyncStatusIcon onClick={onOpenSyncModal} />
         </div>
       </div>
 

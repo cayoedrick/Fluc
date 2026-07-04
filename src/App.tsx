@@ -11,6 +11,8 @@ import { ConfiguracoesView } from './components/ConfiguracoesView';
 import { LancamentoModal } from './components/LancamentoModal';
 import { Menu, Plus, Home } from 'lucide-react';
 import { InteractiveTutorial } from './components/InteractiveTutorial';
+import { SyncStatusIcon } from './components/SyncStatusIcon';
+import { SyncStatusModal } from './components/SyncStatusModal';
 
 export default function App() {
   const {
@@ -35,6 +37,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(() => {
     const hasSeen = localStorage.getItem('fluc_tutorial_shown_or_skipped');
     return !hasSeen;
@@ -484,7 +487,7 @@ export default function App() {
         {/* Desktop Title & Drawer Toggle Header (Removed on Mobile per user request) */}
 
         {/* View Switch Stage Container */}
-        <main className="flex-1 p-4 md:p-8 max-w-4xl w-full mx-auto pb-24 md:pb-8">
+        <main className="flex-1 p-4 md:p-8 max-w-4xl w-full mx-auto pb-24 md:pb-8 relative">
           
           {currentView === 'dashboard' && (
             <DashboardView
@@ -508,6 +511,7 @@ export default function App() {
               onOpenMenu={() => setIsSidebarOpen(true)}
               onEditLancamento={handleEditLancamento}
               onDeleteLancamento={handleDeleteLancamento}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -522,6 +526,7 @@ export default function App() {
               onDeleteLancamento={handleDeleteLancamento}
               onEditLancamento={handleEditLancamento}
               onOpenMenu={() => setIsSidebarOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -530,6 +535,7 @@ export default function App() {
               categorias={state.categorias}
               onUpdateCategorias={handleUpdateCategorias}
               onOpenMenu={() => setIsSidebarOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -545,6 +551,7 @@ export default function App() {
               onEditConta={handleEditConta}
               onEditCartao={handleEditCartao}
               onOpenMenu={() => setIsSidebarOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -558,6 +565,7 @@ export default function App() {
               onAddCofrinhoHistorico={handleAddCofrinhoHistorico}
               onDeleteCofrinho={handleDeleteCofrinho}
               onOpenMenu={() => setIsSidebarOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -608,6 +616,12 @@ export default function App() {
       </div>
 
       {/* Floating launchers/popups trigger */}
+      <SyncStatusModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        lastUpload={state.lastSyncUpload}
+        lastDownload={state.lastSyncDownload}
+      />
       <LancamentoModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}

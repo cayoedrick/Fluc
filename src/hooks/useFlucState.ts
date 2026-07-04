@@ -37,7 +37,8 @@ export function useFlucState() {
         isSyncing.current = true;
         setState(prev => ({
           ...prev,
-          ...remoteState
+          ...remoteState,
+          lastSyncDownload: Date.now()
         } as FlucState));
         setTimeout(() => { isSyncing.current = false; }, 100);
       }
@@ -51,7 +52,13 @@ export function useFlucState() {
     localStorage.setItem('fluc_financial_state', JSON.stringify(state));
 
     if (auth.currentUser && !isSyncing.current) {
-      saveData('state', state);
+      // Avoid infinite loop: set syncing, save, update state, unset syncing
+      isSyncing.current = true;
+      const stateWithUpload = { ...state, lastSyncUpload: Date.now() };
+      saveData('state', stateWithUpload).then(() => {
+        setState(stateWithUpload);
+        isSyncing.current = false;
+      });
     }
   }, [state]);
 
@@ -59,7 +66,7 @@ export function useFlucState() {
   const enrichStateWithTimestamps = (prev: FlucState, next: FlucState): FlucState => {
     const collections: (keyof FlucState)[] = ['contas', 'cartoes', 'categorias', 'lancamentos', 'cofrinhos', 'cofrinhoHistorico'];
     const now = Date.now();
-    const updatedCollections: Partial<FlucState> = {};
+    const updatedCollections: Record<string, any> = {};
     let changed = false;
 
     for (const colKey of collections) {

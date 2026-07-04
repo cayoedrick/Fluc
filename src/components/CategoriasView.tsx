@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Categoria } from '../types';
 import { Plus, Trash2, Edit2, Check, X, ArrowUp, ArrowDown, Tag, TrendingUp, TrendingDown } from 'lucide-react';
+import { SyncStatusIcon } from './SyncStatusIcon';
 
 interface CategoriasViewProps {
   categorias: Categoria[];
   onUpdateCategorias: (cats: Categoria[]) => void;
   onOpenMenu?: () => void;
+  onOpenSyncModal: () => void;
 }
 
-export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu }: CategoriasViewProps) {
+export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onOpenSyncModal }: CategoriasViewProps) {
   const [activeTab, setActiveTab] = useState<'receita' | 'despesa'>('receita');
   
   // States for adding / editing
@@ -106,6 +108,7 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu }: C
             <h2 className="text-2xl font-extrabold text-[var(--text-general)] tracking-tight">Categorias</h2>
           </div>
         </div>
+        <SyncStatusIcon onClick={onOpenSyncModal} />
       </div>
 
       {/* 2. Toggle Tabbing (Receitas vs Despesas) */}

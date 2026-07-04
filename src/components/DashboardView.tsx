@@ -19,6 +19,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
+import { SyncStatusIcon } from './SyncStatusIcon';
 
 interface DashboardViewProps {
   contas: Conta[];
@@ -27,6 +28,7 @@ interface DashboardViewProps {
   lancamentos: Lancamento[];
   cofrinhos: Cofrinho[];
   onOpenAddModal: () => void;
+  onOpenSyncModal: () => void;
   getAccountBalance: (id: string) => number;
   getTotalBalance: () => number;
   getCardInvoiceValue: (id: string, monthYear: string) => number;
@@ -58,6 +60,7 @@ export function DashboardView({
   lancamentos,
   cofrinhos,
   onOpenAddModal,
+  onOpenSyncModal,
   getAccountBalance,
   getTotalBalance,
   getCardInvoiceValue,
@@ -275,6 +278,8 @@ export function DashboardView({
           >
             <Plus size={20} className="stroke-[2.5]" />
           </button>
+          {/* Sync Status */}
+          <SyncStatusIcon onClick={onOpenSyncModal} />
         </div>
       </div>
 

@@ -14,6 +14,7 @@ import {
   Paintbrush,
   TrendingUp as YieldIcon
 } from 'lucide-react';
+import { SyncStatusIcon } from './SyncStatusIcon';
 
 interface ReservasCofrinhosViewProps {
   cofrinhos: Cofrinho[];
@@ -24,6 +25,7 @@ interface ReservasCofrinhosViewProps {
   onAddCofrinhoHistorico: (h: Omit<CofrinhoHistorico, 'id'>) => void;
   onDeleteCofrinho: (id: string) => void;
   onOpenMenu?: () => void;
+  onOpenSyncModal: () => void;
 }
 
 const PRESET_COLORS = [
@@ -43,7 +45,8 @@ export function ReservasCofrinhosView({
   onUpdateCofrinho,
   onAddCofrinhoHistorico,
   onDeleteCofrinho,
-  onOpenMenu
+  onOpenMenu,
+  onOpenSyncModal
 }: ReservasCofrinhosViewProps) {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
@@ -267,6 +270,7 @@ export function ReservasCofrinhosView({
         >
           <Plus size={20} className="stroke-[2.5]" />
         </button>
+        <SyncStatusIcon onClick={onOpenSyncModal} />
       </div>
 
       {/* 2. Cofrinhos Grid */}

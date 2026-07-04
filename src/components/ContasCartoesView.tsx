@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Conta, Cartao } from '../types';
 import { Plus, Landmark, CreditCard, Paintbrush, Check, X, HelpCircle } from 'lucide-react';
+import { SyncStatusIcon } from './SyncStatusIcon';
 
 interface ContasCartoesViewProps {
   contas: Conta[];
@@ -13,6 +14,7 @@ interface ContasCartoesViewProps {
   onEditConta: (id: string, c: Partial<Conta>) => void;
   onEditCartao: (id: string, c: Partial<Cartao>) => void;
   onOpenMenu?: () => void;
+  onOpenSyncModal: () => void;
 }
 
 const PRESET_COLORS = [
@@ -35,7 +37,8 @@ export function ContasCartoesView({
   onDeleteCartao,
   onEditConta,
   onEditCartao,
-  onOpenMenu
+  onOpenMenu,
+  onOpenSyncModal
 }: ContasCartoesViewProps) {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTab, setModalTab] = useState<'conta' | 'cartao'>('conta');
@@ -219,6 +222,7 @@ export function ContasCartoesView({
         >
           <Plus size={20} className="stroke-[2.5]" />
         </button>
+        <SyncStatusIcon onClick={onOpenSyncModal} />
       </div>
 
       {/* 2. Grid Section - Contas Bancárias */}
