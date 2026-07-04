@@ -263,14 +263,16 @@ export function ReservasCofrinhosView({
           </div>
         </div>
 
-        <button
-          onClick={() => setIsAddOpen(true)}
-          className="w-10 h-10 rounded-full bg-[var(--bg-secondary)] text-white flex items-center justify-center hover:opacity-90 transition-all cursor-pointer"
-          title="Nova Reserva / Cofrinho"
-        >
-          <Plus size={20} className="stroke-[2.5]" />
-        </button>
-        <SyncStatusIcon onClick={onOpenSyncModal} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="w-10 h-10 rounded-full bg-[var(--bg-secondary)] text-white flex items-center justify-center hover:opacity-90 transition-all cursor-pointer"
+            title="Nova Reserva / Cofrinho"
+          >
+            <Plus size={20} className="stroke-[2.5]" />
+          </button>
+          <SyncStatusIcon onClick={onOpenSyncModal} />
+        </div>
       </div>
 
       {/* 2. Cofrinhos Grid */}
