@@ -85,12 +85,21 @@ export function useFlucState() {
     const localMod = local.lastModifiedAt || 0;
     const remoteMod = remote.lastModifiedAt || 0;
     
-    if (remoteMod >= localMod && remote.theme) {
+    // Theme merge
+    if (remoteMod > localMod && remote.theme) {
       merged.theme = remote.theme;
     }
     
-    // Always keep the most recent lastModifiedAt
+    // Metadata merge
     merged.lastModifiedAt = Math.max(localMod, remoteMod);
+    
+    // Critical fix: If remote is newer or equal, adopt its sync status 
+    // to prevent redundant re-uploads of the same state.
+    if (remoteMod >= localMod) {
+      merged.lastSyncUpload = remote.lastSyncUpload;
+    } else {
+      merged.lastSyncUpload = local.lastSyncUpload;
+    }
     
     return merged;
   };
@@ -102,17 +111,22 @@ export function useFlucState() {
     const unsubscribe = subscribeToData('state', (remoteState) => {
       if (remoteState) {
         setState(prev => {
-          // If remote is exactly what we just uploaded, skip verification
-          if (remoteState.lastSyncUpload === prev.lastSyncUpload) return prev;
+          const remoteUp = remoteState.lastSyncUpload || 0;
+          const remoteMod = remoteState.lastModifiedAt || 0;
+          const localUp = prev.lastSyncUpload || 0;
+          const localMod = prev.lastModifiedAt || 0;
+
+          // Avoid processing if it's exactly what we already have
+          if (remoteUp === localUp && remoteMod <= localMod) return prev;
           
-          // 1. Data verification and merging (conferência)
+          // Data verification and merging (conferência)
           const merged = mergeStates(prev, remoteState);
           
-          // 2. Only update if there are actual changes
+          // Only update if there are actual changes
           const hasChanges = JSON.stringify(merged) !== JSON.stringify(prev);
           if (!hasChanges) return prev;
 
-          // 3. Update interface atomically after verification
+          console.log("Real-time sync: Received update from another device.");
           skipNextSave.current = true;
           return {
             ...merged,
@@ -142,7 +156,7 @@ export function useFlucState() {
         const lastMod = state.lastModifiedAt || 0;
         const lastUp = state.lastSyncUpload || 0;
 
-        // Only save if there are actual unsaved changes
+        // Only save if there are actual unsaved local changes
         if (lastMod <= lastUp) return;
 
         const now = Date.now();
@@ -151,14 +165,17 @@ export function useFlucState() {
         try {
           await saveData('state', stateWithUpload);
           setState(prev => {
-            if (prev.lastSyncUpload && prev.lastSyncUpload > now) return prev;
+            // Check if any newer modifications happened during the save
+            const currentMod = prev.lastModifiedAt || 0;
+            if (currentMod > lastMod) return prev; 
+            
             skipNextSave.current = true;
             return { ...prev, lastSyncUpload: now };
           });
         } catch (e) {
           console.error("Sync save failed", e);
         }
-      }, 2000); // 2s debounce for better performance and Firestore limits
+      }, 1000); // 1s debounce for responsiveness vs quota balance
 
       return () => clearTimeout(timeout);
     }
