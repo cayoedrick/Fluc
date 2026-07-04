@@ -58,7 +58,7 @@ export function useFlucState() {
       // Request background sync
       if ('serviceWorker' in navigator && 'SyncManager' in window) {
         navigator.serviceWorker.ready.then((swRegistration) => {
-          return (swRegistration as any).sync.register('sync-financial-data');
+          return (swRegistration as any).sync.register('sync');
         }).catch((err) => {
           console.error('[App] Background sync registration failed:', err);
         });

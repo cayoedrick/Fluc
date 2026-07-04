@@ -74,8 +74,8 @@ self.addEventListener('fetch', (event) => {
 
 // Background Sync - Manipulador para sincronização em segundo plano
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-financial-data') {
-    console.log('[SW] Background sync disparado: sync-financial-data');
+  if (event.tag === 'sync') {
+    console.log('[SW] Background sync disparado: sync');
     event.waitUntil(syncData());
   }
 });
