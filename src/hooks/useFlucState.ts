@@ -110,9 +110,9 @@ export function useFlucState() {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Real-time listener: onSnapshot replaces one-time get()
-    const unsubscribe = subscribeToData('state', (remoteState, hasPendingWrites) => {
-      setIsCloudSyncing(hasPendingWrites);
+    // Real-time listener
+    const unsubscribe = subscribeToData(currentUser.uid, 'state', (remoteState, isSyncing) => {
+      setIsCloudSyncing(isSyncing);
       
       if (remoteState) {
         setState(prev => {
@@ -121,6 +121,7 @@ export function useFlucState() {
           const localUp = prev.lastSyncUpload || 0;
           const localMod = prev.lastModifiedAt || 0;
 
+          // Optimization: Skip if remote is exactly what we just uploaded or older
           if (remoteUp === localUp && remoteMod <= localMod) return prev;
           
           const merged = mergeStates(prev, remoteState);
@@ -128,13 +129,15 @@ export function useFlucState() {
           
           if (!hasChanges) return prev;
 
-          console.log("Real-time sync: Active listener updated state from server.");
+          console.log(`[RTDB Sync] State update received. RemoteMod: ${remoteMod}, LocalMod: ${localMod}`);
           skipNextSave.current = true;
           return {
             ...merged,
             lastSyncDownload: Date.now()
           };
         });
+      } else {
+        console.log("[RTDB Sync] No remote state found for user.");
       }
     });
 
@@ -163,7 +166,8 @@ export function useFlucState() {
         const stateWithUpload = { ...state, lastSyncUpload: now };
         
         try {
-          await saveData('state', stateWithUpload);
+          console.log(`[RTDB Sync] Uploading state... LastMod: ${lastMod}`);
+          await saveData(currentUser.uid, 'state', stateWithUpload);
           setState(prev => {
             const currentMod = prev.lastModifiedAt || 0;
             if (currentMod > lastMod) return prev; 
@@ -171,8 +175,9 @@ export function useFlucState() {
             skipNextSave.current = true;
             return { ...prev, lastSyncUpload: now };
           });
+          console.log("[RTDB Sync] Upload successful.");
         } catch (e) {
-          console.error("Sync save failed", e);
+          console.error("[RTDB Sync] Upload failed", e);
         }
       }, 1000);
 
@@ -194,7 +199,8 @@ export function useFlucState() {
         if (lastMod > lastUp) {
           const now = Date.now();
           const stateWithUpload = { ...prev, lastSyncUpload: now };
-          saveData('state', stateWithUpload).catch(err => console.error("Periodic upload failed", err));
+          console.log("[RTDB Sync] Periodic sanity check: pushing unsaved local changes.");
+          saveData(currentUser.uid, 'state', stateWithUpload).catch(err => console.error("[RTDB Sync] Periodic upload failed", err));
           return stateWithUpload;
         }
         return prev;
