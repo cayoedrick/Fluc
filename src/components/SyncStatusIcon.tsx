@@ -8,17 +8,17 @@ interface SyncStatusIconProps {
 }
 
 export function SyncStatusIcon({ onClick, className = "" }: SyncStatusIconProps) {
-  const { state } = useFlucState();
+  const { state, isCloudSyncing } = useFlucState();
   
-  // Simple logic: if both times are close to now, it's synced.
-  const isSynced = state.lastSyncUpload && state.lastSyncDownload && (Date.now() - state.lastSyncUpload < 60000);
+  const isSynced = state.lastSyncUpload && !isCloudSyncing;
   
   return (
     <button
       onClick={onClick}
-      className={`w-10 h-10 rounded-full bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] flex items-center justify-center transition-all cursor-pointer ${isSynced ? 'text-blue-500' : 'text-gray-500'} ${className}`}
+      className={`w-10 h-10 rounded-full bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] flex items-center justify-center transition-all cursor-pointer ${isCloudSyncing ? 'text-orange-500 animate-pulse' : isSynced ? 'text-blue-500' : 'text-gray-500'} ${className}`}
+      title={isCloudSyncing ? "Sincronizando..." : isSynced ? "Sincronizado" : "Não sincronizado"}
     >
-      {isSynced ? <CloudCheck size={20} /> : <Cloud size={20} />}
+      {isCloudSyncing ? <Cloud size={20} /> : isSynced ? <CloudCheck size={20} /> : <Cloud size={20} />}
     </button>
   );
 }

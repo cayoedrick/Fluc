@@ -7,6 +7,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 
 export function useFlucState() {
   const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [state, setState] = useState<FlucState>(() => {
     const saved = localStorage.getItem('fluc_financial_state');
     if (saved) {
@@ -110,7 +111,9 @@ export function useFlucState() {
     if (!currentUser) return;
 
     // Real-time listener: onSnapshot replaces one-time get()
-    const unsubscribe = subscribeToData('state', (remoteState) => {
+    const unsubscribe = subscribeToData('state', (remoteState, hasPendingWrites) => {
+      setIsCloudSyncing(hasPendingWrites);
+      
       if (remoteState) {
         setState(prev => {
           const remoteUp = remoteState.lastSyncUpload || 0;
@@ -630,6 +633,7 @@ export function useFlucState() {
     resetAllData,
     eraseAllData,
     importStateFromJSON,
-    isDateInMonthYear
+    isDateInMonthYear,
+    isCloudSyncing
   };
 }
