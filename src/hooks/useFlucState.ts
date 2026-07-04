@@ -37,7 +37,8 @@ export function useFlucState() {
         isSyncing.current = true;
         setState(prev => ({
           ...prev,
-          ...remoteState
+          ...remoteState,
+          lastSyncDownload: new Date().toISOString()
         } as FlucState));
         setTimeout(() => { isSyncing.current = false; }, 100);
       }
@@ -51,7 +52,8 @@ export function useFlucState() {
     localStorage.setItem('fluc_financial_state', JSON.stringify(state));
 
     if (auth.currentUser && !isSyncing.current) {
-      saveData('state', state);
+      const stateToSave = { ...state, lastSyncUpload: new Date().toISOString() };
+      saveData('state', stateToSave);
       
       // Request background sync
       if ('serviceWorker' in navigator && 'SyncManager' in window) {

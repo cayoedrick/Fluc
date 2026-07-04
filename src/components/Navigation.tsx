@@ -25,9 +25,11 @@ interface NavigationProps {
   onClose: () => void;
   theme: 'dark' | 'clean';
   onThemeToggle: () => void;
+  lastSyncUpload?: string;
+  lastSyncDownload?: string;
 }
 
-export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, onThemeToggle }: NavigationProps) {
+export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, onThemeToggle, lastSyncUpload, lastSyncDownload }: NavigationProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -197,6 +199,14 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
                 <CloudCheck size={14} className="text-emerald-500" />
                 <span>Sincronizado</span>
               </>
+            )}
+          </div>
+          <div className="flex flex-col gap-1 text-[10px] text-[var(--text-discreto)] mt-2">
+            {lastSyncUpload && (
+              <p>Último Envio: {new Date(lastSyncUpload).toLocaleString('pt-BR')}</p>
+            )}
+            {lastSyncDownload && (
+              <p>Última Atualização: {new Date(lastSyncDownload).toLocaleString('pt-BR')}</p>
             )}
           </div>
           <p className="text-[10px] text-[var(--text-discreto)] mt-1 opacity-70">Versão 1.0.0 • Fluc PWA</p>

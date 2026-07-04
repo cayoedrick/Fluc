@@ -67,8 +67,6 @@ export default function App() {
       theme: state.theme === 'dark' ? 'clean' : 'dark'
     });
   };
-
-  // Helper to add months to YYYY-MM-DD
   const addMonthsToDateStr = (dateStr: string, monthsToAdd: number): string => {
     const [year, month, day] = dateStr.split('-').map(Number);
     const targetMonthIndex = month - 1 + monthsToAdd;
@@ -478,6 +476,8 @@ export default function App() {
         onClose={() => setIsSidebarOpen(false)}
         theme={state.theme}
         onThemeToggle={handleThemeToggle}
+        lastSyncUpload={state.lastSyncUpload}
+        lastSyncDownload={state.lastSyncDownload}
       />
 
       {/* Main Screen Content */}
