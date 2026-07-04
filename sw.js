@@ -1,6 +1,7 @@
 // Service worker for PWA.
 const BYPASS_DOMAINS = [
   'firestore.googleapis.com',
+  'firebasedatabase.app',
   'firebasestorage.googleapis.com',
   'www.googleapis.com',
   'identitytoolkit.googleapis.com',
