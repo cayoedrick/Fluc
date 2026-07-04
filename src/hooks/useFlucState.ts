@@ -116,70 +116,72 @@ export function useFlucState() {
       
       if (remoteState) {
         setState(prev => {
-          const remoteUp = remoteState.lastSyncUpload || 0;
-          const remoteMod = remoteState.lastModifiedAt || 0;
-          const localUp = prev.lastSyncUpload || 0;
-          const localMod = prev.lastModifiedAt || 0;
-
-          // Optimization: Skip if remote is exactly what we just uploaded or older
-          if (remoteUp === localUp && remoteMod <= localMod) return prev;
-          
           const merged = mergeStates(prev, remoteState);
-          const hasChanges = JSON.stringify(merged) !== JSON.stringify(prev);
           
+          // Check if remote data brought anything new OR if local data is still ahead
+          const hasChanges = JSON.stringify(merged) !== JSON.stringify(prev);
           if (!hasChanges) return prev;
 
-          console.log(`[RTDB Sync] State update received. RemoteMod: ${remoteMod}, LocalMod: ${localMod}`);
-          skipNextSave.current = true;
+          const remoteMod = remoteState.lastModifiedAt || 0;
+          const localMod = prev.lastModifiedAt || 0;
+
+          if (localMod > remoteMod) {
+            console.log(`[RTDB Sync] Merge: Local device has newer unsaved changes. Merging and preparing to re-upload.`);
+          } else if (remoteMod > localMod) {
+            console.log(`[RTDB Sync] Merge: Server has newer data. Updating local state.`);
+          } else {
+            console.log(`[RTDB Sync] Merge: Concurrent changes detected or timestamps matched. Merging lists.`);
+          }
+
+          // Important: We do NOT skipNextSave here anymore. 
+          // If the merged state has localMod > merged.lastSyncUpload, 
+          // the persistence effect will naturally trigger an upload to reconcile the server.
           return {
             ...merged,
             lastSyncDownload: Date.now()
           };
         });
       } else {
-        console.log("[RTDB Sync] No remote state found for user.");
+        console.log("[RTDB Sync] No remote state found for user. Initializing server if local data exists.");
       }
     });
 
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Persistence: Save to localStorage and Firestore on change
+  // Persistence: Save to localStorage and RTDB on change
   useEffect(() => {
     localStorage.setItem('fluc_financial_state', JSON.stringify(state));
 
     if (currentUser) {
-      if (skipNextSave.current) {
-        skipNextSave.current = false;
-        return;
-      }
-
       const timeout = setTimeout(async () => {
         if (!currentUser) return;
         
         const lastMod = state.lastModifiedAt || 0;
         const lastUp = state.lastSyncUpload || 0;
 
+        // Only upload if local modifications are newer than the last successful sync
         if (lastMod <= lastUp) return;
 
         const now = Date.now();
         const stateWithUpload = { ...state, lastSyncUpload: now };
         
         try {
-          console.log(`[RTDB Sync] Uploading state... LastMod: ${lastMod}`);
+          console.log(`[RTDB Sync] Syncing local changes to cloud... (LocalMod: ${lastMod}, LastUp: ${lastUp})`);
           await saveData(currentUser.uid, 'state', stateWithUpload);
+          
           setState(prev => {
             const currentMod = prev.lastModifiedAt || 0;
+            // If new changes happened during the async upload, don't overwrite lastSyncUpload blindly
             if (currentMod > lastMod) return prev; 
             
-            skipNextSave.current = true;
             return { ...prev, lastSyncUpload: now };
           });
-          console.log("[RTDB Sync] Upload successful.");
+          console.log("[RTDB Sync] Cloud sync complete.");
         } catch (e) {
-          console.error("[RTDB Sync] Upload failed", e);
+          console.error("[RTDB Sync] Cloud sync failed:", e);
         }
-      }, 1000);
+      }, 1500); // Increased debounce to 1.5s for stability
 
       return () => clearTimeout(timeout);
     }
@@ -640,6 +642,19 @@ export function useFlucState() {
     eraseAllData,
     importStateFromJSON,
     isDateInMonthYear,
-    isCloudSyncing
+    isCloudSyncing,
+    forceSync: async () => {
+      if (!currentUser) return;
+      const now = Date.now();
+      const stateWithUpload = { ...state, lastSyncUpload: now, lastModifiedAt: now };
+      try {
+        await saveData(currentUser.uid, 'state', stateWithUpload);
+        setState(stateWithUpload);
+        return true;
+      } catch (e) {
+        console.error("Force sync failed", e);
+        return false;
+      }
+    }
   };
 }

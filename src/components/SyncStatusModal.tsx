@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Cloud } from 'lucide-react';
+import { X, Cloud, RefreshCw } from 'lucide-react';
+import { useFlucState } from '../hooks/useFlucState';
 
 interface SyncStatusModalProps {
   isOpen: boolean;
@@ -10,7 +11,15 @@ interface SyncStatusModalProps {
 }
 
 export function SyncStatusModal({ isOpen, onClose, lastUpload, lastDownload }: SyncStatusModalProps) {
+  const { forceSync } = useFlucState();
+  const [isForcing, setIsForcing] = useState(false);
   const formatTime = (time?: number) => time ? new Date(time).toLocaleString() : 'N/A';
+
+  const handleForceSync = async () => {
+    setIsForcing(true);
+    await forceSync();
+    setIsForcing(false);
+  };
 
   return (
     <AnimatePresence>
@@ -56,9 +65,20 @@ export function SyncStatusModal({ isOpen, onClose, lastUpload, lastDownload }: S
               </div>
             </div>
 
-            <button onClick={onClose} className="w-full py-3 bg-[var(--bg-app)] hover:bg-[var(--bg-tertiary)] border border-[var(--bg-tertiary)] text-[var(--text-general)] font-bold text-xs rounded-2xl transition-all cursor-pointer">
-              Entendi, fechar
-            </button>
+            <div className="flex flex-col gap-2 pt-2">
+              <button 
+                onClick={handleForceSync} 
+                disabled={isForcing}
+                className="w-full py-3.5 bg-indigo-500 text-white font-bold text-xs rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-2 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={14} className={isForcing ? 'animate-spin' : ''} />
+                {isForcing ? 'Sincronizando...' : 'Forçar Sincronização'}
+              </button>
+              
+              <button onClick={onClose} className="w-full py-3 bg-[var(--bg-app)] hover:bg-[var(--bg-tertiary)] border border-[var(--bg-tertiary)] text-[var(--text-general)] font-bold text-[11px] rounded-2xl transition-all cursor-pointer">
+                Entendi, fechar
+              </button>
+            </div>
           </motion.div>
         </div>
       )}
