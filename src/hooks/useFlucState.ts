@@ -16,6 +16,7 @@ export function useFlucState() {
             ...getDefaultState(),
             ...parsed,
             cofrinhoHistorico: parsed.cofrinhoHistorico || [],
+            deletedIds: parsed.deletedIds || [],
             theme: parsed.theme || 'clean'
           };
         }
@@ -27,6 +28,62 @@ export function useFlucState() {
   });
 
   const isSyncing = useRef(false);
+  const skipNextSave = useRef(false);
+
+  // Helper to merge local and remote states taking newest items by updatedAt
+  const mergeStates = (local: FlucState, remote: FlucState): FlucState => {
+    const combinedDeletedIds = Array.from(new Set([
+      ...(local.deletedIds || []),
+      ...(remote.deletedIds || [])
+    ]));
+
+    const merged: FlucState = { 
+      ...local,
+      deletedIds: combinedDeletedIds 
+    };
+    
+    const collections: (keyof FlucState)[] = ['contas', 'cartoes', 'categorias', 'lancamentos', 'cofrinhos', 'cofrinhoHistorico'];
+
+    for (const colKey of collections) {
+      const localList = (local[colKey] || []) as any[];
+      const remoteList = (remote[colKey] || []) as any[];
+
+      const resultMap = new Map<string, any>();
+
+      // Add all local items that are NOT deleted
+      localList.forEach(item => {
+        if (item && item.id && !combinedDeletedIds.includes(item.id)) {
+          resultMap.set(item.id, item);
+        }
+      });
+
+      // Merge remote items that are NOT deleted
+      remoteList.forEach(remoteItem => {
+        if (!remoteItem || !remoteItem.id || combinedDeletedIds.includes(remoteItem.id)) return;
+        
+        const localItem = resultMap.get(remoteItem.id);
+        if (!localItem) {
+          resultMap.set(remoteItem.id, remoteItem);
+        } else {
+          // Take the one with higher updatedAt
+          const localUpdate = localItem.updatedAt || 0;
+          const remoteUpdate = remoteItem.updatedAt || 0;
+          
+          if (remoteUpdate >= localUpdate) {
+            resultMap.set(remoteItem.id, remoteItem);
+          }
+        }
+      });
+
+      (merged as any)[colKey] = Array.from(resultMap.values());
+    }
+
+    // Handle other top-level fields
+    if (remote.theme) merged.theme = remote.theme;
+    if (remote.lastSyncUpload) merged.lastSyncUpload = remote.lastSyncUpload;
+    
+    return merged;
+  };
 
   // Sync with Firestore when authenticated
   useEffect(() => {
@@ -34,13 +91,17 @@ export function useFlucState() {
 
     const unsubscribe = subscribeToData('state', (remoteState) => {
       if (remoteState) {
-        isSyncing.current = true;
-        setState(prev => ({
-          ...prev,
-          ...remoteState,
-          lastSyncDownload: Date.now()
-        } as FlucState));
-        setTimeout(() => { isSyncing.current = false; }, 100);
+        setState(prev => {
+          // Avoid merging if it's identical or we just uploaded it
+          if (remoteState.lastSyncUpload === prev.lastSyncUpload) return prev;
+          
+          const merged = mergeStates(prev, remoteState);
+          skipNextSave.current = true;
+          return {
+            ...merged,
+            lastSyncDownload: Date.now()
+          };
+        });
       }
     });
 
@@ -51,14 +112,28 @@ export function useFlucState() {
   useEffect(() => {
     localStorage.setItem('fluc_financial_state', JSON.stringify(state));
 
-    if (auth.currentUser && !isSyncing.current) {
-      // Avoid infinite loop: set syncing, save, update state, unset syncing
-      isSyncing.current = true;
-      const stateWithUpload = { ...state, lastSyncUpload: Date.now() };
-      saveData('state', stateWithUpload).then(() => {
-        setState(stateWithUpload);
-        isSyncing.current = false;
-      });
+    if (auth.currentUser) {
+      if (skipNextSave.current) {
+        skipNextSave.current = false;
+        return;
+      }
+
+      // Debounce save to avoid rapid hits and allow local changes to stabilize
+      const timeout = setTimeout(() => {
+        const now = Date.now();
+        const stateWithUpload = { ...state, lastSyncUpload: now };
+        
+        // We update local state with the upload timestamp ONLY if no changes happened since
+        saveData('state', stateWithUpload).then(() => {
+          setState(prev => {
+            if (prev.lastSyncUpload && prev.lastSyncUpload > now) return prev;
+            skipNextSave.current = true; // Prevent re-saving after this update
+            return { ...prev, lastSyncUpload: now };
+          });
+        });
+      }, 3000);
+
+      return () => clearTimeout(timeout);
     }
   }, [state]);
 
@@ -68,6 +143,10 @@ export function useFlucState() {
     const now = Date.now();
     const updatedCollections: Record<string, any> = {};
     let changed = false;
+    
+    // Tombstone management
+    let newDeletedIds = [...(prev.deletedIds || [])];
+    let deletedChanged = false;
 
     for (const colKey of collections) {
       const prevList = (prev[colKey] || []) as any[];
@@ -76,6 +155,16 @@ export function useFlucState() {
       if (prevList === nextList) {
         continue;
       }
+
+      // Detect deletions
+      const nextIds = new Set(nextList.map(item => item.id));
+      prevList.forEach(item => {
+        if (!nextIds.has(item.id) && !newDeletedIds.includes(item.id)) {
+          newDeletedIds.push(item.id);
+          deletedChanged = true;
+          changed = true;
+        }
+      });
 
       const prevMap = new Map<string, any>(prevList.map(item => [item.id, item]));
       const enrichedList = nextList.map(item => {
@@ -91,7 +180,8 @@ export function useFlucState() {
         });
 
         if (fieldsChanged) {
-          if (item.updatedAt && item.updatedAt !== prevItem.updatedAt) {
+          // If updatedAt was already updated by some other logic, keep it
+          if (item.updatedAt && prevItem.updatedAt && item.updatedAt > prevItem.updatedAt) {
             return item;
           }
           changed = true;
@@ -104,10 +194,11 @@ export function useFlucState() {
       updatedCollections[colKey] = enrichedList as any;
     }
 
-    if (changed) {
+    if (changed || deletedChanged) {
       return {
         ...next,
-        ...updatedCollections
+        ...updatedCollections,
+        deletedIds: newDeletedIds
       };
     }
     return next;
@@ -447,6 +538,7 @@ export function useFlucState() {
           lancamentos: parsed.lancamentos,
           cofrinhos: parsed.cofrinhos,
           cofrinhoHistorico: parsed.cofrinhoHistorico || [],
+          deletedIds: parsed.deletedIds || [],
           theme: parsed.theme || 'clean'
         });
         return true;

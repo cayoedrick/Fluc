@@ -77,6 +77,7 @@ export interface FlucState {
   cofrinhos: Cofrinho[];
   cofrinhoHistorico: CofrinhoHistorico[];
   theme: 'dark' | 'clean';
+  deletedIds?: string[];
   lastSyncUpload?: number;
   lastSyncDownload?: number;
 }
