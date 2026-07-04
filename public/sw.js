@@ -71,3 +71,19 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Background Sync - Manipulador para sincronização em segundo plano
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-financial-data') {
+    console.log('[SW] Background sync disparado: sync-financial-data');
+    event.waitUntil(syncData());
+  }
+});
+
+async function syncData() {
+  // Lógica para sincronizar dados quando a conexão for restabelecida
+  // Como o SW não tem acesso fácil ao localStorage ou estado do App,
+  // essa lógica deve interagir com IndexedDB ou outras formas de persistência que o SW possa acessar.
+  console.log('[SW] Sincronizando dados...');
+  // Adicionar lógica de sincronização aqui
+}

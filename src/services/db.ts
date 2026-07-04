@@ -52,8 +52,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 const getUserDocRef = (path: string) => {
   const user = auth.currentUser;
   if (!user) throw new Error('User not authenticated');
-  // Construct path: /users/{userId}/{path}
-  return doc(db, 'users', user.uid, path);
+  // Construct path: /users/{userId}/data/{path}
+  return doc(db, 'users', user.uid, 'data', path);
 };
 
 export const saveData = async (path: string, data: DocumentData) => {
