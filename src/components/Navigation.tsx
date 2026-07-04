@@ -11,8 +11,12 @@ import {
   Lock,
   Sun,
   Moon,
-  Download
+  Download,
+  CloudCheck,
+  CloudUpload
 } from 'lucide-react';
+import { auth, db } from '../lib/firebase';
+import { onSnapshot, doc } from 'firebase/firestore';
 
 interface NavigationProps {
   currentView: ViewType;
@@ -32,19 +36,17 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
     }
     return false;
   });
+  const [hasPendingWrites, setHasPendingWrites] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevenir que o navegador mostre o mini-infobar automaticamente
       e.preventDefault();
-      // Salvar o evento para ser disparado posteriormente
       setDeferredPrompt(e);
     };
 
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
       setIsInstalled(true);
-      console.log('O Fluc foi instalado com sucesso como PWA!');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -56,19 +58,25 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
     };
   }, []);
 
+  useEffect(() => {
+    let unsubscribe: () => void;
+    if (auth.currentUser) {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      unsubscribe = onSnapshot(userDocRef, { includeMetadataChanges: true }, (snapshot) => {
+        setHasPendingWrites(snapshot.metadata.hasPendingWrites);
+      });
+    }
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     
-    // Dispara o prompt de instalação nativo
     deferredPrompt.prompt();
     
-    // Aguarda a escolha do usuário
     const choiceResult = await deferredPrompt.userChoice;
     if (choiceResult.outcome === 'accepted') {
-      console.log('Usuário aceitou a instalação do Fluc');
       setDeferredPrompt(null);
-    } else {
-      console.log('Usuário recusou a instalação do Fluc');
     }
   };
 
@@ -179,8 +187,17 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
           )}
 
           <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-discreto)]">
-            <Lock size={12} className="text-[var(--text-discreto)]" />
-            <span>Dados armazenados localmente</span>
+            {hasPendingWrites ? (
+              <>
+                <CloudUpload size={14} className="text-amber-500 animate-pulse" />
+                <span>Sincronizando...</span>
+              </>
+            ) : (
+              <>
+                <CloudCheck size={14} className="text-emerald-500" />
+                <span>Sincronizado</span>
+              </>
+            )}
           </div>
           <p className="text-[10px] text-[var(--text-discreto)] mt-1 opacity-70">Versão 1.0.0 • Fluc PWA</p>
         </div>
@@ -188,3 +205,4 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
     </>
   );
 }
+
