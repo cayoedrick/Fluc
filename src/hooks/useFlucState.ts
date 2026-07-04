@@ -82,9 +82,15 @@ export function useFlucState() {
     }
 
     // Handle theme and other metadata
-    if (remote.theme && (!local.lastSyncUpload || (remote.lastSyncUpload || 0) > (local.lastSyncUpload || 0))) {
+    const localMod = local.lastModifiedAt || 0;
+    const remoteMod = remote.lastModifiedAt || 0;
+    
+    if (remoteMod >= localMod && remote.theme) {
       merged.theme = remote.theme;
     }
+    
+    // Always keep the most recent lastModifiedAt
+    merged.lastModifiedAt = Math.max(localMod, remoteMod);
     
     return merged;
   };
@@ -155,19 +161,29 @@ export function useFlucState() {
   useEffect(() => {
     if (!auth.currentUser) return;
 
+    let isCheckInProgress = false;
+
     const interval = setInterval(async () => {
+      if (isCheckInProgress) return;
+      isCheckInProgress = true;
+
       try {
-        // 1. Force Download: Analyze data on server to ensure local is up to date
+        // 1. Force Download & Verification (Conferência)
         const remoteState = await fetchData('state') as FlucState | null;
         
         if (remoteState) {
           setState(prev => {
-            // Verify and merge taking newest items (prio to most recent)
+            // Only merge if remote has newer info OR we have different lastSyncUpload
+            if (remoteState.lastSyncUpload === prev.lastSyncUpload && 
+                (remoteState.lastModifiedAt || 0) <= (prev.lastModifiedAt || 0)) {
+              return prev;
+            }
+
             const merged = mergeStates(prev, remoteState);
             const hasChangesFromRemote = JSON.stringify(merged) !== JSON.stringify(prev);
             
             if (hasChangesFromRemote) {
-              console.log("Forced sync: Discrepancies detected and fixed by 5s check.");
+              console.log("Forced sync: Discrepancies detected and resolved.");
               skipNextSave.current = true;
               return {
                 ...merged,
@@ -178,17 +194,16 @@ export function useFlucState() {
           });
         }
 
-        // 2. Force Upload check: Ensure local changes are always on server
-        // This acts as a backup to the immediate save useEffect
+        // 2. Force Upload: If local has unsaved changes, push them
+        // We detect this if lastModifiedAt > lastSyncUpload
         setState(prev => {
-          const lastUpload = prev.lastSyncUpload || 0;
-          const timeSinceLastSync = Date.now() - lastUpload;
+          const lastMod = prev.lastModifiedAt || 0;
+          const lastUp = prev.lastSyncUpload || 0;
           
-          // If we haven't synced for more than 15s but have state, re-verify upload
-          if (timeSinceLastSync > 15000) {
+          if (lastMod > lastUp) {
             const now = Date.now();
             const stateWithUpload = { ...prev, lastSyncUpload: now };
-            saveData('state', stateWithUpload);
+            saveData('state', stateWithUpload).catch(err => console.error("Periodic upload failed", err));
             return stateWithUpload;
           }
           return prev;
@@ -196,6 +211,8 @@ export function useFlucState() {
 
       } catch (error) {
         console.error("Periodic sync check error:", error);
+      } finally {
+        isCheckInProgress = false;
       }
     }, 5000);
 
@@ -263,7 +280,8 @@ export function useFlucState() {
       return {
         ...next,
         ...updatedCollections,
-        deletedIds: newDeletedIds
+        deletedIds: newDeletedIds,
+        lastModifiedAt: now
       };
     }
     return next;

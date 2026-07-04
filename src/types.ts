@@ -80,4 +80,5 @@ export interface FlucState {
   deletedIds?: string[];
   lastSyncUpload?: number;
   lastSyncDownload?: number;
+  lastModifiedAt?: number;
 }
