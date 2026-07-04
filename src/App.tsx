@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useFlucState } from './hooks/useFlucState';
 import { ViewType, Lancamento, Conta, Cartao, Categoria, Cofrinho, CofrinhoHistorico } from './types';
 import { Navigation } from './components/Navigation';
@@ -9,9 +9,8 @@ import { ContasCartoesView } from './components/ContasCartoesView';
 import { ReservasCofrinhosView } from './components/ReservasCofrinhosView';
 import { ConfiguracoesView } from './components/ConfiguracoesView';
 import { LancamentoModal } from './components/LancamentoModal';
-import { Menu, Plus, Home, Cloud, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Menu, Plus, Home } from 'lucide-react';
 import { InteractiveTutorial } from './components/InteractiveTutorial';
-import { useFirebaseSync } from './hooks/useFirebaseSync';
 
 export default function App() {
   const {
@@ -32,65 +31,6 @@ export default function App() {
     importStateFromJSON,
     isDateInMonthYear
   } = useFlucState();
-
-  const syncProps = useFirebaseSync();
-  const {
-    user,
-    syncStatus,
-    lastSyncTime,
-    isOnline,
-    addLog,
-    syncNow,
-    isConfigured
-  } = syncProps;
-
-  const [isSyncVerifying, setIsSyncVerifying] = useState<boolean>(false);
-  const [showOfflineAlert, setShowOfflineAlert] = useState<boolean>(false);
-
-  // Initial verification on mount or user sign in
-  useEffect(() => {
-    if (user && isConfigured) {
-      const runInitialSync = async () => {
-        setIsSyncVerifying(true);
-        if (!isOnline) {
-          setShowOfflineAlert(true);
-          setIsSyncVerifying(false);
-          return;
-        }
-        await syncNow(state, (newState) => {
-          updateState(newState);
-        });
-        setIsSyncVerifying(false);
-      };
-      runInitialSync();
-    }
-  }, [user, isConfigured]);
-
-  // Sync back to cloud on local state changes
-  const lastStateRef = useRef<any>(state);
-  useEffect(() => {
-    if (user && isConfigured && isOnline && !isSyncVerifying) {
-      // Check if there is actual data changes to avoid redundant operations
-      if (JSON.stringify(lastStateRef.current) !== JSON.stringify(state)) {
-        lastStateRef.current = state;
-        syncNow(state, (newState) => {
-          updateState(newState);
-        });
-      }
-    } else {
-      lastStateRef.current = state;
-    }
-  }, [state, user, isConfigured, isOnline, isSyncVerifying, syncNow]);
-
-  // Handle network recovery
-  useEffect(() => {
-    if (isOnline && user && isConfigured) {
-      addLog('Rede', 'Conexão restabelecida. Sincronizando dados pendentes...', 'info');
-      syncNow(state, (newState) => {
-        updateState(newState);
-      });
-    }
-  }, [isOnline]);
 
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
@@ -538,7 +478,6 @@ export default function App() {
         onClose={() => setIsSidebarOpen(false)}
         theme={state.theme}
         onThemeToggle={handleThemeToggle}
-        syncStatus={syncStatus}
       />
 
       {/* Main Screen Content */}
@@ -635,8 +574,6 @@ export default function App() {
               onStartTutorial={() => setIsTutorialOpen(true)}
               theme={state.theme}
               onThemeToggle={handleThemeToggle}
-              syncProps={syncProps}
-              onUpdateLocalState={updateState}
             />
           )}
 
@@ -692,78 +629,6 @@ export default function App() {
         isAddModalOpen={isAddModalOpen}
         onToggleAddModal={(open) => setIsAddModalOpen(open)}
       />
-
-      {/* Sync Center Quick Access Badge (Floating in Top-Right of Screen) */}
-      {isConfigured && (
-        <div className="fixed top-4 right-4 z-40">
-          <button
-            onClick={() => {
-              setCurrentView('configuracoes');
-              setTimeout(() => {
-                const element = document.getElementById('config-sync-section');
-                if (element) {
-                  element.scrollIntoView({ behavior: 'smooth' });
-                  element.classList.add('ring-2', 'ring-[var(--bg-secondary)]');
-                  setTimeout(() => element.classList.remove('ring-2', 'ring-[var(--bg-secondary)]'), 2000);
-                }
-              }, 100);
-            }}
-            title={`Nuvem: ${
-              syncStatus === 'synced' ? 'Sincronizado' :
-              syncStatus === 'checking' ? 'Verificando...' :
-              syncStatus === 'syncing' ? 'Sincronizando...' :
-              syncStatus === 'offline' ? 'Offline' :
-              syncStatus === 'error' ? 'Erro' :
-              'Conectar'
-            }`}
-            className="p-3 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] hover:border-[var(--bg-secondary)] text-[var(--text-general)] rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 cursor-pointer animate-fade-in"
-          >
-            {syncStatus === 'synced' && <Cloud className="text-[var(--color-receita)]" size={16} />}
-            {syncStatus === 'checking' && <RefreshCw className="text-[var(--bg-secondary)] animate-spin" size={16} />}
-            {syncStatus === 'syncing' && <RefreshCw className="text-[var(--bg-secondary)] animate-spin" size={16} />}
-            {syncStatus === 'offline' && <CloudOff className="text-amber-500" size={16} />}
-            {syncStatus === 'error' && <AlertTriangle className="text-[var(--color-despesa)]" size={16} />}
-            {syncStatus === 'pending' && <Cloud className="text-[var(--text-discreto)]" size={16} />}
-          </button>
-        </div>
-      )}
-
-      {/* Synchronization Blocking Overlay */}
-      {isSyncVerifying && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] max-w-sm w-full p-6 rounded-[24px] shadow-2xl flex flex-col items-center text-center space-y-4">
-            <div className="p-4 bg-[var(--bg-secondary)]/15 rounded-full text-[var(--bg-secondary)]">
-              <RefreshCw className="animate-spin" size={32} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-[var(--text-general)]">Sincronizando com a Nuvem</h3>
-              <p className="text-xs text-[var(--text-discreto)] mt-1.5 leading-relaxed">
-                Verificando e sincronizando seus dados com o servidor seguro para evitar duplicidades e conflitos. Por favor, aguarde...
-              </p>
-            </div>
-            <div className="w-full bg-[var(--bg-app)] h-1.5 rounded-full overflow-hidden">
-              <div className="bg-[var(--bg-secondary)] h-full animate-pulse" style={{ width: '100%' }} />
-            </div>
-            <span className="text-[9px] uppercase tracking-widest font-bold text-[var(--text-discreto)]">Sincronização Ativa</span>
-          </div>
-        </div>
-      )}
-
-      {/* Offline Alert Toast */}
-      {showOfflineAlert && (
-        <div className="fixed bottom-20 md:bottom-6 right-4 z-50 max-w-sm bg-amber-500 text-white font-semibold text-xs py-3 px-4 rounded-[16px] shadow-lg flex items-center justify-between gap-3 animate-bounce">
-          <div className="flex items-center gap-2">
-            <CloudOff size={16} className="shrink-0" />
-            <span>Sincronização indisponível. Modo offline ativo!</span>
-          </div>
-          <button 
-            onClick={() => setShowOfflineAlert(false)}
-            className="text-[10px] bg-white/25 hover:bg-white/40 py-1 px-2 rounded-[8px] font-bold"
-          >
-            OK
-          </button>
-        </div>
-      )}
 
     </div>
   );

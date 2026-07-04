@@ -21,10 +21,9 @@ interface NavigationProps {
   onClose: () => void;
   theme: 'dark' | 'clean';
   onThemeToggle: () => void;
-  syncStatus?: string;
 }
 
-export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, onThemeToggle, syncStatus }: NavigationProps) {
+export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, onThemeToggle }: NavigationProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -180,17 +179,8 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
           )}
 
           <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-discreto)]">
-            {syncStatus === 'synced' ? (
-              <>
-                <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-receita)] animate-pulse shrink-0" />
-                <span className="text-[var(--text-general)]">Dados Sincronizados</span>
-              </>
-            ) : (
-              <>
-                <Lock size={12} className="text-[var(--text-discreto)]" />
-                <span>Dados armazenados localmente</span>
-              </>
-            )}
+            <Lock size={12} className="text-[var(--text-discreto)]" />
+            <span>Dados armazenados localmente</span>
           </div>
           <p className="text-[10px] text-[var(--text-discreto)] mt-1 opacity-70">Versão 1.0.0 • Fluc PWA</p>
         </div>

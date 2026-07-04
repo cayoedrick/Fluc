@@ -1,8 +1,7 @@
-import React, { useRef, useState } from 'react';
-import { Download, Upload, Trash2, Database, AlertTriangle, Sparkles, HelpCircle, Sun, Moon, Palette, ShieldCheck, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Download, Upload, Trash2, Database, AlertTriangle, Sparkles, HelpCircle, Sun, Moon, Palette, ShieldCheck } from 'lucide-react';
 import { FlucState } from '../types';
-import { SyncLog, SyncStatus } from '../hooks/useFirebaseSync';
-import { FirebaseConfig, getFirebaseConfig } from '../lib/firebase';
+import { Login } from './Login';
 
 interface ConfiguracoesViewProps {
   state: FlucState;
@@ -14,26 +13,6 @@ interface ConfiguracoesViewProps {
   onStartTutorial?: () => void;
   theme?: string;
   onThemeToggle?: () => void;
-  
-  // Firebase Sync props
-  syncProps: {
-    user: any | null;
-    authLoading: boolean;
-    authError: string | null;
-    setAuthError: (err: string | null) => void;
-    syncStatus: SyncStatus;
-    lastSyncTime: string;
-    isOnline: boolean;
-    logs: SyncLog[];
-    clearLogs: () => void;
-    syncNow: (local: FlucState, update: (st: FlucState) => void) => Promise<boolean>;
-    loginWithGoogle: () => void;
-    logout: () => void;
-    saveCustomFirebaseConfig: (config: FirebaseConfig) => void;
-    removeCustomFirebaseConfig: () => void;
-    isConfigured: boolean;
-  };
-  onUpdateLocalState: (newState: FlucState) => void;
 }
 
 export function ConfiguracoesView({
@@ -45,39 +24,8 @@ export function ConfiguracoesView({
   onOpenMenu,
   onStartTutorial,
   theme = 'light',
-  onThemeToggle,
-  syncProps,
-  onUpdateLocalState
+  onThemeToggle
 }: ConfiguracoesViewProps) {
-  const {
-    user,
-    authLoading,
-    authError,
-    setAuthError,
-    syncStatus,
-    lastSyncTime,
-    isOnline,
-    logs,
-    clearLogs,
-    syncNow,
-    loginWithGoogle,
-    logout,
-    saveCustomFirebaseConfig,
-    removeCustomFirebaseConfig,
-    isConfigured
-  } = syncProps;
-
-  const [showLogs, setShowLogs] = useState(false);
-
-  const handleManualSync = async () => {
-    const success = await syncNow(state, onUpdateLocalState);
-    if (success) {
-      alert('Sincronização concluída com sucesso!');
-    } else {
-      alert('Falha na sincronização. Verifique os logs internos ou a conexão.');
-    }
-  };
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Export state to local JSON file
@@ -224,224 +172,23 @@ export function ConfiguracoesView({
         </div>
       </div>
 
-      {/* Sistema de Sincronização em Nuvem (Firebase) */}
-      <div id="config-sync-section" className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-6 rounded-[24px] space-y-4">
+      {/* Conta & Sincronização Submenu */}
+      <div id="config-conta-sincronizacao" className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-6 rounded-[24px] space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="p-2.5 rounded-[12px] bg-[var(--bg-secondary)]/15 text-[var(--bg-secondary)]">
-            <Cloud size={18} />
+          <div className="p-2.5 rounded-[12px] bg-green-500/15 text-green-500">
+            <ShieldCheck size={18} />
           </div>
           <div>
-            <h3 className="text-base font-bold text-[var(--text-general)]">Sincronização em Nuvem (Firebase)</h3>
-            <p className="text-xs text-[var(--text-discreto)]">Sincronize seus dados em tempo real utilizando Firestore e sua conta Google</p>
+            <h3 className="text-base font-bold text-[var(--text-general)]">Conta e Sincronização</h3>
+            <p className="text-xs text-[var(--text-discreto)]">Gerencie seu login e o status da sincronização na nuvem</p>
           </div>
         </div>
-
-        {/* Sync Status Info Card */}
-        <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-5 rounded-[18px] space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="shrink-0 p-2 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[12px]">
-                {syncStatus === 'synced' && <Cloud className="text-[var(--color-receita)] animate-pulse" size={22} />}
-                {syncStatus === 'checking' && <RefreshCw className="text-[var(--bg-secondary)] animate-spin" size={22} />}
-                {syncStatus === 'syncing' && <RefreshCw className="text-[var(--bg-secondary)] animate-spin" size={22} />}
-                {syncStatus === 'offline' && <CloudOff className="text-amber-500" size={22} />}
-                {syncStatus === 'error' && <AlertTriangle className="text-[var(--color-despesa)]" size={22} />}
-                {syncStatus === 'pending' && <Cloud className="text-[var(--text-discreto)]" size={22} />}
-                {syncStatus === 'not_configured' && <Cloud className="text-[var(--text-discreto)]" size={22} />}
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--text-discreto)]">Status da Nuvem</span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <h4 className="text-xs font-bold text-[var(--text-general)]">
-                    {syncStatus === 'synced' && 'Dados Sincronizados'}
-                    {syncStatus === 'checking' && 'Verificando Nuvem...'}
-                    {syncStatus === 'syncing' && 'Sincronizando...'}
-                    {syncStatus === 'offline' && 'Modo Offline (Sem Internet)'}
-                    {syncStatus === 'error' && 'Erro de Sincronização'}
-                    {syncStatus === 'pending' && 'Conecte sua Conta'}
-                    {syncStatus === 'not_configured' && 'Conecte sua Conta'}
-                  </h4>
-                  {isOnline ? (
-                    <span className="w-2 h-2 rounded-full bg-[var(--color-receita)] animate-ping" title="Online" />
-                  ) : (
-                    <span className="w-2 h-2 rounded-full bg-amber-500" title="Offline" />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Sync trigger button */}
-            {user && (
-              <button
-                disabled={syncStatus === 'syncing' || syncStatus === 'checking'}
-                onClick={handleManualSync}
-                className="py-2.5 px-4 bg-[var(--bg-secondary)] hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold rounded-[12px] transition-all cursor-pointer flex items-center gap-2 self-start sm:self-center"
-              >
-                <RefreshCw size={14} className={syncStatus === 'syncing' || syncStatus === 'checking' ? 'animate-spin' : ''} />
-                <span>Sincronizar Agora</span>
-              </button>
-            )}
+        
+        <div className="pt-1">
+          <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-5 rounded-[18px]">
+            <Login />
           </div>
-
-          {/* User Sign-in details */}
-          <div className="border-t border-[var(--bg-tertiary)]/60 pt-3.5 mt-2 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              {user ? (
-                <div className="space-y-1">
-                  <p className="text-[11px] text-[var(--text-discreto)]">Conectado como:</p>
-                  <p className="font-bold text-[var(--text-general)] text-xs">{user.email}</p>
-                  <p className="text-[10px] text-[var(--text-discreto)]">Última Sincronização: <span className="font-mono font-semibold">{lastSyncTime || 'Nenhuma'}</span></p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <p className="text-[11px] text-[var(--text-discreto)]">Faça login para salvar seus dados com segurança e acessar em outros dispositivos.</p>
-                </div>
-              )}
-            </div>
-
-            <div>
-              {user ? (
-                <button
-                  onClick={logout}
-                  className="py-2.5 px-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 text-xs font-bold rounded-[12px] transition-all cursor-pointer shrink-0"
-                >
-                  Desconectar Conta
-                </button>
-              ) : (
-                <button
-                  disabled={authLoading}
-                  onClick={loginWithGoogle}
-                  className="py-2.5 px-4 bg-[var(--bg-secondary)] text-white text-xs font-bold rounded-[12px] transition-all cursor-pointer shrink-0 flex items-center gap-2 disabled:opacity-60"
-                >
-                  {authLoading ? (
-                    <RefreshCw size={14} className="animate-spin" />
-                  ) : (
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                      <path d="M12.24 10.285V13.4h6.887C18.2 15.614 15.645 18 12.24 18c-3.86 0-7-3.14-7-7s3.14-7 7-7c1.71 0 3.27.61 4.5 1.615l2.42-2.42C17.43 1.58 14.97 1 12.24 1 6.58 1 2 5.58 2 11.24s4.58 10.24 10.24 10.24c5.79 0 10.24-4.11 10.24-10.24 0-.695-.08-1.355-.22-1.955H12.24z"/>
-                    </svg>
-                  )}
-                  <span>{authLoading ? 'Conectando...' : 'Conectar com Google'}</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Auth Error troubleshooting notice */}
-          {authError && (
-            <div className="border-t border-[var(--bg-tertiary)]/60 pt-3.5 mt-2 space-y-2.5">
-              <div className={`p-4 rounded-[14px] text-xs text-[var(--text-general)] ${
-                authError.includes('popup-closed-by-user')
-                  ? 'bg-amber-500/10 border border-amber-500/20'
-                  : 'bg-red-500/10 border border-red-500/20'
-              }`}>
-                <div className="flex items-center justify-between gap-2 font-bold mb-1">
-                  <span className={`flex items-center gap-1.5 ${
-                    authError.includes('popup-closed-by-user') ? 'text-amber-600' : 'text-red-500'
-                  }`}>
-                    <AlertTriangle size={15} />
-                    {authError.includes('auth/unauthorized-domain') 
-                      ? 'Domínio não Autorizado no Firebase' 
-                      : authError.includes('popup-closed-by-user')
-                      ? 'Login Cancelado'
-                      : 'Erro de Autenticação'}
-                  </span>
-                  <button 
-                    onClick={() => setAuthError(null)}
-                    className={`text-[10px] px-2 py-0.5 rounded-[6px] font-bold ${
-                      authError.includes('popup-closed-by-user')
-                        ? 'bg-amber-500/10 hover:bg-amber-500/25 text-amber-600'
-                        : 'bg-red-500/10 hover:bg-red-500/25 text-red-500'
-                    }`}
-                  >
-                    Ocultar Aviso
-                  </button>
-                </div>
-                
-                {authError.includes('auth/unauthorized-domain') ? (
-                  <div className="space-y-2 leading-relaxed mt-1">
-                    <p className="text-[11px] text-[var(--text-discreto)]">
-                      O domínio desta aplicação não está listado como um domínio autorizado nas configurações de autenticação do seu Firebase Console. Siga os passos para resolver:
-                    </p>
-                    <ol className="list-decimal pl-4 space-y-1 text-[11px] text-[var(--text-discreto)] font-normal">
-                      <li>Acesse o <strong>Firebase Console</strong> do seu projeto.</li>
-                      <li>Vá em <strong>Authentication</strong> &gt; guia <strong>Settings</strong> &gt; <strong>Authorized domains</strong>.</li>
-                      <li>Clique em <strong>Add domain</strong> e cole o domínio abaixo:</li>
-                    </ol>
-                    <div className="flex items-center gap-2 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-2 rounded-[10px] font-mono text-[11px] text-[var(--text-general)] mt-2">
-                      <span className="truncate select-all flex-1">{typeof window !== 'undefined' ? window.location.hostname : 'localhost'}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (typeof window !== 'undefined') {
-                            navigator.clipboard.writeText(window.location.hostname);
-                            alert('Domínio copiado para a área de transferência!');
-                          }
-                        }}
-                        className="py-1 px-2.5 bg-[var(--bg-secondary)] text-white text-[10px] font-bold rounded-[6px]"
-                      >
-                        Copiar
-                      </button>
-                    </div>
-                  </div>
-                ) : authError.includes('popup-closed-by-user') ? (
-                  <p className="text-[11px] text-[var(--text-discreto)] leading-relaxed mt-1 font-normal">
-                    A janela de login com o Google foi fechada antes da conclusão do processo. Se deseja conectar sua conta para sincronizar seus dados em tempo real, clique em <strong>Conectar com Google</strong> novamente.
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-[var(--text-discreto)] font-mono break-words mt-1">
-                    {authError}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
         </div>
-
-        {/* Hidden Log System Control */}
-        {isConfigured && (
-          <div className="border-t border-[var(--bg-tertiary)]/40 pt-3">
-            <button
-              onClick={() => setShowLogs(!showLogs)}
-              className="text-xs font-bold text-[var(--text-discreto)] hover:text-[var(--text-general)] flex items-center gap-1.5 transition-all"
-            >
-              <span>{showLogs ? 'Ocultar Logs Internos de Sincronização' : 'Mostrar Logs Internos de Sincronização'}</span>
-              <span className="text-[10px] font-normal opacity-60">({logs.length} eventos)</span>
-            </button>
-
-            {showLogs && (
-              <div className="mt-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-4 rounded-[16px] space-y-2.5 max-h-[220px] overflow-y-auto font-mono text-[10px]">
-                <div className="flex justify-between items-center pb-1.5 border-b border-[var(--bg-tertiary)]/50">
-                  <span className="font-bold text-[var(--text-general)]">Console de Logs (Oculto)</span>
-                  <button 
-                    onClick={clearLogs}
-                    className="text-[9px] text-red-500 hover:underline font-bold"
-                  >
-                    Limpar Logs
-                  </button>
-                </div>
-                {logs.length === 0 ? (
-                  <p className="text-[var(--text-discreto)] italic">Nenhum evento registrado ainda.</p>
-                ) : (
-                  logs.map(log => (
-                    <div key={log.id} className="flex items-start gap-1.5 border-b border-[var(--bg-tertiary)]/20 pb-1.5 last:border-0 last:pb-0">
-                      <span className="text-[var(--text-discreto)] shrink-0 font-sans">[{log.timestamp}]</span>
-                      <span className={`font-bold shrink-0 ${
-                        log.status === 'success' ? 'text-[var(--color-receita)]' :
-                        log.status === 'warning' ? 'text-amber-500' :
-                        log.status === 'error' ? 'text-[var(--color-despesa)]' :
-                        'text-[var(--color-transfer)]'
-                      }`}>
-                        {log.action}:
-                      </span>
-                      <span className="text-[var(--text-general)] break-all">{log.details}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
       </div>
 
       {/* 2. Local JSON Backup and Restore Submenu */}
