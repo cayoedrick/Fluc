@@ -137,13 +137,20 @@ export function useFlucState() {
 
       // Immediate save: sends data to server whenever a change is detected
       const timeout = setTimeout(async () => {
+        if (!auth.currentUser) return;
+        
+        const lastMod = state.lastModifiedAt || 0;
+        const lastUp = state.lastSyncUpload || 0;
+
+        // Only save if there are actual unsaved changes
+        if (lastMod <= lastUp) return;
+
         const now = Date.now();
         const stateWithUpload = { ...state, lastSyncUpload: now };
         
         try {
           await saveData('state', stateWithUpload);
           setState(prev => {
-            // Only update local sync timestamp if no newer changes happened
             if (prev.lastSyncUpload && prev.lastSyncUpload > now) return prev;
             skipNextSave.current = true;
             return { ...prev, lastSyncUpload: now };
@@ -151,7 +158,7 @@ export function useFlucState() {
         } catch (e) {
           console.error("Sync save failed", e);
         }
-      }, 100);
+      }, 2000); // 2s debounce for better performance and Firestore limits
 
       return () => clearTimeout(timeout);
     }
@@ -164,7 +171,7 @@ export function useFlucState() {
     let isCheckInProgress = false;
 
     const interval = setInterval(async () => {
-      if (isCheckInProgress) return;
+      if (isCheckInProgress || document.hidden) return;
       isCheckInProgress = true;
 
       try {
@@ -173,29 +180,36 @@ export function useFlucState() {
         
         if (remoteState) {
           setState(prev => {
-            // Only merge if remote has newer info OR we have different lastSyncUpload
-            if (remoteState.lastSyncUpload === prev.lastSyncUpload && 
-                (remoteState.lastModifiedAt || 0) <= (prev.lastModifiedAt || 0)) {
+            const remoteUp = remoteState.lastSyncUpload || 0;
+            const remoteMod = remoteState.lastModifiedAt || 0;
+            const localUp = prev.lastSyncUpload || 0;
+            const localMod = prev.lastModifiedAt || 0;
+
+            // Only merge if remote has newer info
+            if (remoteUp === localUp && remoteMod <= localMod) {
               return prev;
             }
 
             const merged = mergeStates(prev, remoteState);
-            const hasChangesFromRemote = JSON.stringify(merged) !== JSON.stringify(prev);
             
-            if (hasChangesFromRemote) {
-              console.log("Forced sync: Discrepancies detected and resolved.");
-              skipNextSave.current = true;
-              return {
-                ...merged,
-                lastSyncDownload: Date.now()
-              };
+            // Check if anything actually changed after merge
+            if (merged.lastModifiedAt === localMod && 
+                merged.lastSyncUpload === localUp &&
+                merged.contas.length === prev.contas.length &&
+                merged.lancamentos.length === prev.lancamentos.length) {
+              if (JSON.stringify(merged) === JSON.stringify(prev)) return prev;
             }
-            return prev;
+
+            console.log("Forced sync: Discrepancies resolved.");
+            skipNextSave.current = true;
+            return {
+              ...merged,
+              lastSyncDownload: Date.now()
+            };
           });
         }
 
         // 2. Force Upload: If local has unsaved changes, push them
-        // We detect this if lastModifiedAt > lastSyncUpload
         setState(prev => {
           const lastMod = prev.lastModifiedAt || 0;
           const lastUp = prev.lastSyncUpload || 0;
