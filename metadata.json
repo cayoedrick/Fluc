@@ -1,0 +1,8 @@
+{
+  "name": "Fluc - Controle Financeiro Pessoal + Sinc.",
+  "description": "Aplicativo de controle financeiro pessoal moderno, minimalista e completo com controle de contas, cartões de crédito, extratos, categorias e cofrinhos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

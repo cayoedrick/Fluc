@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  /* Common variables */
+  --radius-large: 24px;
+  --radius-medium: 16px;
+  --radius-small: 10px;
+  
+  --color-receita: #00cc52;
+  --color-despesa: #d03c4d;
+  --color-transfer: #1c7ae4;
+  --color-cartao: #ed793a;
+}
+
+/* Dark Theme */
+.theme-dark {
+  --bg-app: #0c1416;
+  --bg-primary: #1b2a2f;
+  --bg-secondary: #507b84;
+  --bg-tertiary: #2e454d;
+  --text-general: #ffffff;
+  --text-discreto: #426273;
+}
+
+/* Clean Theme */
+.theme-clean {
+  --bg-app: #dfe8eb;
+  --bg-primary: #fdfefe;
+  --bg-secondary: #022235;
+  --bg-tertiary: #d2dcdf;
+  --text-general: #022235;
+  --text-discreto: #375463;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-general);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom Scrollbar for modern feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-secondary);
+}
+
+/* Flat layered panel borders instead of shadows */
+.card-flat {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--bg-tertiary);
+  border-radius: var(--radius-large);
+}
+
+.button-flat {
+  border-radius: var(--radius-medium);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tag-flat {
+  border-radius: var(--radius-small);
+}
+
+/* Animated toggle switches */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}

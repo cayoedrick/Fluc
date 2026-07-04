@@ -1,0 +1,34 @@
+{
+  "entities": {
+    "UserState": {
+      "title": "UserState",
+      "description": "User consolidated financial state including accounts, credit cards, categories, transactions, savings, and settings.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "description": "Full FlucState object containing all accounts, transactions, and preferences."
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp (milliseconds) of the latest change to the state data."
+        },
+        "lastSyncedAt": {
+          "type": "number",
+          "description": "Timestamp (milliseconds) of the last successful synchronization."
+        },
+        "clientLastChangedAt": {
+          "type": "number",
+          "description": "Timestamp (milliseconds) of the client's last local change."
+        }
+      },
+      "required": ["data", "updatedAt", "lastSyncedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserState",
+      "description": "User-specific document storing consolidated financial state to prevent sync delays and inconsistencies."
+    }
+  }
+}
