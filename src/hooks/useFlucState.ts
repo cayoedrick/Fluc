@@ -129,7 +129,7 @@ export function useFlucState() {
         return;
       }
 
-      // Responsive save: sends data to server whenever a change is detected (with 1s debounce)
+      // Immediate save: sends data to server whenever a change is detected
       const timeout = setTimeout(async () => {
         const now = Date.now();
         const stateWithUpload = { ...state, lastSyncUpload: now };
@@ -145,7 +145,7 @@ export function useFlucState() {
         } catch (e) {
           console.error("Sync save failed", e);
         }
-      }, 1000);
+      }, 100);
 
       return () => clearTimeout(timeout);
     }
