@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FlucState, Conta, Cartao, Categoria, Lancamento, Cofrinho, CofrinhoHistorico } from '../types';
 import { getDefaultState } from '../data/defaults';
+import { auth } from '../lib/firebase';
+import { subscribeToData, saveData } from '../services/db';
 
 export function useFlucState() {
   const [state, setState] = useState<FlucState>(() => {
@@ -24,9 +26,33 @@ export function useFlucState() {
     return getDefaultState();
   });
 
-  // Save to localStorage on change (for local backup)
+  const isSyncing = useRef(false);
+
+  // Sync with Firestore when authenticated
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const unsubscribe = subscribeToData('state', (remoteState) => {
+      if (remoteState) {
+        isSyncing.current = true;
+        setState(prev => ({
+          ...prev,
+          ...remoteState
+        } as FlucState));
+        setTimeout(() => { isSyncing.current = false; }, 100);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth.currentUser]);
+
+  // Save to localStorage and Firestore on change
   useEffect(() => {
     localStorage.setItem('fluc_financial_state', JSON.stringify(state));
+
+    if (auth.currentUser && !isSyncing.current) {
+      saveData('state', state);
+    }
   }, [state]);
 
   // Helper to enrich state items with updatedAt timestamps when modified or created
