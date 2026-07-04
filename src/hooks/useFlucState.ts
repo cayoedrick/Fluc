@@ -32,11 +32,13 @@ export function useFlucState() {
 
   // Helper to merge local and remote states taking newest items by updatedAt
   const mergeStates = (local: FlucState, remote: FlucState): FlucState => {
+    // 1. Combine deleted IDs (tombstones)
     const combinedDeletedIds = Array.from(new Set([
       ...(local.deletedIds || []),
       ...(remote.deletedIds || [])
     ]));
 
+    // 2. Initialize merged state
     const merged: FlucState = { 
       ...local,
       deletedIds: combinedDeletedIds 
@@ -50,37 +52,39 @@ export function useFlucState() {
 
       const resultMap = new Map<string, any>();
 
-      // Add all local items that are NOT deleted
-      localList.forEach(item => {
+      // Load remote items first
+      remoteList.forEach(item => {
         if (item && item.id && !combinedDeletedIds.includes(item.id)) {
           resultMap.set(item.id, item);
         }
       });
 
-      // Merge remote items that are NOT deleted
-      remoteList.forEach(remoteItem => {
-        if (!remoteItem || !remoteItem.id || combinedDeletedIds.includes(remoteItem.id)) return;
+      // Merge local items: prioritize local if newer OR if remote doesn't have it
+      localList.forEach(localItem => {
+        if (!localItem || !localItem.id || combinedDeletedIds.includes(localItem.id)) return;
         
-        const localItem = resultMap.get(remoteItem.id);
-        if (!localItem) {
-          resultMap.set(remoteItem.id, remoteItem);
+        const remoteItem = resultMap.get(localItem.id);
+        if (!remoteItem) {
+          resultMap.set(localItem.id, localItem);
         } else {
-          // Take the one with higher updatedAt
           const localUpdate = localItem.updatedAt || 0;
           const remoteUpdate = remoteItem.updatedAt || 0;
           
-          if (remoteUpdate >= localUpdate) {
-            resultMap.set(remoteItem.id, remoteItem);
+          // Prioritize by most recent updatedAt
+          if (localUpdate > remoteUpdate) {
+            resultMap.set(localItem.id, localItem);
           }
+          // if equal or remote is higher, keep remote (which is already in the map)
         }
       });
 
       (merged as any)[colKey] = Array.from(resultMap.values());
     }
 
-    // Handle other top-level fields
-    if (remote.theme) merged.theme = remote.theme;
-    if (remote.lastSyncUpload) merged.lastSyncUpload = remote.lastSyncUpload;
+    // Handle theme and other metadata
+    if (remote.theme && (!local.lastSyncUpload || (remote.lastSyncUpload || 0) > (local.lastSyncUpload || 0))) {
+      merged.theme = remote.theme;
+    }
     
     return merged;
   };
@@ -92,10 +96,17 @@ export function useFlucState() {
     const unsubscribe = subscribeToData('state', (remoteState) => {
       if (remoteState) {
         setState(prev => {
-          // Avoid merging if it's identical or we just uploaded it
+          // If remote is exactly what we just uploaded, skip verification
           if (remoteState.lastSyncUpload === prev.lastSyncUpload) return prev;
           
+          // 1. Data verification and merging (conferência)
           const merged = mergeStates(prev, remoteState);
+          
+          // 2. Only update if there are actual changes
+          const hasChanges = JSON.stringify(merged) !== JSON.stringify(prev);
+          if (!hasChanges) return prev;
+
+          // 3. Update interface atomically after verification
           skipNextSave.current = true;
           return {
             ...merged,
@@ -118,20 +129,23 @@ export function useFlucState() {
         return;
       }
 
-      // Debounce save to avoid rapid hits and allow local changes to stabilize
-      const timeout = setTimeout(() => {
+      // Responsive save: sends data to server whenever a change is detected (with 1s debounce)
+      const timeout = setTimeout(async () => {
         const now = Date.now();
         const stateWithUpload = { ...state, lastSyncUpload: now };
         
-        // We update local state with the upload timestamp ONLY if no changes happened since
-        saveData('state', stateWithUpload).then(() => {
+        try {
+          await saveData('state', stateWithUpload);
           setState(prev => {
+            // Only update local sync timestamp if no newer changes happened
             if (prev.lastSyncUpload && prev.lastSyncUpload > now) return prev;
-            skipNextSave.current = true; // Prevent re-saving after this update
+            skipNextSave.current = true;
             return { ...prev, lastSyncUpload: now };
           });
-        });
-      }, 3000);
+        } catch (e) {
+          console.error("Sync save failed", e);
+        }
+      }, 1000);
 
       return () => clearTimeout(timeout);
     }
