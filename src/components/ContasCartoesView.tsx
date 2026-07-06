@@ -125,12 +125,12 @@ export function ContasCartoesView({
 
     if (modalTab === 'conta') {
       if (!contaNome.trim()) {
-        alert('Por favor, insira o nome da conta.');
+        window.showToast?.('Por favor, insira o nome da conta.', 'erro');
         return;
       }
       const saldo = parseFloat(contaSaldo.replace(',', '.'));
       if (isNaN(saldo)) {
-        alert('Por favor, insira um saldo válido.');
+        window.showToast?.('Por favor, insira um saldo válido.', 'erro');
         return;
       }
 
@@ -149,13 +149,13 @@ export function ContasCartoesView({
       }
     } else {
       if (!cartaoNome.trim()) {
-        alert('Por favor, insira o nome do cartão.');
+        window.showToast?.('Por favor, insira o nome do cartão.', 'erro');
         return;
       }
       const limite = parseFloat(cartaoLimite.replace(',', '.'));
       const utilizado = parseFloat(cartaoLimiteUtilizado.replace(',', '.'));
       if (isNaN(limite) || isNaN(utilizado)) {
-        alert('Por favor, insira valores válidos para os limites.');
+        window.showToast?.('Por favor, insira valores válidos para os limites.', 'erro');
         return;
       }
 

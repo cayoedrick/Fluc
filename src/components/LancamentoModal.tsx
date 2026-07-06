@@ -123,29 +123,29 @@ export function LancamentoModal({
   const handleConfirm = () => {
     const parsedValor = parseFloat(valor.replace(',', '.'));
     if (isNaN(parsedValor) || parsedValor <= 0) {
-      alert('Por favor, digite um valor válido.');
+      window.showToast?.('Por favor, digite um valor válido.', 'erro');
       return;
     }
 
     if (!descricao.trim()) {
-      alert('Por favor, insira uma descrição.');
+      window.showToast?.('Por favor, insira uma descrição.', 'erro');
       return;
     }
 
     if ((tipo === 'receita' || tipo === 'despesa') && !contaId) {
-      alert('Por favor, selecione uma conta.');
+      window.showToast?.('Por favor, selecione uma conta.', 'erro');
       return;
     }
     
     if (tipo === 'despesa_cartao' && !cartaoId) {
-      alert('Por favor, selecione um cartão.');
+      window.showToast?.('Por favor, selecione um cartão.', 'erro');
       return;
     }
 
     let finalParticipantes = participantes;
     if (isShared) {
       if (participantes.length === 0) {
-        alert('Por favor, adicione ao menos um participante para a despesa compartilhada.');
+        window.showToast?.('Por favor, adicione ao menos um participante para a despesa compartilhada.', 'erro');
         return;
       }
       
@@ -186,7 +186,7 @@ export function LancamentoModal({
       if (parcelado) {
         const p = typeof numParcelas === 'string' ? parseInt(numParcelas) : numParcelas;
         if (isNaN(p) || p < 2) {
-          alert('Por favor, insira um número de parcelas válido (mínimo 2).');
+          window.showToast?.('Por favor, insira um número de parcelas válido (mínimo 2).', 'erro');
           return;
         }
         payload.numParcelas = p;
@@ -200,7 +200,7 @@ export function LancamentoModal({
       if (parcelado) {
         const p = typeof numParcelas === 'string' ? parseInt(numParcelas) : numParcelas;
         if (isNaN(p) || p < 2) {
-          alert('Por favor, insira um número de parcelas válido (mínimo 2).');
+          window.showToast?.('Por favor, insira um número de parcelas válido (mínimo 2).', 'erro');
           return;
         }
         payload.numParcelas = p;
@@ -214,7 +214,7 @@ export function LancamentoModal({
       if (parcelado) {
         const p = typeof numParcelas === 'string' ? parseInt(numParcelas) : numParcelas;
         if (isNaN(p) || p < 2) {
-          alert('Por favor, insira um número de parcelas válido (mínimo 2).');
+          window.showToast?.('Por favor, insira um número de parcelas válido (mínimo 2).', 'erro');
           return;
         }
         payload.numParcelas = p;
@@ -226,7 +226,7 @@ export function LancamentoModal({
       payload.contaId = contaId; // "da conta"
       payload.paraContaId = paraContaId; // "para conta"
       if (contaId === paraContaId) {
-        alert('As contas de origem e destino devem ser diferentes.');
+        window.showToast?.('As contas de origem e destino devem ser diferentes.', 'erro');
         return;
       }
     }

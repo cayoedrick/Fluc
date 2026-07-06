@@ -94,3 +94,9 @@ export interface FlucState {
   lastSyncDownload?: number;
   lastModifiedAt?: number;
 }
+
+declare global {
+  interface Window {
+    showToast?: (mensagem: string, tipo?: 'sucesso' | 'erro' | 'info') => void;
+  }
+}

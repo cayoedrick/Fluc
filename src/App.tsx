@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFlucState } from './hooks/useFlucState';
 import { ViewType, Lancamento, Conta, Cartao, Categoria, Cofrinho, CofrinhoHistorico } from './types';
 import { Navigation } from './components/Navigation';
@@ -9,10 +9,11 @@ import { ContasCartoesView } from './components/ContasCartoesView';
 import { ReservasCofrinhosView } from './components/ReservasCofrinhosView';
 import { ConfiguracoesView } from './components/ConfiguracoesView';
 import { LancamentoModal } from './components/LancamentoModal';
-import { Menu, Plus, Home } from 'lucide-react';
+import { Menu, Plus, Home, CheckCircle2, AlertTriangle, X, Info } from 'lucide-react';
 import { InteractiveTutorial } from './components/InteractiveTutorial';
 import { SyncStatusIcon } from './components/SyncStatusIcon';
 import { SyncStatusModal } from './components/SyncStatusModal';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const {
@@ -42,6 +43,29 @@ export default function App() {
     const hasSeen = localStorage.getItem('fluc_tutorial_shown_or_skipped');
     return !hasSeen;
   });
+
+  interface ToastItem {
+    id: string;
+    mensagem: string;
+    tipo: 'sucesso' | 'erro' | 'info';
+  }
+
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const showToast = (mensagem: string, tipo: 'sucesso' | 'erro' | 'info' = 'sucesso') => {
+    const id = `${Date.now()}-${Math.random()}`;
+    setToasts((prev) => [...prev, { id, mensagem, tipo }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  useEffect(() => {
+    window.showToast = showToast;
+    return () => {
+      window.showToast = undefined;
+    };
+  }, []);
 
   const handleAddSimulatedLancamento = (desc: string, tipo: 'receita' | 'despesa', valor: number) => {
     const contaId = state.contas[0]?.id || 'simulated-conta';
@@ -408,9 +432,9 @@ export default function App() {
 
     if (chosenContaId) {
       const contaName = state.contas.find(c => c.id === chosenContaId)?.nome || 'Conta Selecionada';
-      alert(`Fatura do cartão ${card.nome} no valor de R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} foi confirmada e debitada da conta: ${contaName}!`);
+      showToast(`Fatura do cartão ${card.nome} no valor de R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} foi confirmada e debitada da conta: ${contaName}!`, 'sucesso');
     } else {
-      alert(`Fatura do cartão ${card.nome} no valor de R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} foi confirmada! Como nenhuma conta foi debitada, apenas o limite da fatura do cartão foi atualizado.`);
+      showToast(`Fatura do cartão ${card.nome} no valor de R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} foi confirmada! Como nenhuma conta foi debitada, apenas o limite da fatura do cartão foi atualizado.`, 'sucesso');
     }
   };
 
@@ -706,6 +730,43 @@ export default function App() {
         isAddModalOpen={isAddModalOpen}
         onToggleAddModal={(open) => setIsAddModalOpen(open)}
       />
+
+      {/* Toast Notification Layer */}
+      <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[100] flex flex-col gap-2.5 max-w-[350px] w-[calc(100%-2rem)] pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              layout
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+              className="pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border border-[var(--bg-tertiary)] bg-[var(--bg-primary)] shadow-xl backdrop-blur-md relative overflow-hidden"
+              style={{
+                borderLeftWidth: '4px',
+                borderLeftColor: t.tipo === 'sucesso' ? '#10b981' : t.tipo === 'erro' ? '#f43f5e' : '#6366f1'
+              }}
+            >
+              {t.tipo === 'sucesso' && <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />}
+              {t.tipo === 'erro' && <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={16} />}
+              {t.tipo === 'info' && <Info className="text-indigo-500 shrink-0 mt-0.5" size={16} />}
+              
+              <div className="flex-1 pr-2">
+                <p className="text-xs font-medium text-[var(--text-general)] leading-relaxed">{t.mensagem}</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setToasts(prev => prev.filter(item => item.id !== t.id))}
+                className="text-[var(--text-discreto)] hover:text-[var(--text-general)] p-0.5 rounded-full hover:bg-[var(--bg-tertiary)] transition-all shrink-0 cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
     </div>
   );

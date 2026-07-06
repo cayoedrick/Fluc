@@ -26,7 +26,7 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
     // Check duplication
     const duplicate = categorias.some(c => c.tipo === activeTab && c.nome.toLowerCase() === newCatName.trim().toLowerCase());
     if (duplicate) {
-      alert('Já existe uma categoria com este nome.');
+      window.showToast?.('Já existe uma categoria com este nome.', 'erro');
       return;
     }
 
@@ -50,7 +50,7 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
 
     const duplicate = categorias.some(c => c.id !== catId && c.tipo === activeTab && c.nome.toLowerCase() === editingCatName.trim().toLowerCase());
     if (duplicate) {
-      alert('Já existe uma categoria com este nome.');
+      window.showToast?.('Já existe uma categoria com este nome.', 'erro');
       return;
     }
 

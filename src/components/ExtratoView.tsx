@@ -713,7 +713,7 @@ export function ExtratoView({
           onSave={(id, updatedFields, mode) => {
             if (onEditLancamento) {
               onEditLancamento(id, updatedFields, mode);
-              alert('Lançamento atualizado com sucesso!');
+              window.showToast?.('Lançamento atualizado com sucesso!', 'sucesso');
             }
           }}
         />
@@ -757,7 +757,7 @@ export function ExtratoView({
                       onClick={() => {
                         if (onDeleteLancamento) {
                           onDeleteLancamento(deletingLancamento.id, 'este');
-                          alert('Lançamento apagado com sucesso!');
+                          window.showToast?.('Lançamento apagado com sucesso!', 'sucesso');
                         }
                         setShowDeleteConfirm(false);
                         setDeletingLancamento(null);
@@ -772,7 +772,7 @@ export function ExtratoView({
                       onClick={() => {
                         if (onDeleteLancamento) {
                           onDeleteLancamento(deletingLancamento.id, 'futuros');
-                          alert('Este lançamento e todas as recorrências futuras foram apagados com sucesso!');
+                          window.showToast?.('Este lançamento e todas as recorrências futuras foram apagados com sucesso!', 'sucesso');
                         }
                         setShowDeleteConfirm(false);
                         setDeletingLancamento(null);
@@ -787,7 +787,7 @@ export function ExtratoView({
                       onClick={() => {
                         if (onDeleteLancamento) {
                           onDeleteLancamento(deletingLancamento.id, 'todos');
-                          alert('Todo o lançamento (passados, presente e futuros) foi apagado com sucesso!');
+                          window.showToast?.('Todo o lançamento (passados, presente e futuros) foi apagado com sucesso!', 'sucesso');
                         }
                         setShowDeleteConfirm(false);
                         setDeletingLancamento(null);
@@ -803,7 +803,7 @@ export function ExtratoView({
                     onClick={() => {
                       if (onDeleteLancamento) {
                         onDeleteLancamento(deletingLancamento.id, 'este');
-                        alert('Lançamento apagado com sucesso!');
+                        window.showToast?.('Lançamento apagado com sucesso!', 'sucesso');
                       }
                       setShowDeleteConfirm(false);
                       setDeletingLancamento(null);

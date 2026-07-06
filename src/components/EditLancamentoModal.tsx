@@ -72,16 +72,16 @@ export function EditLancamentoModal({
     e.preventDefault();
     const parsedValor = parseFloat(valor.replace(',', '.'));
     if (isNaN(parsedValor) || parsedValor <= 0) {
-      alert('Por favor, digite um valor válido.');
+      window.showToast?.('Por favor, digite um valor válido.', 'erro');
       return;
     }
     if (!descricao.trim()) {
-      alert('Por favor, insira uma descrição.');
+      window.showToast?.('Por favor, insira uma descrição.', 'erro');
       return;
     }
 
     if (isShared && participantes.length === 0) {
-      alert('Por favor, adicione ao menos um participante para a despesa compartilhada.');
+      window.showToast?.('Por favor, adicione ao menos um participante para a despesa compartilhada.', 'erro');
       return;
     }
     

@@ -94,12 +94,12 @@ export function ReservasCofrinhosView({
 
   const handleCreateCofrinho = () => {
     if (!newName.trim()) {
-      alert('Por favor, preencha o nome do cofrinho.');
+      window.showToast?.('Por favor, preencha o nome do cofrinho.', 'erro');
       return;
     }
     const valInicial = parseFloat(newValorInicial.replace(',', '.'));
     if (isNaN(valInicial) || valInicial < 0) {
-      alert('Por favor, preencha o valor inicial corretamente.');
+      window.showToast?.('Por favor, preencha o valor inicial corretamente.', 'erro');
       return;
     }
     const metaNum = newMeta.trim() ? parseFloat(newMeta.replace(',', '.')) : undefined;
@@ -138,7 +138,7 @@ export function ReservasCofrinhosView({
 
     const val = parseFloat(opValor.replace(',', '.'));
     if (isNaN(val) || val <= 0) {
-      alert('Por favor, insira um valor válido.');
+      window.showToast?.('Por favor, insira um valor válido.', 'erro');
       return;
     }
 
@@ -146,7 +146,7 @@ export function ReservasCofrinhosView({
 
     if (operationTab === 'deposito') {
       if (!opContaId) {
-        alert('Por favor, selecione a conta de origem.');
+        window.showToast?.('Por favor, selecione a conta de origem.', 'erro');
         return;
       }
 
@@ -168,11 +168,11 @@ export function ReservasCofrinhosView({
 
     } else if (operationTab === 'retirada') {
       if (val > activeCofrinho.saldoAtual) {
-        alert('Valor de retirada maior do que o saldo atual do cofrinho.');
+        window.showToast?.('Valor de retirada maior do que o saldo atual do cofrinho.', 'erro');
         return;
       }
       if (!opContaId) {
-        alert('Por favor, selecione a conta de destino.');
+        window.showToast?.('Por favor, selecione a conta de destino.', 'erro');
         return;
       }
 

@@ -65,7 +65,7 @@ export function ConfiguracoesView({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert('Falha ao exportar backup de dados.');
+      window.showToast?.('Falha ao exportar backup de dados.', 'erro');
     }
   };
 
@@ -80,9 +80,9 @@ export function ConfiguracoesView({
       if (content) {
         const success = onImportState(content);
         if (success) {
-          alert('Dados importados e restaurados com sucesso!');
+          window.showToast?.('Dados importados e restaurados com sucesso!', 'sucesso');
         } else {
-          alert('Arquivo inválido. Por favor, faça upload de um backup JSON válido do Fluc.');
+          window.showToast?.('Arquivo inválido. Por favor, faça upload de um backup JSON válido do Fluc.', 'erro');
         }
       }
     };
@@ -95,7 +95,7 @@ export function ConfiguracoesView({
     const confirmClear = window.confirm('Tem certeza de que deseja APAGAR TODOS os lançamentos? Isso manterá as contas, cartões e categorias cadastradas.');
     if (confirmClear) {
       onClearLancamentos();
-      alert('Todos os lançamentos foram excluídos!');
+      window.showToast?.('Todos os lançamentos foram excluídos!', 'sucesso');
     }
   };
 
@@ -103,7 +103,7 @@ export function ConfiguracoesView({
     const confirmReset = window.confirm('ATENÇÃO: Isso limpará TODOS os dados personalizados e restaurará o aplicativo com os valores padrões de fábrica. Deseja continuar?');
     if (confirmReset) {
       onResetAllData();
-      alert('O aplicativo foi restaurado aos valores padrão!');
+      window.showToast?.('O aplicativo foi restaurado aos valores padrão!', 'sucesso');
     }
   };
 
@@ -111,7 +111,7 @@ export function ConfiguracoesView({
     const confirmErase = window.confirm('ATENÇÃO EXTREMA: Isso apagará TODOS os seus lançamentos, contas, cartões, cofrinhos e também todas as categorias personalizadas criadas por você (mantendo apenas as padrão do sistema). Seu aplicativo ficará completamente zerado. Esta ação é irreversível. Deseja continuar?');
     if (confirmErase) {
       onEraseAllData();
-      alert('Todos os dados foram apagados e o aplicativo foi zerado com sucesso!');
+      window.showToast?.('Todos os dados foram apagados e o aplicativo foi zerado com sucesso!', 'sucesso');
     }
   };
 
