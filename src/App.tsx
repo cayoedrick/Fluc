@@ -209,13 +209,48 @@ export default function App() {
     if (!target) return;
 
     updateState((prev) => {
+      // Find both the target transaction and any linked/counterpart invoice payment transactions
+      const matchedIdsToDelete = new Set<string>([id]);
+      if (target.faturaPagamentoId) {
+        prev.lancamentos.forEach(l => {
+          if (l.faturaPagamentoId === target.faturaPagamentoId) {
+            matchedIdsToDelete.add(l.id);
+          }
+        });
+      } else {
+        // Fallback for older transactions that don't have the explicit link ID
+        const targetMonthYear = target.data.substring(0, 7); // "YYYY-MM"
+        if (target.tipo === 'despesa' && target.descricao.startsWith('Fatura Paga:')) {
+          const matched = prev.lancamentos.find(l => 
+            l.tipo === 'despesa_cartao' && 
+            l.descricao === 'Pagamento de Fatura Recibo' && 
+            l.valor === target.valor && 
+            l.estorno === true && 
+            l.data.startsWith(targetMonthYear)
+          );
+          if (matched) {
+            matchedIdsToDelete.add(matched.id);
+          }
+        } else if (target.tipo === 'despesa_cartao' && target.descricao === 'Pagamento de Fatura Recibo' && target.estorno === true) {
+          const matched = prev.lancamentos.find(l => 
+            l.tipo === 'despesa' && 
+            l.descricao.startsWith('Fatura Paga:') && 
+            l.valor === target.valor && 
+            l.data.substring(0, 7) === targetMonthYear
+          );
+          if (matched) {
+            matchedIdsToDelete.add(matched.id);
+          }
+        }
+      }
+
       let filtered: Lancamento[];
       if (mode === 'este') {
-        filtered = prev.lancamentos.filter(l => l.id !== id);
+        filtered = prev.lancamentos.filter(l => !matchedIdsToDelete.has(l.id));
       } else if (mode === 'todos') {
         // 'todos': delete all occurrences (past, current, and future)
         filtered = prev.lancamentos.filter(l => {
-          if (l.id === id) return false;
+          if (matchedIdsToDelete.has(l.id)) return false;
           if (target.grupoId && l.grupoId === target.grupoId) {
             return false;
           }
@@ -224,7 +259,7 @@ export default function App() {
       } else {
         // 'futuros': delete this one and future ones
         filtered = prev.lancamentos.filter(l => {
-          if (l.id === id) return false;
+          if (matchedIdsToDelete.has(l.id)) return false;
           if (target.grupoId && l.grupoId === target.grupoId && l.data >= target.data) {
             return false;
           }
@@ -332,6 +367,8 @@ export default function App() {
       paymentDate = `${monthYear}-${pad(card.diaVencimento || 10)}`;
     }
 
+    const linkId = `fatura-link-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     // Create a paid despesa linked to the card's linked bank account (if available)
     const paymentLanc: Lancamento = {
       id: `lanc-pay-${Date.now()}`,
@@ -342,7 +379,8 @@ export default function App() {
       descricao: `Fatura Paga: ${card.nome}`,
       contaId: chosenContaId || undefined,
       // Use general or specific category (e.g., Ajuste or Cartões)
-      categoriaId: state.categorias.find(c => c.nome === 'Ajuste' && c.tipo === 'despesa')?.id
+      categoriaId: state.categorias.find(c => c.nome === 'Ajuste' && c.tipo === 'despesa')?.id,
+      faturaPagamentoId: linkId
     };
 
     // Increment credit card invoice limit or log that this month's invoice is cleared.
@@ -352,14 +390,15 @@ export default function App() {
     // dated in the cycle, OR let's just make the payment lanc, which is the actual cash outflow!
     // Adding a refund 'estorno: true' is a great way to zero out the credit card invoice!
     const clearingLanc: Lancamento = {
-      id: `lanc-clear-${Date.now()}`,
+      id: `lanc-clear-${Date.now() + 1}`,
       tipo: 'despesa_cartao',
       valor: value,
       recebidoPagoEfetivado: true,
       estorno: true, // This zeroes out the dynamic invoice calculation!
       data: `${monthYear}-01`, // Date within target month-year
       descricao: `Pagamento de Fatura Recibo`,
-      cartaoId: cartaoId
+      cartaoId: cartaoId,
+      faturaPagamentoId: linkId
     };
 
     updateState((prev) => ({

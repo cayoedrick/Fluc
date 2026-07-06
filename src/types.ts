@@ -53,6 +53,7 @@ export interface Lancamento {
   participantes?: ParticipanteDespesa[];
   originalSharedLancamentoId?: string; // ID of the expense that generated this reimbursement income
   isReimbursement?: boolean; // To identify generated incomes
+  faturaPagamentoId?: string; // Links payment despesa with clearing despesa_cartao
   updatedAt?: number;
 }
 
