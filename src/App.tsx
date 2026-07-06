@@ -732,7 +732,7 @@ export default function App() {
       />
 
       {/* Toast Notification Layer */}
-      <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[100] flex flex-col gap-2.5 max-w-[350px] w-[calc(100%-2rem)] pointer-events-none">
+      <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 z-[100] flex flex-col gap-2 md:gap-2.5 max-w-[calc(100%-2rem)] md:max-w-[360px] md:w-[360px] pointer-events-none mx-auto md:mx-0">
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div
