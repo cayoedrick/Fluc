@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Conta, Cartao, Categoria, Lancamento } from '../types';
-import { X, Calendar, Check, Wallet, CreditCard, ArrowRight } from 'lucide-react';
+import { X, Calendar, Check, Wallet, CreditCard, ArrowRight, Share2, Users, Percent, Trash2, Plus } from 'lucide-react';
+import { ParticipanteDespesa } from '../types';
 
 interface EditLancamentoModalProps {
   isOpen: boolean;
@@ -31,6 +32,10 @@ export function EditLancamentoModal({
   const [paraContaId, setParaContaId] = useState<string>('');
   const [cartaoId, setCartaoId] = useState<string>('');
   
+  // Shared Expense
+  const [isShared, setIsShared] = useState<boolean>(false);
+  const [participantes, setParticipantes] = useState<ParticipanteDespesa[]>([]);
+  
   // Show save choice sub-screen
   const [showSaveOptions, setShowSaveOptions] = useState<boolean>(false);
 
@@ -45,6 +50,8 @@ export function EditLancamentoModal({
       setContaId(lancamento.contaId || '');
       setParaContaId(lancamento.paraContaId || '');
       setCartaoId(lancamento.cartaoId || '');
+      setIsShared(lancamento.isShared || false);
+      setParticipantes(lancamento.participantes || []);
       setShowSaveOptions(false);
     }
   }, [isOpen, lancamento]);
@@ -71,6 +78,11 @@ export function EditLancamentoModal({
       alert('Por favor, insira uma descrição.');
       return;
     }
+
+    if (isShared && participantes.length === 0) {
+      alert('Por favor, adicione ao menos um participante para a despesa compartilhada.');
+      return;
+    }
     
     // Se o lançamento pertencer a um grupo, mostra as opções de salvamento. Caso contrário, salva direto.
     if (lancamento && lancamento.grupoId) {
@@ -86,7 +98,9 @@ export function EditLancamentoModal({
       valor: parsedValor,
       descricao: descricao.trim(),
       data,
-      recebidoPagoEfetivado
+      recebidoPagoEfetivado,
+      isShared,
+      participantes: isShared ? participantes : undefined
     };
 
     if (isIncome || isExpense) {
@@ -103,6 +117,20 @@ export function EditLancamentoModal({
 
     onSave(lancamento.id, updated, mode);
     onClose();
+  };
+
+  const addParticipante = () => {
+    setParticipantes([...participantes, { nome: '', valor: 0, isPorcentagem: false }]);
+  };
+
+  const updateParticipante = (index: number, fields: Partial<ParticipanteDespesa>) => {
+    const updated = [...participantes];
+    updated[index] = { ...updated[index], ...fields };
+    setParticipantes(updated);
+  };
+
+  const removeParticipante = (index: number) => {
+    setParticipantes(participantes.filter((_, i) => i !== index));
   };
 
   return (
@@ -353,6 +381,113 @@ export function EditLancamentoModal({
                 />
               </div>
             </div>
+
+            {/* Shared Expense Toggle */}
+            {(isExpense || isCard) && (
+              <div className="border-t border-[var(--bg-tertiary)] pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Share2 size={18} className="text-indigo-500" />
+                    <div>
+                      <span className="text-sm font-semibold text-[var(--text-general)] block">Despesa Compartilhada</span>
+                      <span className="text-xs text-[var(--text-discreto)]">Dividir esta despesa com outras pessoas</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsShared(!isShared)}
+                    className={`toggle-switch rounded-full transition-colors ${
+                      isShared ? 'bg-indigo-500' : 'bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white rounded-full transition-transform ${
+                        isShared ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {isShared && (
+                  <div className="space-y-3 pt-2">
+                    {participantes.map((p, idx) => (
+                      <div key={idx} className="bg-[var(--bg-app)] p-3 rounded-xl border border-[var(--bg-tertiary)] space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider">Participante {idx + 1}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => removeParticipante(idx)}
+                            className="text-red-500 hover:bg-red-500/10 p-1 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <input
+                              type="text"
+                              placeholder="Nome do participante"
+                              value={p.nome}
+                              onChange={(e) => updateParticipante(idx, { nome: e.target.value })}
+                              className="w-full py-2 px-3 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-lg text-xs text-[var(--text-general)] focus:outline-hidden"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <input
+                                type="number"
+                                placeholder={p.isPorcentagem ? "%" : "Valor"}
+                                value={p.valor || ''}
+                                onChange={(e) => updateParticipante(idx, { valor: parseFloat(e.target.value) || 0 })}
+                                className="w-full py-2 px-3 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-lg text-xs text-[var(--text-general)] focus:outline-hidden"
+                              />
+                              {p.isPorcentagem && (
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-indigo-500">
+                                  {((parseFloat(valor.replace(',', '.')) || 0) * (p.valor / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-lg p-0.5 gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => updateParticipante(idx, { isPorcentagem: false })}
+                                className={`px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                                  !p.isPorcentagem 
+                                    ? 'bg-indigo-500 text-white shadow-xs' 
+                                    : 'text-[var(--text-discreto)] hover:bg-[var(--bg-tertiary)]'
+                                }`}
+                              >
+                                R$
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateParticipante(idx, { isPorcentagem: true })}
+                                className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                                  p.isPorcentagem 
+                                    ? 'bg-indigo-500 text-white shadow-xs' 
+                                    : 'text-[var(--text-discreto)] hover:bg-[var(--bg-tertiary)]'
+                                }`}
+                              >
+                                %
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <button
+                      type="button"
+                      onClick={addParticipante}
+                      className="w-full py-2.5 border border-dashed border-[var(--bg-tertiary)] rounded-xl text-indigo-500 flex items-center justify-center gap-2 hover:bg-indigo-500/5 transition-all text-xs font-bold"
+                    >
+                      <Plus size={16} /> Adicionar Participante
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Save Button */}
             <div className="pt-2">

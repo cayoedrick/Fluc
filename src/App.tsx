@@ -166,13 +166,39 @@ export default function App() {
         lancamentos: [...entries, ...prev.lancamentos]
       }));
     } else {
+      const mainId = `lanc-${Date.now()}`;
       const lanc: Lancamento = {
         ...adjustedLanc,
-        id: `lanc-${Date.now()}`
+        id: mainId
       };
+
+      let reimbursementEntries: Lancamento[] = [];
+      if (adjustedLanc.isShared && adjustedLanc.participantes && adjustedLanc.participantes.length > 0) {
+        reimbursementEntries = adjustedLanc.participantes.map((p, idx) => {
+          let valorReembolso = p.valor;
+          if (p.isPorcentagem) {
+            valorReembolso = Number((adjustedLanc.valor * (p.valor / 100)).toFixed(2));
+          }
+
+          return {
+            id: `reimb-${Date.now()}-${idx}`,
+            tipo: 'receita',
+            valor: valorReembolso,
+            recebidoPagoEfetivado: false,
+            data: adjustedLanc.data,
+            descricao: `Reembolso: ${p.nome} (${adjustedLanc.descricao})`,
+            categoriaId: adjustedLanc.categoriaId,
+            contaId: adjustedLanc.contaId,
+            isReimbursement: true,
+            originalSharedLancamentoId: mainId,
+            updatedAt: Date.now()
+          };
+        });
+      }
+
       updateState((prev) => ({
         ...prev,
-        lancamentos: [lanc, ...prev.lancamentos]
+        lancamentos: [lanc, ...reimbursementEntries, ...prev.lancamentos]
       }));
     }
   };

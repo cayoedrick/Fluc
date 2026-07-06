@@ -25,6 +25,12 @@ export interface Categoria {
   updatedAt?: number;
 }
 
+export interface ParticipanteDespesa {
+  nome: string;
+  valor: number;
+  isPorcentagem: boolean;
+}
+
 export interface Lancamento {
   id: string;
   tipo: 'receita' | 'despesa' | 'despesa_cartao' | 'transferencia';
@@ -42,6 +48,10 @@ export interface Lancamento {
   numParcelas?: number;
   isValorParcela?: boolean;
   grupoId?: string;
+  isShared?: boolean;
+  participantes?: ParticipanteDespesa[];
+  originalSharedLancamentoId?: string; // ID of the expense that generated this reimbursement income
+  isReimbursement?: boolean; // To identify generated incomes
   updatedAt?: number;
 }
 

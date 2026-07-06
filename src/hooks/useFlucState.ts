@@ -212,6 +212,60 @@ export function useFlucState() {
     return () => clearInterval(interval);
   }, [currentUser]);
 
+  const syncSharedExpenses = (lancamentos: Lancamento[]): Lancamento[] => {
+    // 1. Remove all generated reimbursement entries
+    const baseLancamentos = lancamentos.filter(l => !l.isReimbursement);
+    
+    // 2. Identify shared expenses and calculate totals per participant per month
+    // Map key: participantName + '|' + YYYY-MM
+    const sharesMap = new Map<string, { total: number, descriptions: string[], date: string }>();
+    
+    baseLancamentos.forEach(l => {
+      if (l.isShared && l.participantes && l.participantes.length > 0) {
+        const monthYear = l.data.substring(0, 7); // YYYY-MM
+        
+        l.participantes.forEach(p => {
+          if (!p.nome.trim()) return;
+          const key = `${p.nome}|${monthYear}`;
+          const current = sharesMap.get(key) || { total: 0, descriptions: [], date: l.data };
+          
+          let shareValue = p.valor;
+          if (p.isPorcentagem) {
+            shareValue = Number((l.valor * (p.valor / 100)).toFixed(2));
+          }
+          
+          current.total = Number((current.total + shareValue).toFixed(2));
+          current.descriptions.push(l.descricao);
+          sharesMap.set(key, current);
+        });
+      }
+    });
+    
+    // 3. Create reimbursement income entries
+    const reimbursements: Lancamento[] = [];
+    const now = Date.now();
+    sharesMap.forEach((data, key) => {
+      const [participantName, monthYear] = key.split('|');
+      
+      const description = data.descriptions.length === 1 
+        ? `${participantName} - ${data.descriptions[0]}`
+        : `${participantName} - Variados`;
+        
+      reimbursements.push({
+        id: `reimb-${participantName}-${monthYear}`,
+        tipo: 'receita',
+        valor: data.total,
+        recebidoPagoEfetivado: false, // Default to pending
+        data: `${monthYear}-01`, // Set to 1st of the month for grouping
+        descricao: description,
+        isReimbursement: true,
+        updatedAt: now
+      });
+    });
+    
+    return [...baseLancamentos, ...reimbursements];
+  };
+
   // Helper to enrich state items with updatedAt timestamps when modified or created
   const enrichStateWithTimestamps = (prev: FlucState, next: FlucState): FlucState => {
     const collections: (keyof FlucState)[] = ['contas', 'cartoes', 'categorias', 'lancamentos', 'cofrinhos', 'cofrinhoHistorico'];
@@ -220,8 +274,22 @@ export function useFlucState() {
     let changed = false;
     
     // Tombstone management
-    let newDeletedIds = [...(prev.deletedIds || [])];
-    let deletedChanged = false;
+    let newDeletedIds = Array.from(new Set([
+      ...(prev.deletedIds || []),
+      ...(next.deletedIds || [])
+    ]));
+    
+    // If an item is explicitly present in the next state (e.g. via restore), remove it from tombstones
+    const allNextIds = new Set([
+      ...(next.contas || []).map(i => i.id),
+      ...(next.cartoes || []).map(i => i.id),
+      ...(next.categorias || []).map(i => i.id),
+      ...(next.lancamentos || []).map(i => i.id),
+      ...(next.cofrinhos || []).map(i => i.id)
+    ]);
+    newDeletedIds = newDeletedIds.filter(id => !allNextIds.has(id));
+
+    let deletedChanged = newDeletedIds.length !== (prev.deletedIds || []).length;
 
     for (const colKey of collections) {
       const prevList = (prev[colKey] || []) as any[];
@@ -283,7 +351,16 @@ export function useFlucState() {
   // Helper to update specific piece of state
   const updateState = (updater: Partial<FlucState> | ((prev: FlucState) => FlucState)) => {
     setState((prev) => {
-      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      let next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      
+      // Auto-sync shared expenses if lancamentos were modified
+      if (next.lancamentos !== prev.lancamentos) {
+        next = {
+          ...next,
+          lancamentos: syncSharedExpenses(next.lancamentos)
+        };
+      }
+      
       return enrichStateWithTimestamps(prev, next);
     });
   };
@@ -607,16 +684,22 @@ export function useFlucState() {
         Array.isArray(parsed.lancamentos) &&
         Array.isArray(parsed.cofrinhos)
       ) {
+        const now = Date.now();
+        // Freshen timestamps so imported data takes precedence over cloud data
+        const freshen = (arr: any[]) => arr.map(item => ({ ...item, updatedAt: now }));
+
         updateState({
-          contas: parsed.contas,
-          cartoes: parsed.cartoes,
-          categorias: parsed.categorias,
-          lancamentos: parsed.lancamentos,
-          cofrinhos: parsed.cofrinhos,
-          cofrinhoHistorico: parsed.cofrinhoHistorico || [],
+          contas: freshen(parsed.contas),
+          cartoes: freshen(parsed.cartoes),
+          categorias: freshen(parsed.categorias),
+          lancamentos: freshen(parsed.lancamentos),
+          cofrinhos: freshen(parsed.cofrinhos),
+          cofrinhoHistorico: freshen(parsed.cofrinhoHistorico || []),
           deletedIds: parsed.deletedIds || [],
-          theme: parsed.theme || 'clean'
+          theme: parsed.theme || 'clean',
+          lastModifiedAt: now
         });
+        
         return true;
       }
     } catch (e) {

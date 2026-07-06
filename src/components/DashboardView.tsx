@@ -16,10 +16,13 @@ import {
   PiggyBank,
   Check,
   Edit2,
-  Trash2
+  Trash2,
+  Share2,
+  Info
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
 import { SyncStatusIcon } from './SyncStatusIcon';
+import { SharedLancamentoDetailsModal } from './SharedLancamentoDetailsModal';
 
 interface DashboardViewProps {
   contas: Conta[];
@@ -138,6 +141,10 @@ export function DashboardView({
   const [editingLancamento, setEditingLancamento] = useState<Lancamento | null>(null);
   const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
 
+  // Shared Details State
+  const [sharedLancamento, setSharedLancamento] = useState<Lancamento | null>(null);
+  const [isSharedDetailsOpen, setIsSharedDetailsOpen] = useState<boolean>(false);
+
   // Delete State
   const [deletingLancamento, setDeletingLancamento] = useState<Lancamento | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
@@ -145,6 +152,11 @@ export function DashboardView({
   const handleStartEdit = (l: Lancamento) => {
     setEditingLancamento(l);
     setIsEditOpen(true);
+  };
+
+  const handleShowDetails = (l: Lancamento) => {
+    setSharedLancamento(l);
+    setIsSharedDetailsOpen(true);
   };
 
   const handleStartDelete = (l: Lancamento) => {
@@ -590,7 +602,8 @@ export function DashboardView({
                       isTransf ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
                       'bg-[#d03c4d]/10 text-[#d03c4d]'
                     }`}>
-                      {isRec ? <TrendingUp size={16} /> :
+                      {l.isShared || l.isReimbursement ? <Share2 size={16} /> :
+                       isRec ? <TrendingUp size={16} /> :
                        isCard ? <CreditCard size={16} /> :
                        isTransf ? <ArrowRightLeft size={16} /> :
                        <TrendingDown size={16} />}
@@ -640,20 +653,33 @@ export function DashboardView({
                     </span>
                     
                     <div className="flex items-center gap-1 mt-1">
-                      <button
-                        onClick={() => handleStartEdit(l)}
-                        className="p-1.5 bg-[var(--bg-app)] hover:bg-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)] rounded-[8px] border border-[var(--bg-tertiary)] transition-colors cursor-pointer"
-                        title="Editar lançamento"
-                      >
-                        <Edit2 size={12} />
-                      </button>
-                      <button
-                        onClick={() => handleStartDelete(l)}
-                        className="p-1.5 bg-[var(--bg-app)] hover:bg-red-500/15 text-[var(--text-discreto)] hover:text-red-500 rounded-[8px] border border-[var(--bg-tertiary)] hover:border-red-500/20 transition-colors cursor-pointer"
-                        title="Apagar lançamento"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      {(l.isShared || l.isReimbursement) && (
+                        <button
+                          onClick={() => handleShowDetails(l)}
+                          className="p-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 rounded-[8px] border border-indigo-500/20 transition-colors cursor-pointer"
+                          title="Detalhes do compartilhamento"
+                        >
+                          <Info size={12} />
+                        </button>
+                      )}
+                      {!l.isReimbursement && (
+                        <>
+                          <button
+                            onClick={() => handleStartEdit(l)}
+                            className="p-1.5 bg-[var(--bg-app)] hover:bg-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)] rounded-[8px] border border-[var(--bg-tertiary)] transition-colors cursor-pointer"
+                            title="Editar lançamento"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
+                            onClick={() => handleStartDelete(l)}
+                            className="p-1.5 bg-[var(--bg-app)] hover:bg-red-500/15 text-[var(--text-discreto)] hover:text-red-500 rounded-[8px] border border-[var(--bg-tertiary)] hover:border-red-500/20 transition-colors cursor-pointer"
+                            title="Apagar lançamento"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -936,6 +962,13 @@ export function DashboardView({
           }}
         />
       )}
+
+      <SharedLancamentoDetailsModal 
+        isOpen={isSharedDetailsOpen}
+        onClose={() => setIsSharedDetailsOpen(false)}
+        lancamento={sharedLancamento}
+        allLancamentos={lancamentos}
+      />
 
       {/* Delete Confirmation Overlay Modal */}
       {showDeleteConfirm && deletingLancamento && (() => {
