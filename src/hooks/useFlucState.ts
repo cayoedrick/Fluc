@@ -246,16 +246,21 @@ export function useFlucState() {
     const now = Date.now();
     sharesMap.forEach((data, key) => {
       const [participantName, monthYear] = key.split('|');
+      const logicalId = `reimb-${participantName}-${monthYear}`;
+      
+      // Try to find if this reimbursement already exists to preserve its status
+      const existing = lancamentos.find(l => l.id === logicalId);
+      const isPaid = existing ? existing.recebidoPagoEfetivado : false;
       
       const description = data.descriptions.length === 1 
         ? `${participantName} - ${data.descriptions[0]}`
         : `${participantName} - Variados`;
         
       reimbursements.push({
-        id: `reimb-${participantName}-${monthYear}`,
+        id: logicalId,
         tipo: 'receita',
         valor: data.total,
-        recebidoPagoEfetivado: false, // Default to pending
+        recebidoPagoEfetivado: isPaid,
         data: `${monthYear}-01`, // Set to 1st of the month for grouping
         descricao: description,
         isReimbursement: true,
