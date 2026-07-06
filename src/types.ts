@@ -29,6 +29,7 @@ export interface ParticipanteDespesa {
   nome: string;
   valor: number;
   isPorcentagem: boolean;
+  rawValor?: string;
 }
 
 export interface Lancamento {

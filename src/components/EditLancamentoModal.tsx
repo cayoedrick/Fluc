@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Conta, Cartao, Categoria, Lancamento } from '../types';
-import { X, Calendar, Check, Wallet, CreditCard, ArrowRight, Share2, Users, Percent, Trash2, Plus } from 'lucide-react';
+import { X, Calendar, Check, Wallet, CreditCard, ArrowRight, Share2, Users, Percent, Trash2, Plus, Info } from 'lucide-react';
 import { ParticipanteDespesa } from '../types';
 
 interface EditLancamentoModalProps {
@@ -34,6 +34,7 @@ export function EditLancamentoModal({
   
   // Shared Expense
   const [isShared, setIsShared] = useState<boolean>(false);
+  const [showSharedInfo, setShowSharedInfo] = useState<boolean>(false);
   const [participantes, setParticipantes] = useState<ParticipanteDespesa[]>([]);
   
   // Show save choice sub-screen
@@ -94,13 +95,35 @@ export function EditLancamentoModal({
 
   const handleExecuteSave = (mode: 'este' | 'futuros' | 'todos') => {
     const parsedValor = parseFloat(valor.replace(',', '.'));
+    
+    let finalParticipantes = participantes;
+    if (isShared) {
+      finalParticipantes = participantes.map(p => {
+        if (p.rawValor && p.rawValor.includes('/')) {
+          const parts = p.rawValor.split('/');
+          if (parts.length === 2) {
+            const num = parseFloat(parts[0].replace(',', '.'));
+            const den = parseFloat(parts[1].replace(',', '.'));
+            if (!isNaN(num) && !isNaN(den) && den !== 0) {
+              if (p.isPorcentagem) {
+                return { ...p, valor: 100 * (num / den) };
+              } else {
+                return { ...p, valor: parsedValor * (num / den) };
+              }
+            }
+          }
+        }
+        return p;
+      });
+    }
+
     const updated: Partial<Lancamento> = {
       valor: parsedValor,
       descricao: descricao.trim(),
       data,
       recebidoPagoEfetivado,
       isShared,
-      participantes: isShared ? participantes : undefined
+      participantes: isShared ? finalParticipantes : undefined
     };
 
     if (isIncome || isExpense) {
@@ -389,7 +412,21 @@ export function EditLancamentoModal({
                   <div className="flex items-center gap-2">
                     <Share2 size={18} className="text-indigo-500" />
                     <div>
-                      <span className="text-sm font-semibold text-[var(--text-general)] block">Despesa Compartilhada</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-semibold text-[var(--text-general)]">Despesa Compartilhada</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowSharedInfo(!showSharedInfo)}
+                          className={`p-1 rounded-full transition-all cursor-pointer ${
+                            showSharedInfo 
+                              ? 'text-indigo-500 bg-indigo-500/10' 
+                              : 'text-[var(--text-discreto)] hover:text-indigo-500 hover:bg-indigo-500/10'
+                          }`}
+                          title="Ajuda / Informações"
+                        >
+                          <Info size={14} />
+                        </button>
+                      </div>
                       <span className="text-xs text-[var(--text-discreto)]">Dividir esta despesa com outras pessoas</span>
                     </div>
                   </div>
@@ -410,6 +447,26 @@ export function EditLancamentoModal({
 
                 {isShared && (
                   <div className="space-y-3 pt-2">
+                    {showSharedInfo && (
+                      <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-3 text-xs text-[var(--text-general)] space-y-2 transition-all">
+                        <div className="flex items-center gap-2 font-bold text-indigo-500">
+                          <Info size={14} />
+                          <span>Instruções de Preenchimento</span>
+                        </div>
+                        <div className="space-y-1.5 text-[10px] leading-relaxed text-[var(--text-discreto)]">
+                          <p>
+                            <strong className="text-indigo-500">💰 Valor Direto (R$):</strong> Digite um valor numérico fixo para o participante (ex: <code className="bg-indigo-500/10 text-indigo-500 px-1 py-0.2 rounded font-mono">15,50</code>).
+                          </p>
+                          <p>
+                            <strong className="text-indigo-500">📊 Porcentagem (%):</strong> Altere a unidade para <span className="font-bold text-indigo-500">%</span> e insira o percentual do total (ex: <code className="bg-indigo-500/10 text-indigo-500 px-1 py-0.2 rounded font-mono">50</code> para 50%).
+                          </p>
+                          <p>
+                            <strong className="text-indigo-500">🧮 Frações Dinâmicas:</strong> Com a unidade em <span className="font-bold text-indigo-500">R$</span>, você pode digitar frações como <code className="bg-indigo-500/10 text-indigo-500 px-1 py-0.2 rounded font-mono">1/3</code>, <code className="bg-indigo-500/10 text-indigo-500 px-1 py-0.2 rounded font-mono">2/5</code> etc. O aplicativo dividirá automaticamente o valor total do lançamento pela fração inserida.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {participantes.map((p, idx) => (
                       <div key={idx} className="bg-[var(--bg-app)] p-3 rounded-xl border border-[var(--bg-tertiary)] space-y-3">
                         <div className="flex items-center justify-between">
@@ -436,22 +493,85 @@ export function EditLancamentoModal({
                           <div className="flex gap-2">
                             <div className="relative flex-1">
                               <input
-                                type="number"
-                                placeholder={p.isPorcentagem ? "%" : "Valor"}
-                                value={p.valor || ''}
-                                onChange={(e) => updateParticipante(idx, { valor: parseFloat(e.target.value) || 0 })}
-                                className="w-full py-2 px-3 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-lg text-xs text-[var(--text-general)] focus:outline-hidden"
+                                type="text"
+                                placeholder="Valor, Fração ou % (ex: 1/3)"
+                                value={p.rawValor !== undefined ? p.rawValor : (p.valor || '')}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  let parsedValor = 0;
+                                  if (val.includes('/')) {
+                                    const parts = val.split('/');
+                                    if (parts.length === 2) {
+                                      const num = parseFloat(parts[0].replace(',', '.'));
+                                      const den = parseFloat(parts[1].replace(',', '.'));
+                                      if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                                        if (p.isPorcentagem) {
+                                          parsedValor = 100 * (num / den);
+                                        } else {
+                                          const total = parseFloat(valor.replace(',', '.')) || 0;
+                                          parsedValor = total * (num / den);
+                                        }
+                                      }
+                                    }
+                                  } else {
+                                    parsedValor = parseFloat(val.replace(',', '.')) || 0;
+                                  }
+                                  updateParticipante(idx, { valor: parsedValor, rawValor: val });
+                                }}
+                                className="w-full py-2 px-3 pr-20 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-lg text-xs text-[var(--text-general)] focus:outline-hidden"
                               />
-                              {p.isPorcentagem && (
+                              {p.isPorcentagem ? (
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-indigo-500">
-                                  {((parseFloat(valor.replace(',', '.')) || 0) * (p.valor / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                  {(() => {
+                                    if (p.rawValor && p.rawValor.includes('/')) {
+                                      const parts = p.rawValor.split('/');
+                                      if (parts.length === 2) {
+                                        const num = parseFloat(parts[0].replace(',', '.'));
+                                        const den = parseFloat(parts[1].replace(',', '.'));
+                                        if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                                          return ((parseFloat(valor.replace(',', '.')) || 0) * (num / den)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                        }
+                                      }
+                                    }
+                                    return ((parseFloat(valor.replace(',', '.')) || 0) * (p.valor / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                  })()}
                                 </span>
-                              )}
+                              ) : (p.rawValor && p.rawValor.includes('/')) ? (
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-indigo-500">
+                                  {(() => {
+                                     const parts = p.rawValor.split('/');
+                                     if (parts.length === 2) {
+                                       const num = parseFloat(parts[0].replace(',', '.'));
+                                       const den = parseFloat(parts[1].replace(',', '.'));
+                                       if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                                         return ((parseFloat(valor.replace(',', '.')) || 0) * (num / den)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                       }
+                                     }
+                                     return '';
+                                  })()}
+                                </span>
+                              ) : null}
                             </div>
                             <div className="flex bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-lg p-0.5 gap-0.5">
                               <button
                                 type="button"
-                                onClick={() => updateParticipante(idx, { isPorcentagem: false })}
+                                onClick={() => {
+                                  let newValor = p.valor;
+                                  if (p.rawValor && p.rawValor.includes('/')) {
+                                    const parts = p.rawValor.split('/');
+                                    if (parts.length === 2) {
+                                      const num = parseFloat(parts[0].replace(',', '.'));
+                                      const den = parseFloat(parts[1].replace(',', '.'));
+                                      if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                                        const total = parseFloat(valor.replace(',', '.')) || 0;
+                                        newValor = total * (num / den);
+                                      }
+                                    }
+                                  } else if (p.rawValor) {
+                                    newValor = parseFloat(p.rawValor.replace(',', '.')) || 0;
+                                  }
+                                  updateParticipante(idx, { isPorcentagem: false, valor: newValor });
+                                }}
                                 className={`px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all ${
                                   !p.isPorcentagem 
                                     ? 'bg-indigo-500 text-white shadow-xs' 
@@ -462,7 +582,22 @@ export function EditLancamentoModal({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => updateParticipante(idx, { isPorcentagem: true })}
+                                onClick={() => {
+                                  let newValor = p.valor;
+                                  if (p.rawValor && p.rawValor.includes('/')) {
+                                    const parts = p.rawValor.split('/');
+                                    if (parts.length === 2) {
+                                      const num = parseFloat(parts[0].replace(',', '.'));
+                                      const den = parseFloat(parts[1].replace(',', '.'));
+                                      if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                                        newValor = 100 * (num / den);
+                                      }
+                                    }
+                                  } else if (p.rawValor) {
+                                    newValor = parseFloat(p.rawValor.replace(',', '.')) || 0;
+                                  }
+                                  updateParticipante(idx, { isPorcentagem: true, valor: newValor });
+                                }}
                                 className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
                                   p.isPorcentagem 
                                     ? 'bg-indigo-500 text-white shadow-xs' 
