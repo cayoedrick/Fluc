@@ -376,6 +376,65 @@ export function useFlucState() {
     return dateStr.startsWith(monthYearStr);
   };
 
+  // DYNAMIC COFRINHO BALANCES: re-calculate cofrinho balances based on paid transactions & yields
+  const cofrinhosWithBalances = state.cofrinhos.map(c => {
+    let baseValue = c.valorInicial;
+    if (baseValue === undefined) {
+      // Deduce it: subtract currently matched transactions and yields from c.saldoAtual
+      let transactionSum = 0;
+      state.lancamentos.forEach(l => {
+        if (l.cofrinhoId === c.id || (!l.cofrinhoId && (l.tipo === 'deposito_cofrinho' || l.tipo === 'retirada_cofrinho') && l.descricao.includes(c.nome))) {
+          if (l.tipo === 'deposito_cofrinho') {
+            transactionSum += l.valor;
+          } else if (l.tipo === 'retirada_cofrinho') {
+            transactionSum -= l.valor;
+          }
+        }
+      });
+      let yieldSum = 0;
+      state.cofrinhoHistorico.forEach(h => {
+        if (h.cofrinhoId === c.id) {
+          if (h.tipo === 'rendimento_adicionar' || h.tipo === 'rendimento_atualizar') {
+            yieldSum += h.valor;
+          }
+        }
+      });
+      baseValue = c.saldoAtual - transactionSum - yieldSum;
+    }
+
+    // Dynamic Balance: baseValue + paid deposits - paid withdrawals + yields
+    let balance = baseValue;
+    state.lancamentos.forEach(l => {
+      if (l.recebidoPagoEfetivado) {
+        if (l.cofrinhoId === c.id || (!l.cofrinhoId && (l.tipo === 'deposito_cofrinho' || l.tipo === 'retirada_cofrinho') && l.descricao.includes(c.nome))) {
+          if (l.tipo === 'deposito_cofrinho') {
+            balance += l.valor;
+          } else if (l.tipo === 'retirada_cofrinho') {
+            balance -= l.valor;
+          }
+        }
+      }
+    });
+
+    state.cofrinhoHistorico.forEach(h => {
+      if (h.cofrinhoId === c.id) {
+        if (h.tipo === 'rendimento_adicionar' || h.tipo === 'rendimento_atualizar') {
+          balance += h.valor;
+        }
+      }
+    });
+
+    return {
+      ...c,
+      saldoAtual: Number(balance.toFixed(2))
+    };
+  });
+
+  const derivedState: FlucState = {
+    ...state,
+    cofrinhos: cofrinhosWithBalances
+  };
+
 
   // ACCOUNT CALCULATIONS:
   // Account current balance is computed dynamically based on:
@@ -446,7 +505,7 @@ export function useFlucState() {
 
   // SUM OF RESERVED VALUE
   const getTotalReservedValue = (): number => {
-    return state.cofrinhos.reduce((sum, c) => sum + c.saldoAtual, 0);
+    return cofrinhosWithBalances.reduce((sum, c) => sum + c.saldoAtual, 0);
   };
 
   // Month-Year calculations for Receipts and Expenses (specific to selected month-year)
@@ -579,6 +638,23 @@ export function useFlucState() {
             despesasPendentes += l.valor;
           }
         }
+      } else if (l.tipo === 'transferencia') {
+        if (accountId) {
+          if (l.contaId === accountId) { // Outflow
+            if (l.recebidoPagoEfetivado) {
+              despesasConsolidadas += l.valor;
+            } else {
+              despesasPendentes += l.valor;
+            }
+          }
+          if (l.paraContaId === accountId) { // Inflow
+            if (l.recebidoPagoEfetivado) {
+              receitasConsolidadas += l.valor;
+            } else {
+              receitasPendentes += l.valor;
+            }
+          }
+        }
       }
     });
 
@@ -666,7 +742,7 @@ export function useFlucState() {
   };
 
   return {
-    state,
+    state: derivedState,
     updateState,
     getAccountBalance,
     getTotalBalance,

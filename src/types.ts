@@ -54,6 +54,7 @@ export interface Lancamento {
   originalSharedLancamentoId?: string; // ID of the expense that generated this reimbursement income
   isReimbursement?: boolean; // To identify generated incomes
   faturaPagamentoId?: string; // Links payment despesa with clearing despesa_cartao
+  cofrinhoId?: string; // Associated cofrinho/reserva ID
   updatedAt?: number;
 }
 
@@ -63,6 +64,7 @@ export interface Cofrinho {
   saldoAtual: number;
   meta?: number;
   cor: string;
+  valorInicial?: number;
   updatedAt?: number;
 }
 

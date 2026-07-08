@@ -178,7 +178,8 @@ export function ReservasCofrinhosView({
         recebidoPagoEfetivado: true,
         data: opDate,
         descricao: `Depósito: ${activeCofrinho.nome}`,
-        contaId: opContaId === 'externa' ? undefined : opContaId
+        contaId: opContaId === 'externa' ? undefined : opContaId,
+        cofrinhoId: activeCofrinho.id
       });
 
     } else if (operationTab === 'retirada') {
@@ -215,7 +216,8 @@ export function ReservasCofrinhosView({
         recebidoPagoEfetivado: true,
         data: opDate,
         descricao: `Retirada: ${activeCofrinho.nome}`,
-        contaId: opContaId
+        contaId: opContaId,
+        cofrinhoId: activeCofrinho.id
       });
 
     } else if (operationTab === 'rendimento') {

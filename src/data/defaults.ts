@@ -55,9 +55,9 @@ export const getDefaultState = () => {
   ];
 
   const cofrinhos: Cofrinho[] = [
-    { id: 'cof-1', nome: 'Reserva de Emergência', saldoAtual: 2500.00, meta: 10000.00, cor: '#00cc52' },
-    { id: 'cof-2', nome: 'Viagem de Férias', saldoAtual: 800.00, meta: 4000.00, cor: '#1c7ae4' },
-    { id: 'cof-3', nome: 'Novo Computador', saldoAtual: 450.00, meta: 5000.00, cor: '#ed793a' }
+    { id: 'cof-1', nome: 'Reserva de Emergência', saldoAtual: 2500.00, meta: 10000.00, cor: '#00cc52', valorInicial: 2000.00 },
+    { id: 'cof-2', nome: 'Viagem de Férias', saldoAtual: 800.00, meta: 4000.00, cor: '#1c7ae4', valorInicial: 784.50 },
+    { id: 'cof-3', nome: 'Novo Computador', saldoAtual: 450.00, meta: 5000.00, cor: '#ed793a', valorInicial: 450.00 }
   ];
 
   const cofrinhoHistorico: CofrinhoHistorico[] = [
@@ -151,7 +151,8 @@ export const getDefaultState = () => {
       recebidoPagoEfetivado: true,
       data: '2026-06-15',
       descricao: 'Depósito: Reserva de Emergência',
-      contaId: 'conta-1'
+      contaId: 'conta-1',
+      cofrinhoId: 'cof-1'
     }
   ];
 

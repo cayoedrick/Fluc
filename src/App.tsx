@@ -545,7 +545,8 @@ export default function App() {
       nome: newCof.nome,
       saldoAtual: newCof.saldoAtual,
       meta: newCof.meta,
-      cor: newCof.cor
+      cor: newCof.cor,
+      valorInicial: newCof.valorInicial
     };
 
     // If there is a starting value, add to history as deposit
