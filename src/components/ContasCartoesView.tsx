@@ -3,6 +3,10 @@ import { Conta, Cartao, Lancamento } from '../types';
 import { Plus, Landmark, CreditCard, Paintbrush, Check, X, HelpCircle, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { SyncStatusIcon } from './SyncStatusIcon';
 
+const formatCurrency = (val: number): string => {
+  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
+};
+
 interface ContasCartoesViewProps {
   contas: Conta[];
   cartoes: Cartao[];
@@ -379,10 +383,10 @@ export function ContasCartoesView({
                   <div className="mt-4">
                     <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block">Saldo Atual</span>
                     <span className="text-2xl font-extrabold text-[var(--text-general)]">
-                      R$ {currentBal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {formatCurrency(currentBal)}
                     </span>
                     <span className="text-[10px] text-[var(--text-discreto)] block">
-                      Saldo Inicial: R$ {c.saldoInicial.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      Saldo Inicial: {formatCurrency(c.saldoInicial)}
                     </span>
                   </div>
                 </div>
@@ -463,11 +467,11 @@ export function ContasCartoesView({
                   <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
                     <div>
                       <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Limite Total</span>
-                      <span className="font-bold text-[var(--text-general)]">R$ {card.limiteTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-bold text-[var(--text-general)]">{formatCurrency(card.limiteTotal)}</span>
                     </div>
                     <div>
                       <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Limite Utilizado</span>
-                      <span className="font-bold text-[#ed793a]">R$ {card.limiteUtilizado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-bold text-[#ed793a]">{formatCurrency(card.limiteUtilizado)}</span>
                     </div>
 
                     {/* CURRENT MONTH INVOICE ROW */}
@@ -477,7 +481,7 @@ export function ContasCartoesView({
                           Valor da Fatura ({getMonthNamePortuguese(invoiceMonth)})
                         </span>
                         <span className="font-extrabold text-[var(--text-general)] text-sm">
-                          R$ {getCardInvoiceValue ? getCardInvoiceValue(card.id, invoiceMonth).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'}
+                          {getCardInvoiceValue ? formatCurrency(getCardInvoiceValue(card.id, invoiceMonth)) : 'R$ 0,00'}
                         </span>
                       </div>
                       <button

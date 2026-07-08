@@ -18,7 +18,8 @@ import {
   Edit2,
   Trash2,
   Share2,
-  Info
+  Info,
+  Pencil
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
 import { SyncStatusIcon } from './SyncStatusIcon';
@@ -57,6 +58,10 @@ interface DashboardViewProps {
   onDeleteLancamento?: (id: string, mode: 'este' | 'futuros' | 'todos') => void;
 }
 
+const formatCurrency = (val: number): string => {
+  return (val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+};
+
 export function DashboardView({
   contas,
   cartoes,
@@ -83,6 +88,11 @@ export function DashboardView({
   // Tab selected: "contas" or "cartoes"
   const [activeTab, setActiveTab] = useState<'contas' | 'cartoes'>('contas');
   
+  // Invoice adjustment state
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [invoiceAdjustCard, setInvoiceAdjustCard] = useState<Cartao | null>(null);
+  const [newInvoiceValue, setNewInvoiceValue] = useState('');
+
   // Selection filters
   const [selectedContaId, setSelectedContaId] = useState<string>('all');
   const [selectedCartaoId, setSelectedCartaoId] = useState<string>('all');
@@ -292,6 +302,46 @@ export function DashboardView({
     }
   };
 
+  const handleConfirmInvoiceAdjust = () => {
+    if (!invoiceAdjustCard || !onAddLancamento) return;
+
+    const newValue = parseFloat(newInvoiceValue.replace(',', '.'));
+    if (isNaN(newValue) || newValue < 0) {
+      window.showToast?.('Por favor, insira um valor de fatura válido.', 'erro');
+      return;
+    }
+
+    const currentValue = getCardInvoiceValue ? getCardInvoiceValue(invoiceAdjustCard.id, currentDate) : 0;
+    const diff = newValue - currentValue;
+
+    if (Math.abs(diff) < 0.01) {
+      window.showToast?.('Nenhuma alteração detectada no valor da fatura.', 'info');
+      setIsInvoiceModalOpen(false);
+      return;
+    }
+
+    // Determine the date of the adjusting transaction
+    const today = new Date();
+    const todayMonthYear = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    let dateStr = `${currentDate}-01`;
+    if (currentDate === todayMonthYear) {
+      dateStr = `${currentDate}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+
+    onAddLancamento({
+      tipo: 'despesa_cartao',
+      valor: Math.abs(diff),
+      recebidoPagoEfetivado: true,
+      estorno: diff < 0,
+      data: dateStr,
+      descricao: `Ajuste de Fatura: ${invoiceAdjustCard.nome}`,
+      cartaoId: invoiceAdjustCard.id,
+    });
+    
+    setIsInvoiceModalOpen(false);
+    window.showToast?.('Fatura ajustada com sucesso!', 'sucesso');
+  };
+
   const handleExecuteInvoicePayment = () => {
     if (!cardForPayment) return;
 
@@ -451,8 +501,8 @@ export function DashboardView({
               </div>
               <h1 className="text-4xl font-extrabold text-[var(--text-general)] mt-1 tracking-tight">
                 R$ {selectedContaId === 'all' 
-                  ? getSaldoAtual(currentDate).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                  : getSaldoAtual(currentDate, selectedContaId).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ? formatCurrency(getSaldoAtual(currentDate))
+                  : formatCurrency(getSaldoAtual(currentDate, selectedContaId))}
               </h1>
             </div>
 
@@ -468,7 +518,7 @@ export function DashboardView({
                   <HelpCircle size={10} className="text-[var(--text-discreto)]" />
                 </div>
                 <p className={`text-sm font-bold mt-0.5 ${forecastData.forecast > 0 ? 'text-[#00cc52]' : forecastData.forecast < 0 ? 'text-[#d03c4d]' : 'text-[var(--text-general)]'}`}>
-                  R$ {forecastData.forecast.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {formatCurrency(forecastData.forecast)}
                 </p>
               </div>
 
@@ -482,7 +532,7 @@ export function DashboardView({
                   <HelpCircle size={10} className="text-[var(--text-discreto)]" />
                 </div>
                 <p className="text-sm font-bold text-blue-500 mt-0.5">
-                  R$ {getTotalReservedValue().toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {formatCurrency(getTotalReservedValue())}
                 </p>
               </div>
             </div>
@@ -535,7 +585,7 @@ export function DashboardView({
                   <HelpCircle size={12} className="text-[var(--text-discreto)]" />
                 </div>
                 <h1 className="text-4xl font-extrabold text-[#ed793a] mt-1 tracking-tight">
-                  R$ {getTotalInvoicesValue(currentDate, selectedCartaoId === 'all' ? undefined : selectedCartaoId).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {formatCurrency(getTotalInvoicesValue(currentDate, selectedCartaoId === 'all' ? undefined : selectedCartaoId))}
                 </h1>
               </div>
             </div>
@@ -597,8 +647,8 @@ export function DashboardView({
               <span className="text-[9px] sm:text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block truncate">RECEITAS</span>
               <HelpCircle size={10} className="text-[var(--text-discreto)] shrink-0" />
             </div>
-            <p className="text-sm xs:text-base sm:text-lg font-extrabold text-[#00cc52] tracking-tight truncate" title={dashboardTotalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}>
-              R$ {dashboardTotalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <p className="text-sm xs:text-base sm:text-lg font-extrabold text-[#00cc52] tracking-tight truncate" title={formatCurrency(dashboardTotalReceitas)}>
+              R$ {formatCurrency(dashboardTotalReceitas)}
             </p>
           </div>
         </div>
@@ -616,8 +666,8 @@ export function DashboardView({
               <span className="text-[9px] sm:text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block truncate">DESPESAS</span>
               <HelpCircle size={10} className="text-[var(--text-discreto)] shrink-0" />
             </div>
-            <p className="text-sm xs:text-base sm:text-lg font-extrabold text-[#d03c4d] tracking-tight truncate" title={dashboardTotalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}>
-              R$ {dashboardTotalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <p className="text-sm xs:text-base sm:text-lg font-extrabold text-[#d03c4d] tracking-tight truncate" title={formatCurrency(dashboardTotalExpenses)}>
+              R$ {formatCurrency(dashboardTotalExpenses)}
             </p>
           </div>
         </div>
@@ -741,7 +791,7 @@ export function DashboardView({
 
                   <div className="text-right flex flex-col items-end gap-1">
                     <p className={`text-sm font-extrabold whitespace-nowrap ${typeColor}`}>
-                      {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {formatCurrency(l.valor)}
                     </p>
                     <span className="text-[10px] font-bold text-[var(--text-discreto)]">
                       {l.data.split('-').reverse().slice(0, 2).join('/')}
@@ -806,7 +856,7 @@ export function DashboardView({
                     <span className="text-xs font-bold text-[var(--text-general)]">{c.nome}</span>
                   </div>
                   <span className="text-xs font-extrabold text-[var(--text-general)]">
-                    R$ {getSaldoAtual(currentDate, c.id).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {formatCurrency(getSaldoAtual(currentDate, c.id))}
                   </span>
                 </div>
               ))}
@@ -836,7 +886,7 @@ export function DashboardView({
                       <span className="text-xs font-bold text-[var(--text-general)]">{c.nome}</span>
                     </div>
                     <span className="text-xs font-extrabold text-blue-500">
-                      R$ {c.saldoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {formatCurrency(c.saldoAtual)}
                     </span>
                   </div>
                 ))}
@@ -860,27 +910,27 @@ export function DashboardView({
             <div className="space-y-2 text-xs">
               <div className="flex justify-between p-2.5 bg-[var(--bg-app)] rounded-[12px]">
                 <span className="text-[var(--text-discreto)] font-bold">SALDO DO MÊS ANTERIOR</span>
-                <span className="text-[var(--text-general)] font-bold">R$ {forecastData.saldoMesAnterior.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-[var(--text-general)] font-bold">R$ {formatCurrency(forecastData.saldoMesAnterior)}</span>
               </div>
               <div className="flex justify-between p-2.5 bg-[var(--bg-app)] rounded-[12px]">
                 <span className="text-[#00cc52] font-bold">RECEITAS CONSOLIDADAS</span>
-                <span className="text-[#00cc52] font-bold">+ R$ {forecastData.receitasConsolidadas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-[#00cc52] font-bold">+ R$ {formatCurrency(forecastData.receitasConsolidadas)}</span>
               </div>
               <div className="flex justify-between p-2.5 bg-[var(--bg-app)] rounded-[12px]">
                 <span className="text-[#00cc52] font-bold">RECEITAS PENDENTES</span>
-                <span className="text-[#00cc52] font-bold">+ R$ {forecastData.receitasPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-[#00cc52] font-bold">+ R$ {formatCurrency(forecastData.receitasPendentes)}</span>
               </div>
               <div className="flex justify-between p-2.5 bg-[var(--bg-app)] rounded-[12px]">
                 <span className="text-[#d03c4d] font-bold">DESPESAS CONSOLIDADAS</span>
-                <span className="text-[#d03c4d] font-bold">- R$ {forecastData.despesasConsolidadas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-[#d03c4d] font-bold">- R$ {formatCurrency(forecastData.despesasConsolidadas)}</span>
               </div>
               <div className="flex justify-between p-2.5 bg-[var(--bg-app)] rounded-[12px]">
                 <span className="text-[#d03c4d] font-bold">DESPESAS PENDENTES</span>
-                <span className="text-[#d03c4d] font-bold">- R$ {forecastData.despesasPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-[#d03c4d] font-bold">- R$ {formatCurrency(forecastData.despesasPendentes)}</span>
               </div>
               <div className="flex justify-between p-2.5 bg-[var(--bg-app)] rounded-[12px]">
                 <span className="text-[#ed793a] font-bold">FATURAS EM ABERTO</span>
-                <span className="text-[#ed793a] font-bold">- R$ {forecastData.activeInvoices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="text-[#ed793a] font-bold">- R$ {formatCurrency(forecastData.activeInvoices)}</span>
               </div>
               
               {Math.abs(forecastData.outrasMovimentacoes) > 0.01 && (
@@ -889,14 +939,14 @@ export function DashboardView({
                     OUTRAS MOVIMENTAÇÕES
                   </span>
                   <span className={`${forecastData.outrasMovimentacoes > 0 ? 'text-[#00cc52]' : 'text-[#d03c4d]'} font-bold`}>
-                    {forecastData.outrasMovimentacoes > 0 ? '+' : '-'} R$ {Math.abs(forecastData.outrasMovimentacoes).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {forecastData.outrasMovimentacoes > 0 ? '+' : '-'} R$ {formatCurrency(Math.abs(forecastData.outrasMovimentacoes))}
                   </span>
                 </div>
               )}
               
               <div className="border-t border-[var(--bg-tertiary)] pt-3 flex justify-between font-extrabold text-sm text-[var(--text-general)]">
                 <span>PREVISÃO FINAL</span>
-                <span className={forecastData.forecast > 0 ? 'text-[#00cc52]' : forecastData.forecast < 0 ? 'text-[#d03c4d]' : 'text-[var(--text-general)]'}>R$ {forecastData.forecast.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className={forecastData.forecast > 0 ? 'text-[#00cc52]' : forecastData.forecast < 0 ? 'text-[#d03c4d]' : 'text-[var(--text-general)]'}>R$ {formatCurrency(forecastData.forecast)}</span>
               </div>
             </div>
           </div>
@@ -920,9 +970,22 @@ export function DashboardView({
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: card.cor }} />
                     <span className="text-xs font-bold text-[var(--text-general)]">{card.nome}</span>
                   </div>
-                  <span className="text-xs font-extrabold text-[#ed793a]">
-                    R$ {getCardInvoiceValue(card.id, currentDate).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold text-[#ed793a]">
+                      R$ {formatCurrency(getCardInvoiceValue(card.id, currentDate))}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        setInvoiceAdjustCard(card);
+                        setNewInvoiceValue('');
+                        setIsInvoiceModalOpen(true);
+                        setActivePopup(null);
+                      }}
+                      className="p-1 hover:bg-[var(--bg-tertiary)] rounded-full text-[var(--text-discreto)] hover:text-[var(--text-general)]"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -960,7 +1023,7 @@ export function DashboardView({
                         <span className="text-xs font-bold text-[var(--text-general)]">{card.nome}</span>
                       </div>
                       <span className="text-xs font-extrabold text-[#ed793a]">
-                        R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {formatCurrency(value)}
                       </span>
                     </div>
 
@@ -995,7 +1058,7 @@ export function DashboardView({
               </span>
               <h3 className="text-sm font-bold text-[var(--text-general)]">Selecione a Conta para Débito</h3>
               <p className="text-xs text-[var(--text-discreto)] mt-1.5">
-                O cartão <span className="font-semibold text-[var(--text-general)]">{payingCardWithoutAccount.nome}</span> não possui uma conta bancária vinculada. Escolha de qual conta deseja debitar o valor de <span className="font-extrabold text-[#ed793a]">R$ {payingCardValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>:
+                O cartão <span className="font-semibold text-[var(--text-general)]">{payingCardWithoutAccount.nome}</span> não possui uma conta bancária vinculada. Escolha de qual conta deseja debitar o valor de <span className="font-extrabold text-[#ed793a]">R$ {formatCurrency(payingCardValue)}</span>:
               </p>
             </div>
 
@@ -1073,7 +1136,7 @@ export function DashboardView({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[var(--text-general)]">Lançamentos (Contas)</span>
                   <span className="text-xs font-extrabold text-[#d03c4d]">
-                    R$ {dashboardExpenseLancamentos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {formatCurrency(dashboardExpenseLancamentos)}
                   </span>
                 </div>
                 <p className="text-[10px] text-[var(--text-discreto)]">
@@ -1086,7 +1149,7 @@ export function DashboardView({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[var(--text-general)]">Faturas dos Cartões</span>
                   <span className="text-xs font-extrabold text-[#ed793a]">
-                    R$ {dashboardExpenseCartoes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {formatCurrency(dashboardExpenseCartoes)}
                   </span>
                 </div>
                 <p className="text-[10px] text-[var(--text-discreto)]">
@@ -1098,7 +1161,7 @@ export function DashboardView({
               <div className="p-4 bg-[var(--bg-tertiary)]/30 border border-[var(--bg-tertiary)] rounded-[16px] flex justify-between items-center">
                 <span className="text-xs font-extrabold text-[var(--text-general)]">Total de Saídas</span>
                 <span className="text-sm font-extrabold text-[#d03c4d]">
-                  R$ {dashboardTotalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {formatCurrency(dashboardTotalExpenses)}
                 </span>
               </div>
             </div>
@@ -1140,7 +1203,7 @@ export function DashboardView({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[var(--text-general)]">Lançamentos (Receitas)</span>
                   <span className="text-xs font-extrabold text-[#00cc52]">
-                    R$ {dashboardTotalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {formatCurrency(dashboardTotalReceitas)}
                   </span>
                 </div>
                 <p className="text-[10px] text-[var(--text-discreto)]">
@@ -1152,7 +1215,7 @@ export function DashboardView({
               <div className="p-4 bg-[var(--bg-tertiary)]/30 border border-[var(--bg-tertiary)] rounded-[16px] flex justify-between items-center">
                 <span className="text-xs font-extrabold text-[var(--text-general)]">Total de Entradas</span>
                 <span className="text-sm font-extrabold text-[#00cc52]">
-                  R$ {dashboardTotalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {formatCurrency(dashboardTotalReceitas)}
                 </span>
               </div>
             </div>
@@ -1312,7 +1375,7 @@ export function DashboardView({
               </span>
               <h4 className="text-sm font-bold text-[var(--text-general)]">Confirmar Pagamento de Fatura</h4>
               <p className="text-[11px] text-[var(--text-discreto)] mt-1">
-                Você está confirmando o pagamento da fatura do cartão <strong>{cardForPayment.nome}</strong> no valor de <strong>R$ {valueForPayment.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>.
+                Você está confirmando o pagamento da fatura do cartão <strong>{cardForPayment.nome}</strong> no valor de <strong>R$ {formatCurrency(valueForPayment)}</strong>.
               </p>
             </div>
 
@@ -1349,7 +1412,7 @@ export function DashboardView({
                     >
                       <option value="">Selecione a conta...</option>
                       {contas.map(c => (
-                        <option key={c.id} value={c.id}>{c.nome} (Saldo: R$ {getAccountBalance(c.id).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>
+                        <option key={c.id} value={c.id}>{c.nome} (Saldo: R$ {formatCurrency(getAccountBalance(c.id))})</option>
                       ))}
                     </select>
                   </div>
@@ -1383,6 +1446,66 @@ export function DashboardView({
                 className="py-2.5 bg-[var(--color-cartao)] hover:opacity-90 text-white text-xs font-bold rounded-[12px] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* INVOICE ADJUSTMENT MODAL */}
+      {isInvoiceModalOpen && invoiceAdjustCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] overflow-hidden flex flex-col shadow-2xl">
+            <div className="bg-[var(--bg-app)] border-b border-[var(--bg-tertiary)] p-4 text-center flex justify-between items-center px-6">
+              <span className="w-6" />
+              <h3 className="text-sm font-extrabold text-[var(--text-general)]">
+                Ajustar Fatura do Cartão
+              </h3>
+              <button 
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="p-1 hover:bg-[var(--bg-tertiary)] rounded-full text-[var(--text-discreto)] hover:text-[var(--text-general)] transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-4 rounded-[16px] text-center">
+                <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase block">Cartão Selecionado</span>
+                <span className="text-sm font-bold text-[var(--text-general)] block mt-0.5" style={{ color: invoiceAdjustCard.cor }}>
+                  {invoiceAdjustCard.nome}
+                </span>
+                <span className="text-[10px] text-[var(--text-discreto)] mt-1.5 block">
+                  Período do Ajuste: <strong>{getMonthNamePortuguese(currentDate)}</strong>
+                </span>
+              </div>
+
+              <div>
+                <span className="text-xs font-semibold text-[var(--text-discreto)] block mb-1">NOVO VALOR DA FATURA (R$)</span>
+                <input
+                  type="text"
+                  placeholder="0,00"
+                  value={newInvoiceValue}
+                  onChange={(e) => setNewInvoiceValue(e.target.value)}
+                  className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden focus:border-[var(--bg-secondary)]"
+                />
+                <span className="text-[10px] text-[var(--text-discreto)] mt-2 block leading-relaxed">
+                  Ao confirmar, o sistema calculará a diferença entre o valor atual da fatura e o novo valor inserido, gerando automaticamente um lançamento de ajuste do tipo <strong>despesa de cartão</strong> no período.
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-[var(--bg-app)] border-t border-[var(--bg-tertiary)] flex gap-3">
+              <button
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="flex-1 py-3 border border-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] rounded-[16px] text-sm text-[var(--text-general)] font-semibold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmInvoiceAdjust}
+                className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-[16px] text-sm font-semibold flex items-center justify-center gap-1 transition-all shadow-md"
+              >
+                <Check size={16} /> Confirmar Ajuste
               </button>
             </div>
           </div>

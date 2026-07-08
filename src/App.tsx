@@ -15,6 +15,10 @@ import { SyncStatusIcon } from './components/SyncStatusIcon';
 import { SyncStatusModal } from './components/SyncStatusModal';
 import { motion, AnimatePresence } from 'motion/react';
 
+const formatCurrency = (val: number): string => {
+  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
+};
+
 export default function App() {
   const {
     state,
@@ -146,9 +150,9 @@ export default function App() {
         if (!isValorParcela) {
           if (i === num - 1) {
             // Last installment gets the remainder to prevent rounding issues
-            installmentValor = Number((adjustedLanc.valor - sumOfInstallments).toFixed(2));
+            installmentValor = Number((adjustedLanc.valor - sumOfInstallments).toFixed(3));
           } else {
-            installmentValor = Number((adjustedLanc.valor / num).toFixed(2));
+            installmentValor = Number((adjustedLanc.valor / num).toFixed(3));
             sumOfInstallments += installmentValor;
           }
         }
@@ -201,7 +205,7 @@ export default function App() {
         reimbursementEntries = adjustedLanc.participantes.map((p, idx) => {
           let valorReembolso = p.valor;
           if (p.isPorcentagem) {
-            valorReembolso = Number((adjustedLanc.valor * (p.valor / 100)).toFixed(2));
+            valorReembolso = Number((adjustedLanc.valor * (p.valor / 100)).toFixed(3));
           }
 
           return {
@@ -432,9 +436,9 @@ export default function App() {
 
     if (chosenContaId) {
       const contaName = state.contas.find(c => c.id === chosenContaId)?.nome || 'Conta Selecionada';
-      showToast(`Fatura do cartão ${card.nome} no valor de R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} foi confirmada e debitada da conta: ${contaName}!`, 'sucesso');
+      showToast(`Fatura do cartão ${card.nome} no valor de ${formatCurrency(value)} foi confirmada e debitada da conta: ${contaName}!`, 'sucesso');
     } else {
-      showToast(`Fatura do cartão ${card.nome} no valor de R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} foi confirmada! Como nenhuma conta foi debitada, apenas o limite da fatura do cartão foi atualizado.`, 'sucesso');
+      showToast(`Fatura do cartão ${card.nome} no valor de ${formatCurrency(value)} foi confirmada! Como nenhuma conta foi debitada, apenas o limite da fatura do cartão foi atualizado.`, 'sucesso');
     }
   };
 
@@ -479,7 +483,7 @@ export default function App() {
 
           setTimeout(() => {
             window.showToast?.(
-              `Saldo ajustado! Criado lançamento de ${diff > 0 ? 'receita' : 'despesa'} no valor de R$ ${Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para ajuste.`,
+              `Saldo ajustado! Criado lançamento de ${diff > 0 ? 'receita' : 'despesa'} no valor de ${formatCurrency(Math.abs(diff))} para ajuste.`,
               'sucesso'
             );
           }, 100);

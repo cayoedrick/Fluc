@@ -3,6 +3,10 @@ import { Conta, Cartao, Categoria, Lancamento, ParticipanteDespesa } from '../ty
 import { Plus, X, Calendar, Check, ArrowRight, Wallet, CreditCard, Info, Share2, Users, Percent, Trash2 } from 'lucide-react';
 import { FloatingInfoModal } from './FloatingInfoModal';
 
+const formatCurrency = (val: number): string => {
+  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
+};
+
 interface LancamentoModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -508,11 +512,11 @@ export function LancamentoModal({
                                       const num = parseFloat(parts[0].replace(',', '.'));
                                       const den = parseFloat(parts[1].replace(',', '.'));
                                       if (!isNaN(num) && !isNaN(den) && den !== 0) {
-                                        return ((parseFloat(valor.replace(',', '.')) || 0) * (num / den)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                        return formatCurrency((parseFloat(valor.replace(',', '.')) || 0) * (num / den));
                                       }
                                     }
                                   }
-                                  return ((parseFloat(valor.replace(',', '.')) || 0) * (p.valor / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                  return formatCurrency((parseFloat(valor.replace(',', '.')) || 0) * (p.valor / 100));
                                 })()}
                               </span>
                             ) : (p.rawValor && p.rawValor.includes('/')) ? (
@@ -523,7 +527,7 @@ export function LancamentoModal({
                                      const num = parseFloat(parts[0].replace(',', '.'));
                                      const den = parseFloat(parts[1].replace(',', '.'));
                                      if (!isNaN(num) && !isNaN(den) && den !== 0) {
-                                       return ((parseFloat(valor.replace(',', '.')) || 0) * (num / den)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                       return formatCurrency((parseFloat(valor.replace(',', '.')) || 0) * (num / den));
                                      }
                                    }
                                    return '';

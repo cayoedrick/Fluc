@@ -3,6 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Share2, Users, Receipt, User, Layers, Info } from 'lucide-react';
 import { Lancamento } from '../types';
 
+const formatCurrency = (val: number): string => {
+  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
+};
+
 interface SharedLancamentoDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -137,7 +141,7 @@ export function SharedLancamentoDetailsModal({ isOpen, onClose, lancamento, allL
               Valor Total
             </span>
             <span className={`${isCompact ? 'text-base' : 'text-xl'} font-black text-[var(--text-general)]`}>
-              {item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              {formatCurrency(item.valor)}
             </span>
           </div>
         </div>
@@ -183,12 +187,12 @@ export function SharedLancamentoDetailsModal({ isOpen, onClose, lancamento, allL
                           )}
                         </span>
                         <span className="text-[8px] text-[var(--text-discreto)]">
-                          Fração: {p.isPorcentagem ? `${p.valor}%` : p.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          Fração: {p.isPorcentagem ? `${p.valor}%` : formatCurrency(p.valor)}
                         </span>
                       </div>
                     </div>
                     <span className="text-[10px] font-black text-indigo-500">
-                      {shareValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      {formatCurrency(shareValue)}
                     </span>
                   </div>
                 );
@@ -201,8 +205,8 @@ export function SharedLancamentoDetailsModal({ isOpen, onClose, lancamento, allL
               </span>
               <span className="font-black text-indigo-500">
                 {isGeneratedReimbursement
-                  ? (calculateShareValue(item.valor, item.participantes?.find(p => p.nome === combinedParticipantName) || { valor: 0, isPorcentagem: false })).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                  : itemYourShare.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  ? formatCurrency(calculateShareValue(item.valor, item.participantes?.find(p => p.nome === combinedParticipantName) || { valor: 0, isPorcentagem: false }))
+                  : formatCurrency(itemYourShare)}
               </span>
             </div>
           </div>
@@ -286,7 +290,7 @@ export function SharedLancamentoDetailsModal({ isOpen, onClose, lancamento, allL
                       <div className="flex justify-between items-center">
                         <span className="text-indigo-700 dark:text-indigo-300 font-medium">Valor Total do Grupo:</span>
                         <span className="font-black text-indigo-700 dark:text-indigo-300">
-                          {totalGroupValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          {formatCurrency(totalGroupValue)}
                         </span>
                       </div>
                     )}
@@ -301,7 +305,7 @@ export function SharedLancamentoDetailsModal({ isOpen, onClose, lancamento, allL
                         <div key={idx} className="flex justify-between items-center">
                           <span className="text-indigo-700 dark:text-indigo-300 font-medium text-xs">{cp.nome}:</span>
                           <span className="font-bold text-indigo-600 dark:text-indigo-400 text-xs">
-                            {cp.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            {formatCurrency(cp.totalValue)}
                           </span>
                         </div>
                       ))}
@@ -310,7 +314,7 @@ export function SharedLancamentoDetailsModal({ isOpen, onClose, lancamento, allL
                     <div className="flex justify-between items-center pt-1 font-black text-indigo-700 dark:text-indigo-300">
                       <span>{isGeneratedReimbursement ? 'Total a Receber:' : 'Seu Total no Grupo:'}</span>
                       <span className="bg-indigo-500 text-white px-3 py-1.5 rounded-xl shadow-xs font-bold">
-                        {isGeneratedReimbursement ? (consolidatedParticipants[combinedParticipantName]?.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : totalYourShare.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        {isGeneratedReimbursement ? formatCurrency(consolidatedParticipants[combinedParticipantName]?.totalValue || 0) : formatCurrency(totalYourShare)}
                       </span>
                     </div>
                   </div>

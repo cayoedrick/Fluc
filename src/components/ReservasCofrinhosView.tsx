@@ -39,6 +39,10 @@ const PRESET_COLORS = [
   '#8e44ad', // Purple
 ];
 
+const formatCurrency = (val: number): string => {
+  return (val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+};
+
 export function ReservasCofrinhosView({
   cofrinhos,
   cofrinhoHistorico,
@@ -338,11 +342,11 @@ export function ReservasCofrinhosView({
                   <div>
                     <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block">Saldo Reservado</span>
                     <span className="text-2xl font-extrabold text-[#00cc52] tracking-tight">
-                      R$ {c.saldoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {formatCurrency(c.saldoAtual)}
                     </span>
                     {hasMeta && (
                       <span className="text-[10px] text-[var(--text-discreto)] block">
-                        Meta: R$ {c.meta?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        Meta: R$ {c.meta ? formatCurrency(c.meta) : ''}
                       </span>
                     )}
                   </div>
@@ -498,7 +502,7 @@ export function ReservasCofrinhosView({
                             </div>
                             <div className="text-right">
                               <span className={`font-extrabold ${iconColor}`}>
-                                {prefix} R$ {Math.abs(h.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                {prefix} R$ {formatCurrency(Math.abs(h.valor))}
                               </span>
                               <p className="text-[9px] text-[var(--text-discreto)]">{h.data.split('-').reverse().join('/')}</p>
                             </div>
@@ -570,7 +574,7 @@ export function ReservasCofrinhosView({
                             const balance = getAccountBalance(c.id);
                             return (
                               <option key={c.id} value={c.id}>
-                                {c.nome} (Saldo: R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                {c.nome} (Saldo: R$ {formatCurrency(balance)})
                               </option>
                             );
                           })}

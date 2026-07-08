@@ -231,10 +231,10 @@ export function useFlucState() {
           
           let shareValue = p.valor;
           if (p.isPorcentagem) {
-            shareValue = Number((l.valor * (p.valor / 100)).toFixed(2));
+            shareValue = Number((l.valor * (p.valor / 100)).toFixed(3));
           }
           
-          current.total = Number((current.total + shareValue).toFixed(2));
+          current.total = Number((current.total + shareValue).toFixed(3));
           current.descriptions.push(l.descricao);
           sharesMap.set(key, current);
         });
@@ -428,7 +428,7 @@ export function useFlucState() {
 
     return {
       ...c,
-      saldoAtual: Number(balance.toFixed(2))
+      saldoAtual: Number(balance.toFixed(3))
     };
   });
 

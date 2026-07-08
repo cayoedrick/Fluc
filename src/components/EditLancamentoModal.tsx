@@ -3,6 +3,10 @@ import { Conta, Cartao, Categoria, Lancamento } from '../types';
 import { X, Calendar, Check, Wallet, CreditCard, ArrowRight, Share2, Users, Percent, Trash2, Plus, Info } from 'lucide-react';
 import { ParticipanteDespesa } from '../types';
 
+const formatCurrency = (val: number): string => {
+  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
+};
+
 interface EditLancamentoModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -529,11 +533,11 @@ export function EditLancamentoModal({
                                         const num = parseFloat(parts[0].replace(',', '.'));
                                         const den = parseFloat(parts[1].replace(',', '.'));
                                         if (!isNaN(num) && !isNaN(den) && den !== 0) {
-                                          return ((parseFloat(valor.replace(',', '.')) || 0) * (num / den)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                          return formatCurrency((parseFloat(valor.replace(',', '.')) || 0) * (num / den));
                                         }
                                       }
                                     }
-                                    return ((parseFloat(valor.replace(',', '.')) || 0) * (p.valor / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                    return formatCurrency((parseFloat(valor.replace(',', '.')) || 0) * (p.valor / 100));
                                   })()}
                                 </span>
                               ) : (p.rawValor && p.rawValor.includes('/')) ? (

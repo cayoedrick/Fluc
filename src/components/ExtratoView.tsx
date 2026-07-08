@@ -40,6 +40,10 @@ interface ExtratoViewProps {
   onOpenMenu?: () => void;
 }
 
+const formatCurrency = (val: number): string => {
+  return (val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+};
+
 export function ExtratoView({
   contas,
   cartoes,
@@ -209,7 +213,7 @@ export function ExtratoView({
       const catNameNoAccents = catName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       
       const valStr = l.valor.toString();
-      const valFmtBr = l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+      const valFmtBr = formatCurrency(l.valor);
       const valFmtBrPlain = valFmtBr.replace(/\./g, ''); // remove thousands separator
 
       const match = desc.includes(q) || 
@@ -701,7 +705,7 @@ export function ExtratoView({
                 <HelpCircle size={10} className="text-[var(--text-discreto)] shrink-0" />
               </div>
               <span className="text-sm font-extrabold text-[#00cc52]">
-                R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {formatCurrency(totalEntradas)}
               </span>
             </div>
           </div>
@@ -722,7 +726,7 @@ export function ExtratoView({
                 <HelpCircle size={10} className="text-[var(--text-discreto)] shrink-0" />
               </div>
               <span className="text-sm font-extrabold text-[#d03c4d]">
-                R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {formatCurrency(totalSaidas)}
               </span>
             </div>
           </div>
@@ -849,7 +853,7 @@ export function ExtratoView({
                         {l.data.split('-').reverse().join('/')}
                       </p>
                       <p className={`text-sm font-extrabold whitespace-nowrap ${textClass}`}>
-                        {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {formatCurrency(l.valor)}
                       </p>
                     </div>
 
@@ -1071,7 +1075,7 @@ export function ExtratoView({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[var(--text-general)]">Lançamentos (Contas)</span>
                   <span className="text-xs font-extrabold text-[#d03c4d]">
-                    R$ {extratoExpenseLancamentos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {formatCurrency(extratoExpenseLancamentos)}
                   </span>
                 </div>
                 <p className="text-[10px] text-[var(--text-discreto)]">
@@ -1084,7 +1088,7 @@ export function ExtratoView({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[var(--text-general)]">Faturas dos Cartões</span>
                   <span className="text-xs font-extrabold text-[#ed793a]">
-                    R$ {extratoExpenseCartoes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {formatCurrency(extratoExpenseCartoes)}
                   </span>
                 </div>
                 <p className="text-[10px] text-[var(--text-discreto)]">
@@ -1096,7 +1100,7 @@ export function ExtratoView({
               <div className="p-4 bg-[var(--bg-tertiary)]/30 border border-[var(--bg-tertiary)] rounded-[16px] flex justify-between items-center">
                 <span className="text-xs font-extrabold text-[var(--text-general)]">Total de Saídas</span>
                 <span className="text-sm font-extrabold text-[#d03c4d]">
-                  R$ {extratoTotalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {formatCurrency(extratoTotalSaidas)}
                 </span>
               </div>
             </div>
@@ -1138,7 +1142,7 @@ export function ExtratoView({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[var(--text-general)]">Lançamentos (Receitas)</span>
                   <span className="text-xs font-extrabold text-[#00cc52]">
-                    R$ {extratoRevenueLancamentos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    R$ {formatCurrency(extratoRevenueLancamentos)}
                   </span>
                 </div>
                 <p className="text-[10px] text-[var(--text-discreto)]">
@@ -1152,7 +1156,7 @@ export function ExtratoView({
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-[var(--text-general)]">Estornos / Reembolsos</span>
                     <span className="text-xs font-extrabold text-[#00cc52]">
-                      R$ {extratoRevenueRefunds.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      R$ {formatCurrency(extratoRevenueRefunds)}
                     </span>
                   </div>
                   <p className="text-[10px] text-[var(--text-discreto)]">
@@ -1165,7 +1169,7 @@ export function ExtratoView({
               <div className="p-4 bg-[var(--bg-tertiary)]/30 border border-[var(--bg-tertiary)] rounded-[16px] flex justify-between items-center">
                 <span className="text-xs font-extrabold text-[var(--text-general)]">Total de Entradas</span>
                 <span className="text-sm font-extrabold text-[#00cc52]">
-                  R$ {extratoTotalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  R$ {formatCurrency(extratoTotalEntradas)}
                 </span>
               </div>
             </div>
