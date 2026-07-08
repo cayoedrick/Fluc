@@ -94,7 +94,7 @@ export function DashboardView({
   });
 
   // Popup overlay states
-  const [activePopup, setActivePopup] = useState<'saldo' | 'previsao' | 'reservado' | 'fatura' | 'pagamento' | null>(null);
+  const [activePopup, setActivePopup] = useState<'saldo' | 'previsao' | 'reservado' | 'fatura' | 'pagamento' | 'despesas_detalhes' | 'receitas_detalhes' | null>(null);
 
   // Card without bank account selection states
   const [payingCardWithoutAccount, setPayingCardWithoutAccount] = useState<Cartao | null>(null);
@@ -189,6 +189,65 @@ export function DashboardView({
   );
 
   const forecastData = getForecastData(currentDate);
+
+  // Custom calculation: Sum of all expenses, regardless of consolidation status, plus card invoices
+  const dashboardExpenseLancamentos = React.useMemo(() => {
+    let sum = 0;
+    lancamentos.forEach((l) => {
+      if (l.tipo === 'despesa' && l.data.startsWith(currentDate)) {
+        if (activeTab === 'contas') {
+          if (selectedContaId === 'all' || l.contaId === selectedContaId) {
+            sum += l.valor;
+          }
+        }
+      }
+    });
+    return sum;
+  }, [lancamentos, currentDate, activeTab, selectedContaId]);
+
+  const dashboardExpenseCartoes = React.useMemo(() => {
+    if (activeTab === 'cartoes') {
+      if (selectedCartaoId === 'all') {
+        return getTotalInvoicesValue(currentDate);
+      } else {
+        return getCardInvoiceValue(selectedCartaoId, currentDate);
+      }
+    } else {
+      if (selectedContaId === 'all') {
+        return getTotalInvoicesValue(currentDate);
+      } else {
+        let sum = 0;
+        const linkedCards = cartoes.filter(c => c.contaVinculadaId === selectedContaId);
+        linkedCards.forEach((card) => {
+          sum += getCardInvoiceValue(card.id, currentDate);
+        });
+        return sum;
+      }
+    }
+  }, [cartoes, currentDate, activeTab, selectedContaId, selectedCartaoId, getCardInvoiceValue, getTotalInvoicesValue]);
+
+  const dashboardTotalExpenses = dashboardExpenseLancamentos + dashboardExpenseCartoes;
+
+  // Custom calculation: Sum of all revenues (receitas) regardless of consolidation
+  const dashboardTotalReceitas = React.useMemo(() => {
+    let sum = 0;
+    lancamentos.forEach((l) => {
+      if (l.tipo !== 'receita') return;
+      if (!l.data.startsWith(currentDate)) return;
+
+      if (activeTab === 'contas') {
+        if (selectedContaId === 'all' || l.contaId === selectedContaId) {
+          sum += l.valor;
+        }
+      } else {
+        // activeTab === 'cartoes'
+        if (selectedCartaoId === 'all') {
+          sum += l.valor;
+        }
+      }
+    });
+    return sum;
+  }, [lancamentos, currentDate, activeTab, selectedContaId, selectedCartaoId]);
 
   // Filtered launches inside the selected month-year
   const filteredLancamentos = lancamentos.filter((l) => {
@@ -525,27 +584,39 @@ export function DashboardView({
       {/* 5. Income & Expense mini-widgets */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {/* Income Widget */}
-        <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] sm:rounded-[24px] p-3 sm:p-5 flex items-center gap-2.5 sm:gap-4 min-w-0">
+        <div 
+          onClick={() => setActivePopup('receitas_detalhes')}
+          className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] sm:rounded-[24px] p-3 sm:p-5 flex items-center gap-2.5 sm:gap-4 min-w-0 cursor-pointer hover:bg-[var(--bg-tertiary)]/20 transition-all"
+        >
           <div className="p-2 sm:p-3 rounded-[12px] sm:rounded-[16px] bg-[#00cc52]/10 text-[#00cc52] shrink-0 flex items-center justify-center">
             <TrendingUp className="w-4 h-4 sm:w-[22px] sm:h-[22px] stroke-[2.5]" />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] sm:text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block truncate">RECEITAS</span>
-            <p className="text-sm xs:text-base sm:text-lg font-extrabold text-[#00cc52] tracking-tight truncate" title={periodStats.receitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}>
-              R$ {periodStats.receitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] sm:text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block truncate">RECEITAS</span>
+              <HelpCircle size={10} className="text-[var(--text-discreto)] shrink-0" />
+            </div>
+            <p className="text-sm xs:text-base sm:text-lg font-extrabold text-[#00cc52] tracking-tight truncate" title={dashboardTotalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}>
+              R$ {dashboardTotalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
         </div>
 
         {/* Expense Widget */}
-        <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] sm:rounded-[24px] p-3 sm:p-5 flex items-center gap-2.5 sm:gap-4 min-w-0">
+        <div 
+          onClick={() => setActivePopup('despesas_detalhes')}
+          className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] sm:rounded-[24px] p-3 sm:p-5 flex items-center gap-2.5 sm:gap-4 min-w-0 cursor-pointer hover:bg-[var(--bg-tertiary)]/20 transition-all"
+        >
           <div className="p-2 sm:p-3 rounded-[12px] sm:rounded-[16px] bg-[#d03c4d]/10 text-[#d03c4d] shrink-0 flex items-center justify-center">
             <TrendingDown className="w-4 h-4 sm:w-[22px] sm:h-[22px] stroke-[2.5]" />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] sm:text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block truncate">DESPESAS</span>
-            <p className="text-sm xs:text-base sm:text-lg font-extrabold text-[#d03c4d] tracking-tight truncate" title={periodStats.despesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}>
-              R$ {periodStats.despesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] sm:text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block truncate">DESPESAS</span>
+              <HelpCircle size={10} className="text-[var(--text-discreto)] shrink-0" />
+            </div>
+            <p className="text-sm xs:text-base sm:text-lg font-extrabold text-[#d03c4d] tracking-tight truncate" title={dashboardTotalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}>
+              R$ {dashboardTotalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
         </div>
@@ -936,6 +1007,127 @@ export function DashboardView({
                 className="text-xs font-bold text-[var(--text-discreto)] hover:text-[var(--text-general)] py-1 transition-all cursor-pointer"
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETALHAMENTO DE DESPESAS POPUP */}
+      {activePopup === 'despesas_detalhes' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-general)]">Detalhamento de Despesas</h3>
+                <p className="text-[10px] font-semibold text-[var(--text-discreto)] uppercase tracking-wider mt-0.5">
+                  {getMonthNamePortuguese(currentDate)}
+                </p>
+              </div>
+              <button 
+                onClick={() => setActivePopup(null)} 
+                className="p-1.5 rounded-full hover:bg-[var(--bg-app)] text-[var(--text-discreto)] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Lançamentos de Contas */}
+              <div className="p-3.5 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-[var(--text-general)]">Lançamentos (Contas)</span>
+                  <span className="text-xs font-extrabold text-[#d03c4d]">
+                    R$ {dashboardExpenseLancamentos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <p className="text-[10px] text-[var(--text-discreto)]">
+                  Soma de todas as despesas em contas, consolidadas ou pendentes.
+                </p>
+              </div>
+
+              {/* Faturas de Cartões */}
+              <div className="p-3.5 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-[var(--text-general)]">Faturas dos Cartões</span>
+                  <span className="text-xs font-extrabold text-[#ed793a]">
+                    R$ {dashboardExpenseCartoes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <p className="text-[10px] text-[var(--text-discreto)]">
+                  Total das faturas de cartão de crédito no período.
+                </p>
+              </div>
+
+              {/* Total Geral */}
+              <div className="p-4 bg-[var(--bg-tertiary)]/30 border border-[var(--bg-tertiary)] rounded-[16px] flex justify-between items-center">
+                <span className="text-xs font-extrabold text-[var(--text-general)]">Total de Saídas</span>
+                <span className="text-sm font-extrabold text-[#d03c4d]">
+                  R$ {dashboardTotalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-1">
+              <button
+                onClick={() => setActivePopup(null)}
+                className="w-full py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 text-[var(--text-general)] text-xs font-bold rounded-[12px] transition-all cursor-pointer"
+              >
+                Fechar Detalhes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETALHAMENTO DE RECEITAS POPUP */}
+      {activePopup === 'receitas_detalhes' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-general)]">Detalhamento de Receitas</h3>
+                <p className="text-[10px] font-semibold text-[var(--text-discreto)] uppercase tracking-wider mt-0.5">
+                  {getMonthNamePortuguese(currentDate)}
+                </p>
+              </div>
+              <button 
+                onClick={() => setActivePopup(null)} 
+                className="p-1.5 rounded-full hover:bg-[var(--bg-app)] text-[var(--text-discreto)] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Lançamentos de Contas */}
+              <div className="p-3.5 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-[var(--text-general)]">Lançamentos (Receitas)</span>
+                  <span className="text-xs font-extrabold text-[#00cc52]">
+                    R$ {dashboardTotalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <p className="text-[10px] text-[var(--text-discreto)]">
+                  Soma de todas as receitas em contas, consolidadas ou pendentes.
+                </p>
+              </div>
+
+              {/* Total Geral */}
+              <div className="p-4 bg-[var(--bg-tertiary)]/30 border border-[var(--bg-tertiary)] rounded-[16px] flex justify-between items-center">
+                <span className="text-xs font-extrabold text-[var(--text-general)]">Total de Entradas</span>
+                <span className="text-sm font-extrabold text-[#00cc52]">
+                  R$ {dashboardTotalReceitas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-1">
+              <button
+                onClick={() => setActivePopup(null)}
+                className="w-full py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 text-[var(--text-general)] text-xs font-bold rounded-[12px] transition-all cursor-pointer"
+              >
+                Fechar Detalhes
               </button>
             </div>
           </div>

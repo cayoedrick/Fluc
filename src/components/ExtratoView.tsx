@@ -18,7 +18,8 @@ import {
   Edit2,
   Trash2,
   Info,
-  Share2
+  Share2,
+  HelpCircle
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
 import { FloatingInfoModal } from './FloatingInfoModal';
@@ -73,6 +74,12 @@ export function ExtratoView({
   // Delete State
   const [deletingLancamento, setDeletingLancamento] = useState<Lancamento | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+
+  // Saídas details popup state
+  const [showSaidasPopup, setShowSaidasPopup] = useState<boolean>(false);
+
+  // Entradas details popup state
+  const [showEntradasPopup, setShowEntradasPopup] = useState<boolean>(false);
 
   const handleStartEdit = (l: Lancamento) => {
     setEditingLancamento(l);
@@ -257,6 +264,136 @@ export function ExtratoView({
       }
     }
   });
+
+  // Custom calculations for Extrato View "Total Saídas":
+  // - Standard expenses regardless of consolidation
+  // - Credit card invoices/expenses matching the active filters
+  const extratoExpenseLancamentos = React.useMemo(() => {
+    let sum = 0;
+    lancamentos.forEach((l) => {
+      if (l.tipo !== 'despesa') return;
+      if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
+      
+      if (activeTab === 'contas') {
+        if (selectedEntityId === 'all' || l.contaId === selectedEntityId) {
+          sum += l.valor;
+        }
+      }
+    });
+    return sum;
+  }, [lancamentos, currentDate, searchAllMonths, isDateInMonthYear, activeTab, selectedEntityId]);
+
+  const extratoExpenseCartoes = React.useMemo(() => {
+    let sum = 0;
+    if (activeTab === 'cartoes') {
+      if (selectedEntityId === 'all') {
+        lancamentos.forEach((l) => {
+          if (l.tipo === 'despesa_cartao') {
+            if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
+            if (l.estorno) {
+              sum -= l.valor;
+            } else {
+              sum += l.valor;
+            }
+          }
+        });
+      } else {
+        lancamentos.forEach((l) => {
+          if (l.tipo === 'despesa_cartao' && l.cartaoId === selectedEntityId) {
+            if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
+            if (l.estorno) {
+              sum -= l.valor;
+            } else {
+              sum += l.valor;
+            }
+          }
+        });
+      }
+    } else {
+      // activeTab === 'contas'
+      if (selectedEntityId === 'all') {
+        lancamentos.forEach((l) => {
+          if (l.tipo === 'despesa_cartao') {
+            if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
+            if (l.estorno) {
+              sum -= l.valor;
+            } else {
+              sum += l.valor;
+            }
+          }
+        });
+      } else {
+        const linkedCards = cartoes.filter(c => c.contaVinculadaId === selectedEntityId);
+        const linkedCardIds = new Set(linkedCards.map(c => c.id));
+        lancamentos.forEach((l) => {
+          if (l.tipo === 'despesa_cartao' && linkedCardIds.has(l.cartaoId || '')) {
+            if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
+            if (l.estorno) {
+              sum -= l.valor;
+            } else {
+              sum += l.valor;
+            }
+          }
+        });
+      }
+    }
+    return Math.max(0, sum);
+  }, [lancamentos, cartoes, currentDate, searchAllMonths, isDateInMonthYear, activeTab, selectedEntityId]);
+
+  // Custom calculations for Extrato View "Total Entradas":
+  // - Standard revenues (receitas) regardless of consolidation
+  // - Credit card refunds matching the active filters
+  const extratoRevenueLancamentos = React.useMemo(() => {
+    let sum = 0;
+    lancamentos.forEach((l) => {
+      if (l.tipo !== 'receita') return;
+      if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
+      
+      if (activeTab === 'contas') {
+        if (selectedEntityId === 'all' || l.contaId === selectedEntityId) {
+          sum += l.valor;
+        }
+      } else {
+        // activeTab === 'cartoes'
+        if (selectedEntityId === 'all') {
+          sum += l.valor;
+        }
+      }
+    });
+    return sum;
+  }, [lancamentos, currentDate, searchAllMonths, isDateInMonthYear, activeTab, selectedEntityId]);
+
+  const extratoRevenueRefunds = React.useMemo(() => {
+    let sum = 0;
+    lancamentos.forEach((l) => {
+      if (l.tipo !== 'despesa_cartao' || !l.estorno) return;
+      if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
+
+      if (activeTab === 'cartoes') {
+        if (selectedEntityId === 'all' || l.cartaoId === selectedEntityId) {
+          sum += l.valor;
+        }
+      } else {
+        // activeTab === 'contas'
+        if (selectedEntityId === 'all') {
+          sum += l.valor;
+        } else {
+          const linkedCards = cartoes.filter(c => c.contaVinculadaId === selectedEntityId);
+          const linkedCardIds = new Set(linkedCards.map(c => c.id));
+          if (linkedCardIds.has(l.cartaoId || '')) {
+            sum += l.valor;
+          }
+        }
+      }
+    });
+    return sum;
+  }, [lancamentos, cartoes, currentDate, searchAllMonths, isDateInMonthYear, activeTab, selectedEntityId]);
+
+  const extratoTotalEntradas = extratoRevenueLancamentos + extratoRevenueRefunds;
+  totalEntradas = extratoTotalEntradas; // Override to match the requested rule
+
+  const extratoTotalSaidas = extratoExpenseLancamentos + extratoExpenseCartoes;
+  totalSaidas = extratoTotalSaidas; // Override to match the requested rule
 
   return (
     <div className="w-full flex-1 flex flex-col space-y-6">
@@ -548,13 +685,19 @@ export function ExtratoView({
       {/* 3. Summary Widget: Total Entradas & Total Saídas */}
       <div className="grid grid-cols-2 gap-4">
         {/* Entradas */}
-        <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-4 flex items-center justify-between">
+        <div 
+          onClick={() => setShowEntradasPopup(true)}
+          className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--bg-tertiary)]/20 transition-all"
+        >
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-[10px] bg-[#00cc52]/10 text-[#00cc52]">
               <TrendingUp size={16} />
             </div>
             <div>
-              <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Total Entradas</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Total Entradas</span>
+                <HelpCircle size={10} className="text-[var(--text-discreto)] shrink-0" />
+              </div>
               <span className="text-sm font-extrabold text-[#00cc52]">
                 R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
@@ -563,13 +706,19 @@ export function ExtratoView({
         </div>
 
         {/* Saídas */}
-        <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-4 flex items-center justify-between">
+        <div 
+          onClick={() => setShowSaidasPopup(true)}
+          className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-4 flex items-center justify-between cursor-pointer hover:bg-[var(--bg-tertiary)]/20 transition-all"
+        >
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-[10px] bg-[#d03c4d]/10 text-[#d03c4d]">
               <TrendingDown size={16} />
             </div>
             <div>
-              <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Total Saídas</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Total Saídas</span>
+                <HelpCircle size={10} className="text-[var(--text-discreto)] shrink-0" />
+              </div>
               <span className="text-sm font-extrabold text-[#d03c4d]">
                 R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
@@ -871,6 +1020,142 @@ export function ExtratoView({
           }
         ]}
       />
+
+      {/* DETALHAMENTO DE SAÍDAS POPUP */}
+      {showSaidasPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-general)]">Detalhamento de Saídas</h3>
+                <p className="text-[10px] font-semibold text-[var(--text-discreto)] uppercase tracking-wider mt-0.5">
+                  {searchAllMonths ? 'Todos os Períodos' : getMonthNamePortuguese(currentDate)}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowSaidasPopup(false)} 
+                className="p-1.5 rounded-full hover:bg-[var(--bg-app)] text-[var(--text-discreto)] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Lançamentos de Contas */}
+              <div className="p-3.5 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-[var(--text-general)]">Lançamentos (Contas)</span>
+                  <span className="text-xs font-extrabold text-[#d03c4d]">
+                    R$ {extratoExpenseLancamentos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <p className="text-[10px] text-[var(--text-discreto)]">
+                  Soma de todas as despesas em contas, consolidadas ou pendentes.
+                </p>
+              </div>
+
+              {/* Faturas de Cartões */}
+              <div className="p-3.5 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-[var(--text-general)]">Faturas dos Cartões</span>
+                  <span className="text-xs font-extrabold text-[#ed793a]">
+                    R$ {extratoExpenseCartoes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <p className="text-[10px] text-[var(--text-discreto)]">
+                  Total das despesas de cartão de crédito no período selecionado.
+                </p>
+              </div>
+
+              {/* Total Geral */}
+              <div className="p-4 bg-[var(--bg-tertiary)]/30 border border-[var(--bg-tertiary)] rounded-[16px] flex justify-between items-center">
+                <span className="text-xs font-extrabold text-[var(--text-general)]">Total de Saídas</span>
+                <span className="text-sm font-extrabold text-[#d03c4d]">
+                  R$ {extratoTotalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-1">
+              <button
+                onClick={() => setShowSaidasPopup(false)}
+                className="w-full py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 text-[var(--text-general)] text-xs font-bold rounded-[12px] transition-all cursor-pointer"
+              >
+                Fechar Detalhes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETALHAMENTO DE ENTRADAS POPUP */}
+      {showEntradasPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-general)]">Detalhamento de Entradas</h3>
+                <p className="text-[10px] font-semibold text-[var(--text-discreto)] uppercase tracking-wider mt-0.5">
+                  {searchAllMonths ? 'Todos os Períodos' : getMonthNamePortuguese(currentDate)}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowEntradasPopup(false)} 
+                className="p-1.5 rounded-full hover:bg-[var(--bg-app)] text-[var(--text-discreto)] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Lançamentos de Contas */}
+              <div className="p-3.5 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-[var(--text-general)]">Lançamentos (Receitas)</span>
+                  <span className="text-xs font-extrabold text-[#00cc52]">
+                    R$ {extratoRevenueLancamentos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <p className="text-[10px] text-[var(--text-discreto)]">
+                  Soma de todas as receitas em contas, consolidadas ou pendentes.
+                </p>
+              </div>
+
+              {/* Reembolsos de Cartões */}
+              {extratoRevenueRefunds > 0 && (
+                <div className="p-3.5 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-[var(--text-general)]">Estornos / Reembolsos</span>
+                    <span className="text-xs font-extrabold text-[#00cc52]">
+                      R$ {extratoRevenueRefunds.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-discreto)]">
+                    Soma dos estornos de cartão de crédito no período selecionado.
+                  </p>
+                </div>
+              )}
+
+              {/* Total Geral */}
+              <div className="p-4 bg-[var(--bg-tertiary)]/30 border border-[var(--bg-tertiary)] rounded-[16px] flex justify-between items-center">
+                <span className="text-xs font-extrabold text-[var(--text-general)]">Total de Entradas</span>
+                <span className="text-sm font-extrabold text-[#00cc52]">
+                  R$ {extratoTotalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-1">
+              <button
+                onClick={() => setShowEntradasPopup(false)}
+                className="w-full py-2.5 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 text-[var(--text-general)] text-xs font-bold rounded-[12px] transition-all cursor-pointer"
+              >
+                Fechar Detalhes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
