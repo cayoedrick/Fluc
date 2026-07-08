@@ -647,6 +647,7 @@ export default function App() {
               cartoes={state.cartoes}
               categorias={state.categorias}
               lancamentos={state.lancamentos}
+              cofrinhos={state.cofrinhos}
               onOpenAddModal={() => setIsAddModalOpen(true)}
               isDateInMonthYear={isDateInMonthYear}
               onDeleteLancamento={handleDeleteLancamento}
@@ -678,6 +679,8 @@ export default function App() {
               onEditCartao={handleEditCartao}
               onOpenMenu={() => setIsSidebarOpen(true)}
               onOpenSyncModal={() => setIsSyncModalOpen(true)}
+              getCardInvoiceValue={getCardInvoiceValue}
+              onAddLancamento={handleAddLancamento}
             />
           )}
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Conta, Cartao } from '../types';
-import { Plus, Landmark, CreditCard, Paintbrush, Check, X, HelpCircle } from 'lucide-react';
+import { Conta, Cartao, Lancamento } from '../types';
+import { Plus, Landmark, CreditCard, Paintbrush, Check, X, HelpCircle, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { SyncStatusIcon } from './SyncStatusIcon';
 
 interface ContasCartoesViewProps {
@@ -15,6 +15,8 @@ interface ContasCartoesViewProps {
   onEditCartao: (id: string, c: Partial<Cartao>) => void;
   onOpenMenu?: () => void;
   onOpenSyncModal: () => void;
+  getCardInvoiceValue?: (cartaoId: string, monthYearStr: string) => number;
+  onAddLancamento?: (newLanc: Omit<Lancamento, 'id'>) => void;
 }
 
 const PRESET_COLORS = [
@@ -38,10 +40,96 @@ export function ContasCartoesView({
   onEditConta,
   onEditCartao,
   onOpenMenu,
-  onOpenSyncModal
+  onOpenSyncModal,
+  getCardInvoiceValue,
+  onAddLancamento
 }: ContasCartoesViewProps) {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTab, setModalTab] = useState<'conta' | 'cartao'>('conta');
+
+  // Invoice states
+  const [invoiceMonth, setInvoiceMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState<boolean>(false);
+  const [invoiceAdjustCard, setInvoiceAdjustCard] = useState<Cartao | null>(null);
+  const [newInvoiceValue, setNewInvoiceValue] = useState<string>('');
+
+  const handleInvoiceMonthChange = (dir: 'prev' | 'next') => {
+    const [year, month] = invoiceMonth.split('-').map(Number);
+    let targetMonth = dir === 'prev' ? month - 1 : month + 1;
+    let targetYear = year;
+    
+    if (targetMonth === 0) {
+      targetMonth = 12;
+      targetYear -= 1;
+    } else if (targetMonth === 13) {
+      targetMonth = 1;
+      targetYear += 1;
+    }
+    
+    setInvoiceMonth(`${targetYear}-${String(targetMonth).padStart(2, '0')}`);
+  };
+
+  const getMonthNamePortuguese = (monthYearStr: string) => {
+    const [year, month] = monthYearStr.split('-').map(Number);
+    const months = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    return `${months[month - 1]} de ${year}`;
+  };
+
+  const handleStartEditInvoice = (card: Cartao) => {
+    setInvoiceAdjustCard(card);
+    const currentValue = getCardInvoiceValue ? getCardInvoiceValue(card.id, invoiceMonth) : 0;
+    setNewInvoiceValue(String(currentValue).replace('.', ','));
+    setIsInvoiceModalOpen(true);
+  };
+
+  const handleConfirmInvoiceAdjust = () => {
+    if (!invoiceAdjustCard) return;
+
+    const newValue = parseFloat(newInvoiceValue.replace(',', '.'));
+    if (isNaN(newValue) || newValue < 0) {
+      window.showToast?.('Por favor, insira um valor de fatura válido.', 'erro');
+      return;
+    }
+
+    const currentValue = getCardInvoiceValue ? getCardInvoiceValue(invoiceAdjustCard.id, invoiceMonth) : 0;
+    const diff = newValue - currentValue;
+
+    if (Math.abs(diff) < 0.01) {
+      window.showToast?.('Nenhuma alteração detectada no valor da fatura.', 'info');
+      setIsInvoiceModalOpen(false);
+      return;
+    }
+
+    // Determine the date of the adjusting transaction
+    const today = new Date();
+    const todayMonthYear = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    let dateStr = `${invoiceMonth}-01`;
+    if (invoiceMonth === todayMonthYear) {
+      dateStr = `${invoiceMonth}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+
+    if (onAddLancamento) {
+      onAddLancamento({
+        tipo: 'despesa_cartao',
+        valor: Math.abs(diff),
+        recebidoPagoEfetivado: true,
+        estorno: diff < 0,
+        data: dateStr,
+        descricao: `Ajuste de Fatura: ${invoiceAdjustCard.nome}`,
+        cartaoId: invoiceAdjustCard.id,
+      });
+
+      window.showToast?.('Valor da fatura ajustado com sucesso!', 'sucesso');
+    }
+
+    setIsInvoiceModalOpen(false);
+  };
 
   // Form Fields - Account
   const [contaNome, setContaNome] = useState<string>('');
@@ -306,10 +394,33 @@ export function ContasCartoesView({
 
       {/* 3. Grid Section - Cartões de Crédito */}
       <div className="space-y-4">
-        <h3 className="text-xs font-bold text-[var(--text-discreto)] uppercase tracking-wider flex items-center gap-1.5">
-          <CreditCard size={14} />
-          <span>Cartões de Crédito ({cartoes.length})</span>
-        </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--bg-tertiary)] pb-2.5">
+          <h3 className="text-xs font-bold text-[var(--text-discreto)] uppercase tracking-wider flex items-center gap-1.5">
+            <CreditCard size={14} />
+            <span>Cartões de Crédito ({cartoes.length})</span>
+          </h3>
+
+          {/* Month Switcher for Credit Card Invoices */}
+          <div className="flex items-center gap-1 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] py-1 px-2.5 rounded-[12px] text-xs self-start sm:self-auto">
+            <button
+              onClick={() => handleInvoiceMonthChange('prev')}
+              className="p-1 hover:bg-[var(--bg-tertiary)] text-[var(--text-general)] rounded-full transition-colors cursor-pointer"
+              title="Mês anterior"
+            >
+              <ChevronLeft size={14} className="stroke-[2.5]" />
+            </button>
+            <span className="font-bold text-[var(--text-general)] min-w-[125px] text-center select-none">
+              Fatura: {getMonthNamePortuguese(invoiceMonth)}
+            </span>
+            <button
+              onClick={() => handleInvoiceMonthChange('next')}
+              className="p-1 hover:bg-[var(--bg-tertiary)] text-[var(--text-general)] rounded-full transition-colors cursor-pointer"
+              title="Próximo mês"
+            >
+              <ChevronRight size={14} className="stroke-[2.5]" />
+            </button>
+          </div>
+        </div>
 
         {cartoes.length === 0 ? (
           <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-8 rounded-[24px] text-center text-[var(--text-discreto)] text-sm">
@@ -358,6 +469,27 @@ export function ContasCartoesView({
                       <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Limite Utilizado</span>
                       <span className="font-bold text-[#ed793a]">R$ {card.limiteUtilizado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
+
+                    {/* CURRENT MONTH INVOICE ROW */}
+                    <div className="col-span-2 pt-2 border-t border-[var(--bg-tertiary)] flex items-center justify-between">
+                      <div>
+                        <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">
+                          Valor da Fatura ({getMonthNamePortuguese(invoiceMonth)})
+                        </span>
+                        <span className="font-extrabold text-[var(--text-general)] text-sm">
+                          R$ {getCardInvoiceValue ? getCardInvoiceValue(card.id, invoiceMonth).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleStartEditInvoice(card)}
+                        className="flex items-center gap-1.5 py-1 px-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 dark:bg-indigo-400/10 rounded-[8px] text-[10px] font-bold cursor-pointer transition-all border border-indigo-500/10"
+                        title="Ajustar Fatura"
+                      >
+                        <Pencil size={11} className="stroke-[2.5]" />
+                        <span>Editar Fatura</span>
+                      </button>
+                    </div>
+
                     <div className="col-span-2 pt-1.5 border-t border-[var(--bg-tertiary)] flex justify-between text-[10px] text-[var(--text-discreto)] font-semibold">
                       <span>Fechamento: Dia {card.diaFechamento}</span>
                       <span>Vencimento: Dia {card.diaVencimento}</span>
@@ -615,6 +747,68 @@ export function ContasCartoesView({
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE ADJUSTMENT MODAL */}
+      {isInvoiceModalOpen && invoiceAdjustCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] overflow-hidden flex flex-col shadow-2xl">
+            <div className="bg-[var(--bg-app)] border-b border-[var(--bg-tertiary)] p-4 text-center flex justify-between items-center px-6">
+              <span className="w-6" /> {/* Spacer */}
+              <h3 className="text-sm font-extrabold text-[var(--text-general)]">
+                Ajustar Fatura do Cartão
+              </h3>
+              <button 
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="p-1 hover:bg-[var(--bg-tertiary)] rounded-full text-[var(--text-discreto)] hover:text-[var(--text-general)] transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-4 rounded-[16px] text-center">
+                <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase block">Cartão Selecionado</span>
+                <span className="text-sm font-bold text-[var(--text-general)] block mt-0.5" style={{ color: invoiceAdjustCard.cor }}>
+                  {invoiceAdjustCard.nome}
+                </span>
+                <span className="text-[10px] text-[var(--text-discreto)] mt-1.5 block">
+                  Período do Ajuste: <strong>{getMonthNamePortuguese(invoiceMonth)}</strong>
+                </span>
+              </div>
+
+              <div>
+                <span className="text-xs font-semibold text-[var(--text-discreto)] block mb-1">NOVO VALOR DA FATURA (R$)</span>
+                <input
+                  type="text"
+                  placeholder="0,00"
+                  value={newInvoiceValue}
+                  onChange={(e) => setNewInvoiceValue(e.target.value)}
+                  className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden focus:border-[var(--bg-secondary)]"
+                />
+                <span className="text-[10px] text-[var(--text-discreto)] mt-2 block leading-relaxed">
+                  Ao confirmar, o sistema calculará a diferença entre o valor atual da fatura e o novo valor inserido, gerando automaticamente um lançamento de ajuste do tipo <strong>despesa de cartão</strong> no período.
+                </span>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="p-4 bg-[var(--bg-app)] border-t border-[var(--bg-tertiary)] flex gap-3">
+              <button
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="flex-1 py-3 border border-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] rounded-[16px] text-sm text-[var(--text-general)] font-semibold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmInvoiceAdjust}
+                className="flex-1 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-[16px] text-sm font-semibold flex items-center justify-center gap-1 transition-all shadow-md"
+              >
+                <Check size={16} /> Confirmar Ajuste
+              </button>
+            </div>
           </div>
         </div>
       )}

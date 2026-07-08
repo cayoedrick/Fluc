@@ -696,7 +696,22 @@ export function DashboardView({
                       <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[var(--text-discreto)] mt-0.5">
                         <span className="uppercase tracking-wider">{cat?.nome || (isRetiradaCof || isDepositoCof ? 'Reserva / Cofrinho' : isTransf ? 'Transferência' : 'Geral')}</span>
                         <span>•</span>
-                        <span>{accountName}</span>
+                        <div className="flex items-center gap-1.5">
+                          {isTransf ? (
+                            <div className="flex items-center gap-0.5">
+                              <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.contaId)?.cor || '#718096' }} />
+                              <span className="text-[8px] text-[var(--text-discreto)] mx-0.5">➔</span>
+                              <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.paraContaId)?.cor || '#718096' }} />
+                            </div>
+                          ) : isCard ? (
+                            <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: cartoes.find(cr => cr.id === l.cartaoId)?.cor || '#718096' }} />
+                          ) : isRetiradaCof || isDepositoCof ? (
+                            <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: (cofrinhos.find(c => c.id === l.cofrinhoId) || cofrinhos.find(c => l.descricao.includes(c.nome)))?.cor || '#718096' }} />
+                          ) : (
+                            <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.contaId)?.cor || '#718096' }} />
+                          )}
+                          <span>{accountName}</span>
+                        </div>
                       </div>
                       {(l.tipo === 'receita' || l.tipo === 'despesa') ? (
                         <button
