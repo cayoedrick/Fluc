@@ -692,6 +692,7 @@ export default function App() {
               onOpenMenu={() => setIsSidebarOpen(true)}
               onOpenSyncModal={() => setIsSyncModalOpen(true)}
               getAccountBalance={getAccountBalance}
+              onAddLancamento={handleAddLancamento}
             />
           )}
 

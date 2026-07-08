@@ -187,9 +187,9 @@ export function ExtratoView({
     // 3. Type check
     if (selectedType !== 'all') {
       if (selectedType === 'receita') {
-        if (l.tipo !== 'receita') return false;
+        if (l.tipo !== 'receita' && l.tipo !== 'retirada_cofrinho') return false;
       } else if (selectedType === 'despesa') {
-        if (l.tipo !== 'despesa' && l.tipo !== 'despesa_cartao') return false;
+        if (l.tipo !== 'despesa' && l.tipo !== 'despesa_cartao' && l.tipo !== 'deposito_cofrinho') return false;
       } else if (selectedType === 'transferencia') {
         if (l.tipo !== 'transferencia') return false;
       }
@@ -252,9 +252,9 @@ export function ExtratoView({
   let totalSaidas = 0;
 
   filteredLancamentos.forEach((l) => {
-    if (l.tipo === 'receita') {
+    if (l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') {
       if (l.recebidoPagoEfetivado) totalEntradas += l.valor;
-    } else if (l.tipo === 'despesa') {
+    } else if (l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') {
       if (l.recebidoPagoEfetivado) totalSaidas += l.valor;
     } else if (l.tipo === 'despesa_cartao') {
       if (l.estorno) {
@@ -271,7 +271,7 @@ export function ExtratoView({
   const extratoExpenseLancamentos = React.useMemo(() => {
     let sum = 0;
     lancamentos.forEach((l) => {
-      if (l.tipo !== 'despesa') return;
+      if (l.tipo !== 'despesa' && l.tipo !== 'deposito_cofrinho') return;
       if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
       
       if (activeTab === 'contas') {
@@ -346,7 +346,7 @@ export function ExtratoView({
   const extratoRevenueLancamentos = React.useMemo(() => {
     let sum = 0;
     lancamentos.forEach((l) => {
-      if (l.tipo !== 'receita') return;
+      if (l.tipo !== 'receita' && l.tipo !== 'retirada_cofrinho') return;
       if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
       
       if (activeTab === 'contas') {
@@ -743,12 +743,16 @@ export function ExtratoView({
             {sortedLancamentos.map((l) => {
               const cat = categorias.find((c) => c.id === l.categoriaId);
               const isRec = l.tipo === 'receita';
+              const isRetiradaCof = l.tipo === 'retirada_cofrinho';
+              const isDepositoCof = l.tipo === 'deposito_cofrinho';
               const isCard = l.tipo === 'despesa_cartao';
               const isTransf = l.tipo === 'transferencia';
               const isPaid = l.recebidoPagoEfetivado;
 
               let textClass = 'text-[var(--text-general)]';
               if (isRec) textClass = 'text-[#00cc52]';
+              if (isRetiradaCof) textClass = 'text-[#1c7ae4]';
+              if (isDepositoCof) textClass = 'text-[#1c7ae4]';
               if (l.tipo === 'despesa') textClass = 'text-[#d03c4d]';
               if (isCard) textClass = 'text-[#ed793a]';
               if (isTransf) textClass = 'text-[#1c7ae4]';
@@ -767,12 +771,16 @@ export function ExtratoView({
                   <div className="flex items-center gap-3">
                     <div className={`p-2.5 rounded-[12px] ${
                       isRec ? 'bg-[#00cc52]/10 text-[#00cc52]' :
+                      isRetiradaCof ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
+                      isDepositoCof ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
                       isCard ? 'bg-[#ed793a]/10 text-[#ed793a]' :
                       isTransf ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
                       'bg-[#d03c4d]/10 text-[#d03c4d]'
                     }`}>
                       {l.isShared || l.isReimbursement ? <Share2 size={16} /> :
                        isRec ? <TrendingUp size={16} /> :
+                       isRetiradaCof ? <ArrowRightLeft size={16} /> :
+                       isDepositoCof ? <ArrowRightLeft size={16} /> :
                        isCard ? <CreditCard size={16} /> :
                        isTransf ? <ArrowRightLeft size={16} /> :
                        <TrendingDown size={16} />}
@@ -781,7 +789,7 @@ export function ExtratoView({
                     <div>
                       <h4 className="text-sm font-bold text-[var(--text-general)]">{l.descricao}</h4>
                       <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[var(--text-discreto)] mt-0.5">
-                        <span className="uppercase tracking-wider">{cat?.nome || (isTransf ? 'Transferência' : 'Geral')}</span>
+                        <span className="uppercase tracking-wider">{cat?.nome || (isRetiradaCof || isDepositoCof ? 'Reserva / Cofrinho' : isTransf ? 'Transferência' : 'Geral')}</span>
                         <span>•</span>
                         <span>{originDestName || 'Nenhum'}</span>
                         {!isPaid && !isCard && (
@@ -824,7 +832,7 @@ export function ExtratoView({
                         {l.data.split('-').reverse().join('/')}
                       </p>
                       <p className={`text-sm font-extrabold whitespace-nowrap ${textClass}`}>
-                        {isRec ? '+' : isCard && l.estorno ? '+' : '-'} R$ {l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
 

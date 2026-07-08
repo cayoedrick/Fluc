@@ -389,9 +389,9 @@ export function useFlucState() {
     state.lancamentos.forEach((l) => {
       if (upToDate && l.data > upToDate) return;
 
-      if (l.tipo === 'receita' && l.contaId === contaId && l.recebidoPagoEfetivado) {
+      if ((l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') && l.contaId === contaId && l.recebidoPagoEfetivado) {
         balance += l.valor;
-      } else if (l.tipo === 'despesa' && l.contaId === contaId && l.recebidoPagoEfetivado) {
+      } else if ((l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') && l.contaId === contaId && l.recebidoPagoEfetivado) {
         balance -= l.valor;
       } else if (l.tipo === 'transferencia' && l.recebidoPagoEfetivado) {
         if (l.contaId === contaId) {
@@ -399,19 +399,6 @@ export function useFlucState() {
         }
         if (l.paraContaId === contaId) {
           balance += l.valor; // "para conta"
-        }
-      }
-    });
-
-    // Handle cofrinho history deposits/withdrawals
-    state.cofrinhoHistorico.forEach((h) => {
-      if (upToDate && h.data > upToDate) return;
-
-      if (h.contaId === contaId) {
-        if (h.tipo === 'deposito') {
-          balance -= h.valor; // Deposited from account to cofrinho
-        } else if (h.tipo === 'retirada') {
-          balance += h.valor; // Withdrawn from cofrinho back to account
         }
       }
     });
@@ -472,9 +459,9 @@ export function useFlucState() {
 
       if (accountId) {
         // filter by bank account
-        if (l.tipo === 'receita' && l.contaId === accountId && l.recebidoPagoEfetivado) {
+        if ((l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') && l.contaId === accountId && l.recebidoPagoEfetivado) {
           receitas += l.valor;
-        } else if (l.tipo === 'despesa' && l.contaId === accountId && l.recebidoPagoEfetivado) {
+        } else if ((l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') && l.contaId === accountId && l.recebidoPagoEfetivado) {
           despesas += l.valor;
         }
       } else if (cartaoId) {
@@ -488,9 +475,9 @@ export function useFlucState() {
         }
       } else {
         // total stats across all accounts and cards for that month (simple sum)
-        if (l.tipo === 'receita' && l.recebidoPagoEfetivado) {
+        if ((l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') && l.recebidoPagoEfetivado) {
           receitas += l.valor;
-        } else if (l.tipo === 'despesa' && l.recebidoPagoEfetivado) {
+        } else if ((l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') && l.recebidoPagoEfetivado) {
           despesas += l.valor;
         } else if (l.tipo === 'despesa_cartao') {
           // Add credit card expenses into total despesas as well for visual clarity
@@ -527,25 +514,13 @@ export function useFlucState() {
 
     state.lancamentos.forEach((l) => {
       if (l.data < currentMonthStart && l.recebidoPagoEfetivado) {
-        if (l.tipo === 'receita' && l.contaId === accountId) {
+        if ((l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') && l.contaId === accountId) {
           balance += l.valor;
-        } else if (l.tipo === 'despesa' && l.contaId === accountId) {
+        } else if ((l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') && l.contaId === accountId) {
           balance -= l.valor;
         } else if (l.tipo === 'transferencia') {
           if (l.contaId === accountId) balance -= l.valor;
           if (l.paraContaId === accountId) balance += l.valor;
-        }
-      }
-    });
-
-    state.cofrinhoHistorico.forEach((h) => {
-      if (h.data < currentMonthStart) {
-        if (h.contaId === accountId) {
-          if (h.tipo === 'deposito') {
-            balance -= h.valor;
-          } else if (h.tipo === 'retirada') {
-            balance += h.valor;
-          }
         }
       }
     });
@@ -562,9 +537,9 @@ export function useFlucState() {
 
     state.lancamentos.forEach((l) => {
       if (l.data.startsWith(monthYearStr) && l.recebidoPagoEfetivado) {
-        if (l.tipo === 'receita' && l.contaId === accountId) {
+        if ((l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') && l.contaId === accountId) {
           balance += l.valor;
-        } else if (l.tipo === 'despesa' && l.contaId === accountId) {
+        } else if ((l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') && l.contaId === accountId) {
           balance -= l.valor;
         } else if (l.tipo === 'transferencia') {
           if (l.contaId === accountId) balance -= l.valor;
@@ -573,23 +548,12 @@ export function useFlucState() {
       }
     });
 
-    state.cofrinhoHistorico.forEach((h) => {
-      if (h.data.startsWith(monthYearStr)) {
-        if (h.contaId === accountId) {
-          if (h.tipo === 'deposito') {
-            balance -= h.valor;
-          } else if (h.tipo === 'retirada') {
-            balance += h.valor;
-          }
-        }
-      }
-    });
-
     return balance;
   };
 
-  const getForecastData = (monthYearStr: string) => {
-    const saldoMesAnterior = getSaldoMesAnterior(monthYearStr);
+  const getForecastData = (monthYearStr: string, accountId?: string) => {
+    const saldoMesAnterior = getSaldoMesAnterior(monthYearStr, accountId);
+    const saldoAtual = getSaldoAtual(monthYearStr, accountId);
     
     let receitasConsolidadas = 0;
     let receitasPendentes = 0;
@@ -599,24 +563,39 @@ export function useFlucState() {
     state.lancamentos.forEach((l) => {
       if (!isDateInMonthYear(l.data, monthYearStr)) return;
 
-      if (l.tipo === 'receita') {
-        if (l.recebidoPagoEfetivado) {
-          receitasConsolidadas += l.valor;
-        } else {
-          receitasPendentes += l.valor;
+      if (l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') {
+        if (!accountId || l.contaId === accountId) {
+          if (l.recebidoPagoEfetivado) {
+            receitasConsolidadas += l.valor;
+          } else {
+            receitasPendentes += l.valor;
+          }
         }
-      } else if (l.tipo === 'despesa') {
-        if (l.recebidoPagoEfetivado) {
-          despesasConsolidadas += l.valor;
-        } else {
-          despesasPendentes += l.valor;
+      } else if (l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') {
+        if (!accountId || l.contaId === accountId) {
+          if (l.recebidoPagoEfetivado) {
+            despesasConsolidadas += l.valor;
+          } else {
+            despesasPendentes += l.valor;
+          }
         }
       }
     });
 
-    const activeInvoices = getTotalInvoicesValue(monthYearStr);
+    let activeInvoices = 0;
+    if (!accountId) {
+      activeInvoices = getTotalInvoicesValue(monthYearStr);
+    } else {
+      const linkedCards = state.cartoes.filter(c => c.contaVinculadaId === accountId);
+      linkedCards.forEach((card) => {
+        activeInvoices += getCardInvoiceValue(card.id, monthYearStr);
+      });
+    }
 
-    const forecast = saldoMesAnterior + receitasConsolidadas + receitasPendentes - despesasConsolidadas - despesasPendentes - activeInvoices;
+    // outrasMovimentacoes represent transfers and cofrinho history within this month
+    const outrasMovimentacoes = saldoAtual - (saldoMesAnterior + receitasConsolidadas - despesasConsolidadas);
+
+    const forecast = saldoAtual + receitasPendentes - despesasPendentes - activeInvoices;
 
     return {
       saldoMesAnterior,
@@ -625,6 +604,7 @@ export function useFlucState() {
       despesasConsolidadas,
       despesasPendentes,
       activeInvoices,
+      outrasMovimentacoes,
       forecast
     };
   };

@@ -34,7 +34,7 @@ export interface ParticipanteDespesa {
 
 export interface Lancamento {
   id: string;
-  tipo: 'receita' | 'despesa' | 'despesa_cartao' | 'transferencia';
+  tipo: 'receita' | 'despesa' | 'despesa_cartao' | 'transferencia' | 'retirada_cofrinho' | 'deposito_cofrinho';
   valor: number;
   recebidoPagoEfetivado: boolean; // Recebido (Receita), Pago (Despesa), Efetivado (Transferência)
   estorno?: boolean; // Estorno/Ajuste para Despesa de Cartão

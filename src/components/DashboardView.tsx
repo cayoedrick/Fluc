@@ -38,13 +38,14 @@ interface DashboardViewProps {
   getTotalInvoicesValue: (monthYear: string, activeCardFilterId?: string) => number;
   getTotalReservedValue: () => number;
   getPeriodStats: (monthYear: string, accountId?: string, cartaoId?: string) => { receitas: number, despesas: number };
-  getForecastData: (monthYear: string) => {
+  getForecastData: (monthYear: string, accountId?: string) => {
     saldoMesAnterior: number;
     receitasConsolidadas: number;
     receitasPendentes: number;
     despesasConsolidadas: number;
     despesasPendentes: number;
     activeInvoices: number;
+    outrasMovimentacoes: number;
     forecast: number;
   };
   getSaldoMesAnterior: (monthYear: string, accountId?: string) => number;
@@ -188,7 +189,7 @@ export function DashboardView({
     activeTab === 'cartoes' && selectedCartaoId !== 'all' ? selectedCartaoId : undefined
   );
 
-  const forecastData = getForecastData(currentDate);
+  const forecastData = getForecastData(currentDate, activeTab === 'contas' && selectedContaId !== 'all' ? selectedContaId : undefined);
 
   // Custom calculation: Sum of all expenses, regardless of consolidation status, plus card invoices
   const dashboardExpenseLancamentos = React.useMemo(() => {
@@ -643,12 +644,16 @@ export function DashboardView({
             {filteredLancamentos.map((l) => {
               const cat = categorias.find((c) => c.id === l.categoriaId);
               const isRec = l.tipo === 'receita';
+              const isRetiradaCof = l.tipo === 'retirada_cofrinho';
+              const isDepositoCof = l.tipo === 'deposito_cofrinho';
               const isCard = l.tipo === 'despesa_cartao';
               const isTransf = l.tipo === 'transferencia';
               const isPaid = l.recebidoPagoEfetivado;
 
               let typeColor = 'text-[var(--text-general)]';
               if (isRec) typeColor = 'text-[#00cc52]';
+              if (isRetiradaCof) typeColor = 'text-[#1c7ae4]';
+              if (isDepositoCof) typeColor = 'text-[#1c7ae4]';
               if (l.tipo === 'despesa') typeColor = 'text-[#d03c4d]';
               if (isCard) typeColor = 'text-[#ed793a]';
               if (isTransf) typeColor = 'text-[#1c7ae4]';
@@ -669,12 +674,16 @@ export function DashboardView({
                     {/* Icon container */}
                     <div className={`p-2.5 rounded-[14px] ${
                       isRec ? 'bg-[#00cc52]/10 text-[#00cc52]' :
+                      isRetiradaCof ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
+                      isDepositoCof ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
                       isCard ? 'bg-[#ed793a]/10 text-[#ed793a]' :
                       isTransf ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
                       'bg-[#d03c4d]/10 text-[#d03c4d]'
                     }`}>
                       {l.isShared || l.isReimbursement ? <Share2 size={16} /> :
                        isRec ? <TrendingUp size={16} /> :
+                       isRetiradaCof ? <ArrowRightLeft size={16} /> :
+                       isDepositoCof ? <ArrowRightLeft size={16} /> :
                        isCard ? <CreditCard size={16} /> :
                        isTransf ? <ArrowRightLeft size={16} /> :
                        <TrendingDown size={16} />}
@@ -685,7 +694,7 @@ export function DashboardView({
                         {l.descricao}
                       </h4>
                       <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[var(--text-discreto)] mt-0.5">
-                        <span className="uppercase tracking-wider">{cat?.nome || (isTransf ? 'Transferência' : 'Geral')}</span>
+                        <span className="uppercase tracking-wider">{cat?.nome || (isRetiradaCof || isDepositoCof ? 'Reserva / Cofrinho' : isTransf ? 'Transferência' : 'Geral')}</span>
                         <span>•</span>
                         <span>{accountName}</span>
                       </div>
@@ -717,7 +726,7 @@ export function DashboardView({
 
                   <div className="text-right flex flex-col items-end gap-1">
                     <p className={`text-sm font-extrabold whitespace-nowrap ${typeColor}`}>
-                      {isRec ? '+' : isCard && l.estorno ? '+' : '-'} R$ {l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                     <span className="text-[10px] font-bold text-[var(--text-discreto)]">
                       {l.data.split('-').reverse().slice(0, 2).join('/')}
@@ -858,6 +867,17 @@ export function DashboardView({
                 <span className="text-[#ed793a] font-bold">FATURAS EM ABERTO</span>
                 <span className="text-[#ed793a] font-bold">- R$ {forecastData.activeInvoices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
+              
+              {Math.abs(forecastData.outrasMovimentacoes) > 0.01 && (
+                <div className="flex justify-between p-2.5 bg-[var(--bg-app)] rounded-[12px]">
+                  <span className={`${forecastData.outrasMovimentacoes > 0 ? 'text-[#00cc52]' : 'text-[#d03c4d]'} font-bold`}>
+                    OUTRAS MOVIMENTAÇÕES
+                  </span>
+                  <span className={`${forecastData.outrasMovimentacoes > 0 ? 'text-[#00cc52]' : 'text-[#d03c4d]'} font-bold`}>
+                    {forecastData.outrasMovimentacoes > 0 ? '+' : '-'} R$ {Math.abs(forecastData.outrasMovimentacoes).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
               
               <div className="border-t border-[var(--bg-tertiary)] pt-3 flex justify-between font-extrabold text-sm text-[var(--text-general)]">
                 <span>PREVISÃO FINAL</span>

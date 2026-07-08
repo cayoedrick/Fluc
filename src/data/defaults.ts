@@ -143,6 +143,15 @@ export const getDefaultState = () => {
       descricao: 'Reposição Carteira',
       contaId: 'conta-1', // da conta
       paraContaId: 'conta-3' // para conta
+    },
+    {
+      id: 'lanc-cof-dep-1',
+      tipo: 'deposito_cofrinho',
+      valor: 500.00,
+      recebidoPagoEfetivado: true,
+      data: '2026-06-15',
+      descricao: 'Depósito: Reserva de Emergência',
+      contaId: 'conta-1'
     }
   ];
 

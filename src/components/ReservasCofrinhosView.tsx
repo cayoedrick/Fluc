@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Conta, Cofrinho, CofrinhoHistorico } from '../types';
+import { Conta, Cofrinho, CofrinhoHistorico, Lancamento } from '../types';
 import { 
   Plus, 
   PiggyBank, 
@@ -27,6 +27,7 @@ interface ReservasCofrinhosViewProps {
   onOpenMenu?: () => void;
   onOpenSyncModal: () => void;
   getAccountBalance: (id: string) => number;
+  onAddLancamento: (l: Omit<Lancamento, 'id'>) => void;
 }
 
 const PRESET_COLORS = [
@@ -48,7 +49,8 @@ export function ReservasCofrinhosView({
   onDeleteCofrinho,
   onOpenMenu,
   onOpenSyncModal,
-  getAccountBalance
+  getAccountBalance,
+  onAddLancamento
 }: ReservasCofrinhosViewProps) {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
@@ -169,6 +171,16 @@ export function ReservasCofrinhosView({
         contaId: opContaId === 'externa' ? undefined : opContaId
       });
 
+      // Create actual transaction (blue color, negative impact on account balance, included in calculations)
+      onAddLancamento({
+        tipo: 'deposito_cofrinho',
+        valor: val,
+        recebidoPagoEfetivado: true,
+        data: opDate,
+        descricao: `Depósito: ${activeCofrinho.nome}`,
+        contaId: opContaId === 'externa' ? undefined : opContaId
+      });
+
     } else if (operationTab === 'retirada') {
       if (val > activeCofrinho.saldoAtual) {
         window.showToast?.('Valor de retirada maior do que o saldo atual do cofrinho.', 'erro');
@@ -194,6 +206,16 @@ export function ReservasCofrinhosView({
         data: opDate,
         contaId: opContaId,
         motivo: opMotivo.trim() || 'Retirada padrão'
+      });
+
+      // Create actual transaction (blue color, positive impact, included in calculations)
+      onAddLancamento({
+        tipo: 'retirada_cofrinho',
+        valor: val,
+        recebidoPagoEfetivado: true,
+        data: opDate,
+        descricao: `Retirada: ${activeCofrinho.nome}`,
+        contaId: opContaId
       });
 
     } else if (operationTab === 'rendimento') {
