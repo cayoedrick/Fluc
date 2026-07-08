@@ -691,6 +691,7 @@ export default function App() {
               onDeleteCofrinho={handleDeleteCofrinho}
               onOpenMenu={() => setIsSidebarOpen(true)}
               onOpenSyncModal={() => setIsSyncModalOpen(true)}
+              getAccountBalance={getAccountBalance}
             />
           )}
 

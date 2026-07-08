@@ -26,6 +26,7 @@ interface ReservasCofrinhosViewProps {
   onDeleteCofrinho: (id: string) => void;
   onOpenMenu?: () => void;
   onOpenSyncModal: () => void;
+  getAccountBalance: (id: string) => number;
 }
 
 const PRESET_COLORS = [
@@ -46,7 +47,8 @@ export function ReservasCofrinhosView({
   onAddCofrinhoHistorico,
   onDeleteCofrinho,
   onOpenMenu,
-  onOpenSyncModal
+  onOpenSyncModal,
+  getAccountBalance
 }: ReservasCofrinhosViewProps) {
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
@@ -79,8 +81,8 @@ export function ReservasCofrinhosView({
 
   // Setup account selection on launch
   React.useEffect(() => {
-    if (contas.length > 0 && !opContaId) {
-      setOpContaId(contas[0].id);
+    if (!opContaId) {
+      setOpContaId('externa');
     }
   }, [contas]);
 
@@ -89,6 +91,7 @@ export function ReservasCofrinhosView({
     setOperationTab('deposito');
     setOpValor('');
     setOpMotivo('');
+    setOpContaId('externa');
     setShowHistoryOverlay(false);
   };
 
@@ -163,7 +166,7 @@ export function ReservasCofrinhosView({
         tipo: 'deposito',
         valor: val,
         data: opDate,
-        contaId: opContaId
+        contaId: opContaId === 'externa' ? undefined : opContaId
       });
 
     } else if (operationTab === 'retirada') {
@@ -370,6 +373,7 @@ export function ReservasCofrinhosView({
                 onClick={() => {
                   setOperationTab('deposito');
                   setOpValor('');
+                  setOpContaId('externa');
                   setShowHistoryOverlay(false);
                 }}
                 className={`flex-1 py-2 px-1 text-center font-bold text-xs rounded-[12px] flex items-center justify-center gap-1 transition-all cursor-pointer ${
@@ -387,6 +391,9 @@ export function ReservasCofrinhosView({
                 onClick={() => {
                   setOperationTab('retirada');
                   setOpValor('');
+                  if (opContaId === 'externa' && contas.length > 0) {
+                    setOpContaId(contas[0].id);
+                  }
                   setShowHistoryOverlay(false);
                 }}
                 className={`flex-1 py-2 px-1 text-center font-bold text-xs rounded-[12px] flex items-center justify-center gap-1 transition-all cursor-pointer ${
@@ -452,7 +459,7 @@ export function ReservasCofrinhosView({
                         }
 
                         const detail = h.tipo === 'deposito' 
-                          ? `De: ${contas.find(c => c.id === h.contaId)?.nome || 'Conta'}`
+                          ? (h.contaId ? `De: ${contas.find(c => c.id === h.contaId)?.nome || 'Conta'}` : 'De: Origem Externa')
                           : h.tipo === 'retirada'
                             ? `Para: ${contas.find(c => c.id === h.contaId)?.nome || 'Conta'} (${h.motivo || ''})`
                             : `Rendimento (${h.periodo || 'Ajuste de Saldo'})`;
@@ -534,15 +541,15 @@ export function ReservasCofrinhosView({
                           onChange={(e) => setOpContaId(e.target.value)}
                           className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-xs text-[var(--text-general)] focus:outline-hidden"
                         >
-                          {contas.length === 0 ? (
-                            <option value="">Nenhuma conta cadastrada</option>
-                          ) : (
-                            contas.map((c) => (
+                          <option value="externa">Origem Externa</option>
+                          {contas.map((c) => {
+                            const balance = getAccountBalance(c.id);
+                            return (
                               <option key={c.id} value={c.id}>
-                                {c.nome} (Saldo: R$ {c.saldoInicial.toLocaleString()})
+                                {c.nome} (Saldo: R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                               </option>
-                            ))
-                          )}
+                            );
+                          })}
                         </select>
                       </div>
                     </div>
