@@ -11,7 +11,7 @@ interface ContasCartoesViewProps {
   onAddCartao: (c: Omit<Cartao, 'id'>) => void;
   onDeleteConta: (id: string) => void;
   onDeleteCartao: (id: string) => void;
-  onEditConta: (id: string, c: Partial<Conta>) => void;
+  onEditConta: (id: string, c: Partial<Conta>, newSaldoAtual?: number) => void;
   onEditCartao: (id: string, c: Partial<Cartao>) => void;
   onOpenMenu?: () => void;
   onOpenSyncModal: () => void;
@@ -46,6 +46,7 @@ export function ContasCartoesView({
   // Form Fields - Account
   const [contaNome, setContaNome] = useState<string>('');
   const [contaSaldo, setContaSaldo] = useState<string>('');
+  const [contaSaldoAtual, setContaSaldoAtual] = useState<string>('');
   const [contaCor, setContaCor] = useState<string>('#1c7ae4');
 
   // Form Fields - Card
@@ -70,6 +71,11 @@ export function ContasCartoesView({
     setModalTab('conta');
     setContaNome(c.nome);
     setContaSaldo(String(c.saldoInicial).replace('.', ','));
+    
+    // Set current balance
+    const currentBal = getAccountBalance(c.id);
+    setContaSaldoAtual(String(currentBal).replace('.', ','));
+    
     setContaCor(c.cor);
     const isPreset = PRESET_COLORS.includes(c.cor);
     setUseCustomColor(!isPreset);
@@ -112,6 +118,7 @@ export function ContasCartoesView({
     // Reset inputs
     setContaNome('');
     setContaSaldo('');
+    setContaSaldoAtual('');
     setCartaoNome('');
     setCartaoLimite('');
     setCartaoLimiteUtilizado('');
@@ -134,12 +141,21 @@ export function ContasCartoesView({
         return;
       }
 
+      let saldoAtual: number | undefined = undefined;
+      if (editingConta) {
+        saldoAtual = parseFloat(contaSaldoAtual.replace(',', '.'));
+        if (isNaN(saldoAtual)) {
+          window.showToast?.('Por favor, insira um saldo atual válido.', 'erro');
+          return;
+        }
+      }
+
       if (editingConta) {
         onEditConta(editingConta.id, {
           nome: contaNome.trim(),
           saldoInicial: saldo,
           cor: finalCor
-        });
+        }, saldoAtual);
       } else {
         onAddConta({
           nome: contaNome.trim(),
@@ -424,6 +440,23 @@ export function ContasCartoesView({
                       className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                     />
                   </div>
+
+                  {/* Saldo Atual (Ajustável) */}
+                  {editingConta && (
+                    <div>
+                      <span className="text-xs font-semibold text-[var(--text-discreto)] block mb-1">SALDO ATUAL (R$)</span>
+                      <input
+                        type="text"
+                        placeholder="0,00"
+                        value={contaSaldoAtual}
+                        onChange={(e) => setContaSaldoAtual(e.target.value)}
+                        className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
+                      />
+                      <span className="text-[10px] text-[var(--text-discreto)] mt-1.5 block leading-relaxed">
+                        Ao alterar o Saldo Atual, o sistema ajustará automaticamente o saldo na dashboard, gerando um lançamento de ajuste se necessário.
+                      </span>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>

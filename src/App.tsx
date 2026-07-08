@@ -451,11 +451,47 @@ export default function App() {
   };
 
   // Edit Bank Account
-  const handleEditConta = (id: string, updatedFields: Partial<Conta>) => {
-    updateState((prev) => ({
-      ...prev,
-      contas: prev.contas.map(c => c.id === id ? { ...c, ...updatedFields } : c)
-    }));
+  const handleEditConta = (id: string, updatedFields: Partial<Conta>, newSaldoAtual?: number) => {
+    const currentBalance = getAccountBalance(id);
+    updateState((prev) => {
+      const nextContas = prev.contas.map(c => c.id === id ? { ...c, ...updatedFields } : c);
+      const nextLancamentos = [...prev.lancamentos];
+
+      if (newSaldoAtual !== undefined) {
+        const diff = newSaldoAtual - currentBalance;
+        if (Math.abs(diff) > 0.001) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const catAjuste = prev.categorias.find(
+            c => c.nome === 'Ajuste' && c.tipo === (diff > 0 ? 'receita' : 'despesa')
+          );
+
+          const newLanc: Lancamento = {
+            id: `ajuste-${Date.now()}`,
+            tipo: diff > 0 ? 'receita' : 'despesa',
+            valor: Math.abs(diff),
+            recebidoPagoEfetivado: true,
+            data: todayStr,
+            descricao: `Ajuste de saldo - ${updatedFields.nome || prev.contas.find(c => c.id === id)?.nome || ''}`,
+            contaId: id,
+            categoriaId: catAjuste?.id
+          };
+          nextLancamentos.push(newLanc);
+
+          setTimeout(() => {
+            window.showToast?.(
+              `Saldo ajustado! Criado lançamento de ${diff > 0 ? 'receita' : 'despesa'} no valor de R$ ${Math.abs(diff).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para ajuste.`,
+              'sucesso'
+            );
+          }, 100);
+        }
+      }
+
+      return {
+        ...prev,
+        contas: nextContas,
+        lancamentos: nextLancamentos
+      };
+    });
   };
 
   // Delete Bank Account
