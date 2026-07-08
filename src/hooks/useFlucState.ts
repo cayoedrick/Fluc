@@ -515,49 +515,33 @@ export function useFlucState() {
   // - Credit card invoices due in current month-year
   // Forecast = Current Balance + Pending Incomes - Pending Expenses - Credit card invoices
   const getSaldoMesAnterior = (monthYearStr: string, accountId?: string): number => {
+    if (!accountId) {
+      return state.contas.reduce((sum, c) => sum + getSaldoMesAnterior(monthYearStr, c.id), 0);
+    }
+
     const currentMonthStart = `${monthYearStr}-01`;
     let balance = 0;
 
-    if (accountId) {
-      const conta = state.contas.find((c) => c.id === accountId);
-      if (conta) balance = conta.saldoInicial;
-    } else {
-      balance = state.contas.reduce((sum, c) => sum + c.saldoInicial, 0);
-    }
+    const conta = state.contas.find((c) => c.id === accountId);
+    if (conta) balance = conta.saldoInicial;
 
     state.lancamentos.forEach((l) => {
       if (l.data < currentMonthStart && l.recebidoPagoEfetivado) {
-        if (accountId) {
-          if (l.tipo === 'receita' && l.contaId === accountId) {
-            balance += l.valor;
-          } else if (l.tipo === 'despesa' && l.contaId === accountId) {
-            balance -= l.valor;
-          } else if (l.tipo === 'transferencia') {
-            if (l.contaId === accountId) balance -= l.valor;
-            if (l.paraContaId === accountId) balance += l.valor;
-          }
-        } else {
-          if (l.tipo === 'receita') {
-            balance += l.valor;
-          } else if (l.tipo === 'despesa') {
-            balance -= l.valor;
-          }
+        if (l.tipo === 'receita' && l.contaId === accountId) {
+          balance += l.valor;
+        } else if (l.tipo === 'despesa' && l.contaId === accountId) {
+          balance -= l.valor;
+        } else if (l.tipo === 'transferencia') {
+          if (l.contaId === accountId) balance -= l.valor;
+          if (l.paraContaId === accountId) balance += l.valor;
         }
       }
     });
 
     state.cofrinhoHistorico.forEach((h) => {
       if (h.data < currentMonthStart) {
-        if (accountId) {
-          if (h.contaId === accountId) {
-            if (h.tipo === 'deposito') {
-              balance -= h.valor;
-            } else if (h.tipo === 'retirada') {
-              balance += h.valor;
-            }
-          }
-        } else {
-          if (h.tipo === 'deposito' && !h.isInitial) {
+        if (h.contaId === accountId) {
+          if (h.tipo === 'deposito') {
             balance -= h.valor;
           } else if (h.tipo === 'retirada') {
             balance += h.valor;
@@ -570,41 +554,29 @@ export function useFlucState() {
   };
 
   const getSaldoAtual = (monthYearStr: string, accountId?: string): number => {
+    if (!accountId) {
+      return state.contas.reduce((sum, c) => sum + getSaldoAtual(monthYearStr, c.id), 0);
+    }
+
     let balance = getSaldoMesAnterior(monthYearStr, accountId);
 
     state.lancamentos.forEach((l) => {
       if (l.data.startsWith(monthYearStr) && l.recebidoPagoEfetivado) {
-        if (accountId) {
-          if (l.tipo === 'receita' && l.contaId === accountId) {
-            balance += l.valor;
-          } else if (l.tipo === 'despesa' && l.contaId === accountId) {
-            balance -= l.valor;
-          } else if (l.tipo === 'transferencia') {
-            if (l.contaId === accountId) balance -= l.valor;
-            if (l.paraContaId === accountId) balance += l.valor;
-          }
-        } else {
-          if (l.tipo === 'receita') {
-            balance += l.valor;
-          } else if (l.tipo === 'despesa') {
-            balance -= l.valor;
-          }
+        if (l.tipo === 'receita' && l.contaId === accountId) {
+          balance += l.valor;
+        } else if (l.tipo === 'despesa' && l.contaId === accountId) {
+          balance -= l.valor;
+        } else if (l.tipo === 'transferencia') {
+          if (l.contaId === accountId) balance -= l.valor;
+          if (l.paraContaId === accountId) balance += l.valor;
         }
       }
     });
 
     state.cofrinhoHistorico.forEach((h) => {
       if (h.data.startsWith(monthYearStr)) {
-        if (accountId) {
-          if (h.contaId === accountId) {
-            if (h.tipo === 'deposito') {
-              balance -= h.valor;
-            } else if (h.tipo === 'retirada') {
-              balance += h.valor;
-            }
-          }
-        } else {
-          if (h.tipo === 'deposito' && !h.isInitial) {
+        if (h.contaId === accountId) {
+          if (h.tipo === 'deposito') {
             balance -= h.valor;
           } else if (h.tipo === 'retirada') {
             balance += h.valor;
