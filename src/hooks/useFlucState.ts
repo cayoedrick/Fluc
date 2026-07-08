@@ -216,9 +216,9 @@ export function useFlucState() {
     // 1. Remove all generated reimbursement entries
     const baseLancamentos = lancamentos.filter(l => !l.isReimbursement);
     
-    // 2. Identify shared expenses and calculate totals per participant per month
-    // Map key: participantName + '|' + YYYY-MM
-    const sharesMap = new Map<string, { total: number, descriptions: string[], date: string }>();
+    // 2. Identify shared expenses and calculate totals per participant per month per account
+    // Map key: participantName + '|' + YYYY-MM + '|' + contaId
+    const sharesMap = new Map<string, { total: number, descriptions: string[], date: string, contaId: string | undefined }>();
     
     baseLancamentos.forEach(l => {
       if (l.isShared && l.participantes && l.participantes.length > 0) {
@@ -226,8 +226,8 @@ export function useFlucState() {
         
         l.participantes.forEach(p => {
           if (!p.nome.trim()) return;
-          const key = `${p.nome}|${monthYear}`;
-          const current = sharesMap.get(key) || { total: 0, descriptions: [], date: l.data };
+          const key = `${p.nome}|${monthYear}|${l.contaId || ''}`;
+          const current = sharesMap.get(key) || { total: 0, descriptions: [], date: l.data, contaId: l.contaId };
           
           let shareValue = p.valor;
           if (p.isPorcentagem) {
@@ -245,8 +245,9 @@ export function useFlucState() {
     const reimbursements: Lancamento[] = [];
     const now = Date.now();
     sharesMap.forEach((data, key) => {
-      const [participantName, monthYear] = key.split('|');
-      const logicalId = `reimb-${participantName}-${monthYear}`;
+      const [participantName, monthYear, contaId] = key.split('|');
+      // Use double underscore as separator to preserve original parsing logic in other components
+      const logicalId = `reimb-${participantName}-${monthYear}__${contaId || 'no-account'}`;
       
       // Try to find if this reimbursement already exists to preserve its status
       const existing = lancamentos.find(l => l.id === logicalId);
@@ -264,6 +265,7 @@ export function useFlucState() {
         data: `${monthYear}-01`, // Set to 1st of the month for grouping
         descricao: description,
         isReimbursement: true,
+        contaId: contaId || undefined,
         updatedAt: now
       });
     });

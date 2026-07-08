@@ -19,11 +19,12 @@ export function SharedLancamentoDetailsModal({ isOpen, onClose, lancamento, allL
   let combinedParticipantName = '';
   
   if (isGeneratedReimbursement) {
-    // Extract participant name from ID: reimb-{participantName}-{YYYY-MM}
-    const parts = lancamento.id.split('-');
+    // Extract participant name from ID: reimb-{participantName}-{YYYY-MM}__contaId or reimb-{participantName}-{YYYY-MM}
+    const baseId = lancamento.id.split('__')[0];
+    const parts = baseId.split('-');
     if (parts.length >= 4) { // reimb-Nome-2023-10 or reimb-Nome-Sobrenome-2023-10
-      combinedParticipantName = lancamento.id.substring(6, lancamento.id.length - 8);
-      const monthYear = lancamento.id.substring(lancamento.id.length - 7);
+      combinedParticipantName = baseId.substring(6, baseId.length - 8);
+      const monthYear = baseId.substring(baseId.length - 7);
       
       combinedExpenses = allLancamentos.filter(l => 
         !l.isReimbursement && 
