@@ -5,6 +5,8 @@ import {
   Plus, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronUp,
+  ChevronDown,
   TrendingUp, 
   TrendingDown, 
   ArrowRightLeft,
@@ -103,6 +105,10 @@ export function DashboardView({
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     return `${today.getFullYear()}-${mm}`; // e.g. "2026-06"
   });
+
+  // Sorting states
+  const [sortBy, setSortBy] = useState<'data' | 'valor' | 'nome'>('data');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Popup overlay states
   const [activePopup, setActivePopup] = useState<'saldo' | 'previsao' | 'reservado' | 'fatura' | 'pagamento' | 'despesas_detalhes' | 'receitas_detalhes' | null>(null);
@@ -281,6 +287,24 @@ export function DashboardView({
       }
       return l.tipo === 'despesa_cartao';
     }
+  });
+
+  // Sorting logic
+  const sortedLancamentos = [...filteredLancamentos].sort((a, b) => {
+    let comparison = 0;
+    if (sortBy === 'data') {
+      comparison = a.data.localeCompare(b.data);
+    } else if (sortBy === 'valor') {
+      comparison = a.valor - b.valor;
+    } else if (sortBy === 'nome') {
+      comparison = a.descricao.localeCompare(b.descricao, 'pt-BR');
+    }
+
+    if (comparison === 0) {
+      return b.data.localeCompare(a.data);
+    }
+
+    return sortOrder === 'asc' ? comparison : -comparison;
   });
 
   // Pay invoice handler inside dashboard (opens confirmation step)
@@ -675,13 +699,51 @@ export function DashboardView({
 
       {/* 6. List of Registered Transactions */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[var(--text-discreto)] uppercase tracking-wider">
-            Lançamentos do Período
-          </h3>
-          <span className="text-xs font-semibold bg-[var(--bg-tertiary)] px-2.5 py-1 rounded-full text-[var(--text-discreto)]">
-            {filteredLancamentos.length} {filteredLancamentos.length === 1 ? 'item' : 'itens'}
-          </span>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-[var(--text-discreto)] uppercase tracking-wider">
+              Lançamentos do Período
+            </h3>
+            <span className="text-xs font-semibold bg-[var(--bg-tertiary)] px-2.5 py-1 rounded-full text-[var(--text-discreto)]">
+              {filteredLancamentos.length} {filteredLancamentos.length === 1 ? 'item' : 'itens'}
+            </span>
+          </div>
+
+          {/* Sorting Controls */}
+          {filteredLancamentos.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {([
+                { id: 'data', label: 'Data' },
+                { id: 'valor', label: 'Valor' },
+                { id: 'nome', label: 'Nome' }
+              ] as const).map((opt) => {
+                const isActive = sortBy === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      if (isActive) {
+                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortBy(opt.id);
+                        setSortOrder(opt.id === 'nome' ? 'asc' : 'desc');
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 transition-all border shrink-0 cursor-pointer ${
+                      isActive 
+                        ? 'bg-[var(--bg-secondary)] border-transparent text-white' 
+                        : 'bg-[var(--bg-primary)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                    }`}
+                  >
+                    {opt.label}
+                    {isActive && (
+                      sortOrder === 'asc' ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {filteredLancamentos.length === 0 ? (
@@ -691,7 +753,7 @@ export function DashboardView({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {filteredLancamentos.map((l) => {
+            {sortedLancamentos.map((l) => {
               const cat = categorias.find((c) => c.id === l.categoriaId);
               const isRec = l.tipo === 'receita';
               const isRetiradaCof = l.tipo === 'retirada_cofrinho';
@@ -746,21 +808,21 @@ export function DashboardView({
                       <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[var(--text-discreto)] mt-0.5">
                         <span className="uppercase tracking-wider">{cat?.nome || (isRetiradaCof || isDepositoCof ? 'Reserva / Cofrinho' : isTransf ? 'Transferência' : 'Geral')}</span>
                         <span>•</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-[6px] bg-[var(--bg-tertiary)]/50 border border-[var(--bg-tertiary)]">
                           {isTransf ? (
                             <div className="flex items-center gap-0.5">
-                              <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.contaId)?.cor || '#718096' }} />
-                              <span className="text-[8px] text-[var(--text-discreto)] mx-0.5">➔</span>
-                              <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.paraContaId)?.cor || '#718096' }} />
+                              <span className="w-2 h-2 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.contaId)?.cor || '#718096' }} />
+                              <span className="text-[7px] text-[var(--text-discreto)] mx-0.5">➔</span>
+                              <span className="w-2 h-2 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.paraContaId)?.cor || '#718096' }} />
                             </div>
                           ) : isCard ? (
-                            <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: cartoes.find(cr => cr.id === l.cartaoId)?.cor || '#718096' }} />
+                            <span className="w-2 h-2 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: cartoes.find(cr => cr.id === l.cartaoId)?.cor || '#718096' }} />
                           ) : isRetiradaCof || isDepositoCof ? (
-                            <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: (cofrinhos.find(c => c.id === l.cofrinhoId) || cofrinhos.find(c => l.descricao.includes(c.nome)))?.cor || '#718096' }} />
+                            <span className="w-2 h-2 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: (cofrinhos.find(c => c.id === l.cofrinhoId) || cofrinhos.find(c => l.descricao.includes(c.nome)))?.cor || '#718096' }} />
                           ) : (
-                            <span className="w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.contaId)?.cor || '#718096' }} />
+                            <span className="w-2 h-2 rounded-full border border-black/10 dark:border-white/10 shrink-0 inline-block" style={{ backgroundColor: contas.find(c => c.id === l.contaId)?.cor || '#718096' }} />
                           )}
-                          <span>{accountName}</span>
+                          <span className="text-[9px] text-[var(--text-general)] leading-none truncate max-w-[80px]">{accountName}</span>
                         </div>
                       </div>
                       {(l.tipo === 'receita' || l.tipo === 'despesa') ? (
