@@ -4,6 +4,7 @@ export interface Conta {
   saldoInicial: number;
   cor: string;
   updatedAt?: number;
+  isMain?: boolean;
 }
 
 export interface Cartao {

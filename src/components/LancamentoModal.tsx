@@ -78,9 +78,11 @@ export function LancamentoModal({
     if (newTipo === 'despesa_cartao' && cartoes.length > 0) {
       setCartaoId(cartoes[0].id);
     } else if (contas.length > 0) {
-      setContaId(contas[0].id);
+      const mainConta = contas.find(c => c.isMain);
+      const defaultId = mainConta ? mainConta.id : contas[0].id;
+      setContaId(defaultId);
       if (contas.length > 1) {
-        setParaContaId(contas[1].id);
+        setParaContaId(contas.find(c => c.id !== defaultId)?.id || contas[1].id);
       } else {
         setParaContaId(contas[0].id);
       }
@@ -101,9 +103,11 @@ export function LancamentoModal({
         setCategoriaId(cats[0].id);
       }
       if (contas.length > 0 && !contaId) {
-        setContaId(contas[0].id);
+        const mainConta = contas.find(c => c.isMain);
+        const defaultId = mainConta ? mainConta.id : contas[0].id;
+        setContaId(defaultId);
         if (contas.length > 1) {
-          setParaContaId(contas[1].id);
+          setParaContaId(contas.find(c => c.id !== defaultId)?.id || contas[1].id);
         }
       }
       if (cartoes.length > 0 && !cartaoId) {

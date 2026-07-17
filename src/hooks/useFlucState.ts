@@ -212,7 +212,7 @@ export function useFlucState() {
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  const syncSharedExpenses = (lancamentos: Lancamento[]): Lancamento[] => {
+  const syncSharedExpenses = (lancamentos: Lancamento[], contas: Conta[] = state.contas): Lancamento[] => {
     // 1. Remove all generated reimbursement entries
     const baseLancamentos = lancamentos.filter(l => !l.isReimbursement);
     
@@ -250,6 +250,10 @@ export function useFlucState() {
     // 3. Create reimbursement/payout entries
     const reimbursements: Lancamento[] = [];
     const now = Date.now();
+    
+    const mainConta = contas.find(c => c.isMain) || contas[0];
+    const defaultContaId = mainConta ? mainConta.id : undefined;
+
     sharesMap.forEach((data, key) => {
       if (Math.abs(data.total) < 0.01) return; // Net zero balance
       
@@ -259,6 +263,7 @@ export function useFlucState() {
       // Try to find if this reimbursement already exists (with or without account suffix) to preserve its status
       const existing = lancamentos.find(l => l.id.startsWith(logicalId));
       const isPaid = existing ? existing.recebidoPagoEfetivado : false;
+      const existingContaId = existing ? existing.contaId : undefined;
       
       const isReceitaGenerated = data.total > 0;
       const prefix = isReceitaGenerated ? 'Reembolso' : 'Repasse';
@@ -274,6 +279,7 @@ export function useFlucState() {
         data: `${monthYear}-01`, // Set to 1st of the month for grouping
         descricao: description,
         isReimbursement: true,
+        contaId: existingContaId || defaultContaId,
         updatedAt: now
       });
     });
@@ -372,7 +378,7 @@ export function useFlucState() {
       if (next.lancamentos !== prev.lancamentos) {
         next = {
           ...next,
-          lancamentos: syncSharedExpenses(next.lancamentos)
+          lancamentos: syncSharedExpenses(next.lancamentos, next.contas)
         };
       }
       
@@ -494,7 +500,10 @@ export function useFlucState() {
         // Match the same month and year period (e.g. "2026-06")
         if (isDateInMonthYear(l.data, monthYearStr)) {
           if (l.estorno) {
-            sum -= l.valor; // Refund/adjustment subtracts from invoice
+            // Only subtract from invoice if the payment/refund is effective (paid)
+            if (l.recebidoPagoEfetivado) {
+              sum -= l.valor; // Refund/adjustment subtracts from invoice
+            }
           } else {
             sum += l.valor; // Standard charge adds to invoice
           }
@@ -678,10 +687,7 @@ export function useFlucState() {
       });
     }
 
-    // outrasMovimentacoes represent transfers and cofrinho history within this month
-    const outrasMovimentacoes = saldoAtual - (saldoMesAnterior + receitasConsolidadas - despesasConsolidadas);
-
-    const forecast = saldoAtual + receitasPendentes - despesasPendentes - activeInvoices;
+    const forecast = saldoMesAnterior + receitasConsolidadas + receitasPendentes - despesasConsolidadas - despesasPendentes - activeInvoices;
 
     return {
       saldoMesAnterior,
@@ -690,7 +696,6 @@ export function useFlucState() {
       despesasConsolidadas,
       despesasPendentes,
       activeInvoices,
-      outrasMovimentacoes,
       forecast
     };
   };

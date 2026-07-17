@@ -127,9 +127,18 @@ export default function App() {
       }
     }
 
+    let finalContaId = newLanc.contaId;
+    if ((newLanc.tipo === 'despesa' || newLanc.tipo === 'receita') && !finalContaId) {
+      const mainConta = state.contas.find(c => c.isMain) || state.contas[0];
+      if (mainConta) {
+        finalContaId = mainConta.id;
+      }
+    }
+
     const adjustedLanc = {
       ...newLanc,
-      data: baseDate
+      data: baseDate,
+      contaId: finalContaId
     };
 
     const isParcelado = adjustedLanc.parcelado && adjustedLanc.numParcelas && adjustedLanc.numParcelas > 1;
@@ -202,6 +211,8 @@ export default function App() {
 
       let reimbursementEntries: Lancamento[] = [];
       if (adjustedLanc.isShared && adjustedLanc.participantes && adjustedLanc.participantes.length > 0) {
+        const mainConta = state.contas.find(c => c.isMain) || state.contas[0];
+        
         reimbursementEntries = adjustedLanc.participantes.map((p, idx) => {
           let valorReembolso = p.valor;
           if (p.isPorcentagem) {
@@ -216,7 +227,7 @@ export default function App() {
             data: adjustedLanc.data,
             descricao: `Reembolso: ${p.nome} (${adjustedLanc.descricao})`,
             categoriaId: adjustedLanc.categoriaId,
-            contaId: adjustedLanc.contaId,
+            contaId: adjustedLanc.contaId || (mainConta ? mainConta.id : undefined),
             isReimbursement: true,
             originalSharedLancamentoId: mainId,
             updatedAt: Date.now()
@@ -325,6 +336,28 @@ export default function App() {
 
     updateState((prev) => {
       const updatedLancamentos = prev.lancamentos.map((l) => {
+        // Sync counterparts (like credit card payment and its estorno) if they share the same faturaPagamentoId
+        const isFaturaPagamentoIdMatch = target.faturaPagamentoId && l.faturaPagamentoId === target.faturaPagamentoId && l.id !== id;
+        
+        // Fallback for older transactions without faturaPagamentoId
+        let isFallbackMatch = false;
+        if (!target.faturaPagamentoId && l.id !== id) {
+          const targetMonthYear = target.data.substring(0, 7);
+          if (target.tipo === 'despesa' && target.descricao.startsWith('Fatura Paga:')) {
+            isFallbackMatch = l.tipo === 'despesa_cartao' && l.descricao === 'Pagamento de Fatura Recibo' && l.valor === target.valor && l.estorno === true && l.data.startsWith(targetMonthYear);
+          } else if (target.tipo === 'despesa_cartao' && target.descricao === 'Pagamento de Fatura Recibo' && target.estorno === true) {
+            isFallbackMatch = l.tipo === 'despesa' && l.descricao.startsWith('Fatura Paga:') && l.valor === target.valor && l.data.startsWith(targetMonthYear);
+          }
+        }
+
+        if (isFaturaPagamentoIdMatch || isFallbackMatch) {
+           let counterpartUpdate: Partial<Lancamento> = {};
+           if (finalUpdated.valor !== undefined) counterpartUpdate.valor = finalUpdated.valor;
+           if (finalUpdated.recebidoPagoEfetivado !== undefined) counterpartUpdate.recebidoPagoEfetivado = finalUpdated.recebidoPagoEfetivado;
+           if (finalUpdated.data !== undefined) counterpartUpdate.data = finalUpdated.data;
+           return { ...l, ...counterpartUpdate };
+        }
+
         if (l.id === id) {
           return { ...l, ...finalUpdated };
         }
@@ -444,21 +477,36 @@ export default function App() {
 
   // Add new Bank Account
   const handleAddConta = (newConta: Omit<Conta, 'id'>) => {
+    const isFirstConta = state.contas.length === 0;
     const conta: Conta = {
       ...newConta,
-      id: `conta-${Date.now()}`
+      id: `conta-${Date.now()}`,
+      isMain: isFirstConta ? true : newConta.isMain
     };
-    updateState((prev) => ({
-      ...prev,
-      contas: [...prev.contas, conta]
-    }));
+    updateState((prev) => {
+      let nextContas = prev.contas;
+      if (conta.isMain) {
+        nextContas = nextContas.map(c => ({ ...c, isMain: false }));
+      }
+      return {
+        ...prev,
+        contas: [...nextContas, conta]
+      };
+    });
   };
 
   // Edit Bank Account
   const handleEditConta = (id: string, updatedFields: Partial<Conta>, newSaldoAtual?: number) => {
     const currentBalance = getAccountBalance(id);
     updateState((prev) => {
-      const nextContas = prev.contas.map(c => c.id === id ? { ...c, ...updatedFields } : c);
+      let nextContas = [...prev.contas];
+      
+      if (updatedFields.isMain) {
+        nextContas = nextContas.map(c => ({ ...c, isMain: false }));
+      }
+      
+      nextContas = nextContas.map(c => c.id === id ? { ...c, ...updatedFields } : c);
+      
       const nextLancamentos = [...prev.lancamentos];
 
       if (newSaldoAtual !== undefined) {
@@ -500,12 +548,22 @@ export default function App() {
 
   // Delete Bank Account
   const handleDeleteConta = (id: string) => {
-    updateState((prev) => ({
-      ...prev,
-      contas: prev.contas.filter(c => c.id !== id),
-      // Set linked card's accounts to empty or delete if needed
-      cartoes: prev.cartoes.map(card => card.contaVinculadaId === id ? { ...card, contaVinculadaId: '' } : card)
-    }));
+    updateState((prev) => {
+      let nextContas = prev.contas.filter(c => c.id !== id);
+      
+      // If we deleted the main account and there are other accounts, make the first one main
+      const wasMain = prev.contas.find(c => c.id === id)?.isMain;
+      if (wasMain && nextContas.length > 0) {
+        nextContas[0] = { ...nextContas[0], isMain: true };
+      }
+
+      return {
+        ...prev,
+        contas: nextContas,
+        // Set linked card's accounts to empty or delete if needed
+        cartoes: prev.cartoes.map(card => card.contaVinculadaId === id ? { ...card, contaVinculadaId: '' } : card)
+      };
+    });
   };
 
   // Add new Credit Card

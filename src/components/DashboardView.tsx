@@ -48,7 +48,6 @@ interface DashboardViewProps {
     despesasConsolidadas: number;
     despesasPendentes: number;
     activeInvoices: number;
-    outrasMovimentacoes: number;
     forecast: number;
   };
   getSaldoMesAnterior: (monthYear: string, accountId?: string) => number;
@@ -1016,17 +1015,6 @@ export function DashboardView({
                 <span className="text-[#ed793a] font-bold">FATURAS EM ABERTO</span>
                 <span className="text-[#ed793a] font-bold">- R$ {formatCurrency(forecastData.activeInvoices)}</span>
               </div>
-              
-              {Math.abs(forecastData.outrasMovimentacoes) > 0.01 && (
-                <div className="flex justify-between p-2.5 bg-[var(--bg-app)] rounded-[12px]">
-                  <span className={`${forecastData.outrasMovimentacoes > 0 ? 'text-[#00cc52]' : 'text-[#d03c4d]'} font-bold`}>
-                    OUTRAS MOVIMENTAÇÕES
-                  </span>
-                  <span className={`${forecastData.outrasMovimentacoes > 0 ? 'text-[#00cc52]' : 'text-[#d03c4d]'} font-bold`}>
-                    {forecastData.outrasMovimentacoes > 0 ? '+' : '-'} R$ {formatCurrency(Math.abs(forecastData.outrasMovimentacoes))}
-                  </span>
-                </div>
-              )}
               
               <div className="border-t border-[var(--bg-tertiary)] pt-3 flex justify-between font-extrabold text-sm text-[var(--text-general)]">
                 <span>PREVISÃO FINAL</span>

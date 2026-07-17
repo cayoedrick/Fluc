@@ -140,6 +140,7 @@ export function ContasCartoesView({
   const [contaSaldo, setContaSaldo] = useState<string>('');
   const [contaSaldoAtual, setContaSaldoAtual] = useState<string>('');
   const [contaCor, setContaCor] = useState<string>('#1c7ae4');
+  const [contaIsMain, setContaIsMain] = useState<boolean>(false);
 
   // Form Fields - Card
   const [cartaoNome, setCartaoNome] = useState<string>('');
@@ -169,6 +170,7 @@ export function ContasCartoesView({
     setContaSaldoAtual(String(currentBal).replace('.', ','));
     
     setContaCor(c.cor);
+    setContaIsMain(c.isMain || false);
     const isPreset = PRESET_COLORS.includes(c.cor);
     setUseCustomColor(!isPreset);
     if (!isPreset) {
@@ -211,6 +213,7 @@ export function ContasCartoesView({
     setContaNome('');
     setContaSaldo('');
     setContaSaldoAtual('');
+    setContaIsMain(false);
     setCartaoNome('');
     setCartaoLimite('');
     setCartaoLimiteUtilizado('');
@@ -246,13 +249,15 @@ export function ContasCartoesView({
         onEditConta(editingConta.id, {
           nome: contaNome.trim(),
           saldoInicial: saldo,
-          cor: finalCor
+          cor: finalCor,
+          isMain: contaIsMain
         }, saldoAtual);
       } else {
         onAddConta({
           nome: contaNome.trim(),
           saldoInicial: saldo,
-          cor: finalCor
+          cor: finalCor,
+          isMain: contaIsMain
         });
       }
     } else {
@@ -358,11 +363,20 @@ export function ContasCartoesView({
                   <div className="absolute top-0 right-0 w-2 h-full" style={{ backgroundColor: c.cor }} />
                   
                   <div className="flex items-start justify-between pr-4">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-[10px] text-white" style={{ backgroundColor: c.cor + '20', color: c.cor }}>
-                        <Landmark size={16} />
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-[10px] text-white" style={{ backgroundColor: c.cor + '20', color: c.cor }}>
+                          <Landmark size={16} />
+                        </div>
+                        <span className="text-sm font-bold text-[var(--text-general)] flex items-center gap-2">
+                          {c.nome}
+                          {c.isMain && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-[6px] font-extrabold uppercase bg-[var(--text-general)]/10 text-[var(--text-general)]/70 tracking-widest">
+                              PRINCIPAL
+                            </span>
+                          )}
+                        </span>
                       </div>
-                      <span className="text-sm font-bold text-[var(--text-general)]">{c.nome}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <button 
@@ -593,6 +607,22 @@ export function ContasCartoesView({
                       </span>
                     </div>
                   )}
+
+                  {/* Conta Principal Checkbox */}
+                  <label className="flex items-center gap-3 p-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] cursor-pointer hover:bg-[var(--bg-tertiary)]/20 transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={contaIsMain}
+                      onChange={(e) => setContaIsMain(e.target.checked)}
+                      className="w-4 h-4 rounded-sm border-[var(--bg-tertiary)] text-[#1c7ae4] focus:ring-[#1c7ae4] focus:ring-offset-0 bg-[var(--bg-primary)] cursor-pointer"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-[var(--text-general)]">Conta Principal</span>
+                      <span className="text-[10px] text-[var(--text-discreto)]">
+                        Lançamentos sem conta selecionada serão vinculados a esta conta.
+                      </span>
+                    </div>
+                  </label>
                 </>
               ) : (
                 <>
