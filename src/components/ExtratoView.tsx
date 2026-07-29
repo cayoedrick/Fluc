@@ -64,8 +64,11 @@ export function ExtratoView({
   });
 
   // Sorting states
-  const [sortBy, setSortBy] = useState<'data' | 'valor' | 'nome' | 'parcelados'>('data');
+  const [sortBy, setSortBy] = useState<'data' | 'valor' | 'nome'>('data');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Filter for payment mode: 'all' | 'parcelado' | 'a_vista'
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<'all' | 'parcelado' | 'a_vista'>('all');
 
   // Edit State
   const [editingLancamento, setEditingLancamento] = useState<Lancamento | null>(null);
@@ -226,6 +229,13 @@ export function ExtratoView({
       if (!match) return false;
     }
 
+    // 5. Payment mode filter (Parcelados / À vista)
+    if (paymentTypeFilter === 'parcelado') {
+      if (!l.parcelado) return false;
+    } else if (paymentTypeFilter === 'a_vista') {
+      if (l.parcelado) return false;
+    }
+
     return true;
   });
 
@@ -238,10 +248,6 @@ export function ExtratoView({
       comparison = a.valor - b.valor;
     } else if (sortBy === 'nome') {
       comparison = a.descricao.localeCompare(b.descricao, 'pt-BR');
-    } else if (sortBy === 'parcelados') {
-      const aVal = a.parcelado ? 1 : 0;
-      const bVal = b.parcelado ? 1 : 0;
-      comparison = aVal - bVal;
     }
 
     if (comparison === 0) {
@@ -638,48 +644,81 @@ export function ExtratoView({
             </div>
           </div>
 
-          {/* E. Sort Filter (Ordenar por) */}
-          <div>
-            <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-2">Ordenar por</span>
-            <div className="flex flex-wrap gap-1.5 text-xs font-bold">
-              {([
-                { id: 'data', label: 'Data' },
-                { id: 'valor', label: 'Valor' },
-                { id: 'nome', label: 'Nome' },
-                { id: 'parcelados', label: 'Parcelados' }
-              ] as const).map((opt) => {
-                const isActive = sortBy === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    id={`sort-btn-${opt.id}`}
-                    onClick={() => {
-                      if (isActive) {
-                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                      } else {
-                        setSortBy(opt.id);
-                        if (opt.id === 'nome') {
-                          setSortOrder('asc');
+          {/* E. Sort & Payment Type Filters (box below search / Todos switch) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Ordenar por */}
+            <div>
+              <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-2">Ordenar por</span>
+              <div className="flex flex-wrap gap-1.5 text-xs font-bold">
+                {([
+                  { id: 'data', label: 'Data' },
+                  { id: 'valor', label: 'Valor' },
+                  { id: 'nome', label: 'Nome' }
+                ] as const).map((opt) => {
+                  const isActive = sortBy === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      id={`sort-btn-${opt.id}`}
+                      onClick={() => {
+                        if (isActive) {
+                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                         } else {
-                          setSortOrder('desc');
+                          setSortBy(opt.id);
+                          if (opt.id === 'nome') {
+                            setSortOrder('asc');
+                          } else {
+                            setSortOrder('desc');
+                          }
                         }
-                      }
-                    }}
-                    className={`px-3 py-2 flex items-center gap-1.5 rounded-[12px] transition-colors border cursor-pointer ${
-                      isActive
-                        ? 'bg-[var(--bg-secondary)] border-transparent text-white'
-                        : 'bg-[var(--bg-app)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
-                    }`}
-                  >
-                    <span>{opt.label}</span>
-                    {isActive && (
-                      sortOrder === 'asc' 
-                        ? <ChevronUp size={12} className="stroke-[2.5]" /> 
-                        : <ChevronDown size={12} className="stroke-[2.5]" />
-                    )}
-                  </button>
-                );
-              })}
+                      }}
+                      className={`px-3 py-2 flex items-center gap-1.5 rounded-[12px] transition-colors border cursor-pointer ${
+                        isActive
+                          ? 'bg-[var(--bg-secondary)] border-transparent text-white'
+                          : 'bg-[var(--bg-app)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {isActive && (
+                        sortOrder === 'asc' 
+                          ? <ChevronUp size={12} className="stroke-[2.5]" /> 
+                          : <ChevronDown size={12} className="stroke-[2.5]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Filter options for Parcelados / À vista on the far right */}
+            <div>
+              <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-2">Tipo de Pagamento</span>
+              <div className="flex gap-1.5 text-xs font-bold">
+                <button
+                  type="button"
+                  id="filter-btn-parcelados"
+                  onClick={() => setPaymentTypeFilter(paymentTypeFilter === 'parcelado' ? 'all' : 'parcelado')}
+                  className={`px-3 py-2 flex items-center gap-1.5 rounded-[12px] transition-colors border cursor-pointer ${
+                    paymentTypeFilter === 'parcelado'
+                      ? 'bg-[var(--bg-secondary)] border-transparent text-white'
+                      : 'bg-[var(--bg-app)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                  }`}
+                >
+                  <span>Parcelados</span>
+                </button>
+                <button
+                  type="button"
+                  id="filter-btn-a-vista"
+                  onClick={() => setPaymentTypeFilter(paymentTypeFilter === 'a_vista' ? 'all' : 'a_vista')}
+                  className={`px-3 py-2 flex items-center gap-1.5 rounded-[12px] transition-colors border cursor-pointer ${
+                    paymentTypeFilter === 'a_vista'
+                      ? 'bg-[var(--bg-secondary)] border-transparent text-white'
+                      : 'bg-[var(--bg-app)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                  }`}
+                >
+                  <span>À vista</span>
+                </button>
+              </div>
             </div>
           </div>
 
