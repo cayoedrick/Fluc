@@ -40,6 +40,7 @@ export interface Lancamento {
   recebidoPagoEfetivado: boolean; // Recebido (Receita), Pago (Despesa), Efetivado (Transferência)
   estorno?: boolean; // Estorno/Ajuste para Despesa de Cartão
   data: string; // YYYY-MM-DD
+  dataCompra?: string; // YYYY-MM-DD (Data original da compra/lançamento do cartão)
   descricao: string;
   categoriaId?: string;
   contaId?: string; // Conta Bancária (Receita/Despesa), "da conta" (Transferência)

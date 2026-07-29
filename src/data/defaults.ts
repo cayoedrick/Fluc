@@ -119,6 +119,7 @@ export const getDefaultState = () => {
       recebidoPagoEfetivado: true,
       estorno: false,
       data: '2026-06-14',
+      dataCompra: '2026-06-14',
       descricao: 'Assinatura Netflix & Spotify',
       categoriaId: categorias.find(c => c.nome === 'Assinaturas' && c.tipo === 'despesa')?.id || 'cat-desp-2',
       cartaoId: 'cartao-1'
@@ -130,6 +131,7 @@ export const getDefaultState = () => {
       recebidoPagoEfetivado: true,
       estorno: false,
       data: '2026-06-18',
+      dataCompra: '2026-05-18',
       descricao: 'Jantar com Amigos',
       categoriaId: categorias.find(c => c.nome === 'Lazer' && c.tipo === 'despesa')?.id || 'cat-desp-6',
       cartaoId: 'cartao-2'

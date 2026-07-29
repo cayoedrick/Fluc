@@ -243,7 +243,9 @@ export function ExtratoView({
   const sortedLancamentos = [...filteredLancamentos].sort((a, b) => {
     let comparison = 0;
     if (sortBy === 'data') {
-      comparison = a.data.localeCompare(b.data);
+      const aDate = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
+      const bDate = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+      comparison = aDate.localeCompare(bDate);
     } else if (sortBy === 'valor') {
       comparison = a.valor - b.valor;
     } else if (sortBy === 'nome') {
@@ -251,7 +253,9 @@ export function ExtratoView({
     }
 
     if (comparison === 0) {
-      return b.data.localeCompare(a.data);
+      const aDate = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
+      const bDate = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+      return bDate.localeCompare(aDate);
     }
 
     return sortOrder === 'asc' ? comparison : -comparison;
@@ -909,7 +913,7 @@ export function ExtratoView({
                   <div className="flex flex-col justify-between items-end gap-3">
                     <div className="text-right">
                       <p className="text-[10px] font-bold text-[var(--text-discreto)]">
-                        {l.data.split('-').reverse().join('/')}
+                        {(l.tipo === 'despesa_cartao' && l.dataCompra ? l.dataCompra : l.data).split('-').reverse().join('/')}
                       </p>
                       <p className={`text-sm font-extrabold whitespace-nowrap ${textClass}`}>
                         {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {formatCurrency(l.valor)}

@@ -114,6 +114,8 @@ export default function App() {
     // Exemplo: se o fechamento do cartão for dia 5, todo lançamento no periodo do dia 6/1 ao dia 5/2 será lançado na fatura do mês de fevereiro.
     // Ou seja, se o dia do lançamento for maior que o dia de fechamento do cartão, vai para o mês seguinte. Caso contrário, vai no mesmo mês.
     let baseDate = newLanc.data;
+    let originalDataCompra = newLanc.data;
+
     if (newLanc.tipo === 'despesa_cartao') {
       const card = state.cartoes.find((c) => c.id === newLanc.cartaoId);
       if (card) {
@@ -136,6 +138,7 @@ export default function App() {
     const adjustedLanc = {
       ...newLanc,
       data: baseDate,
+      dataCompra: newLanc.tipo === 'despesa_cartao' ? (newLanc.dataCompra || originalDataCompra) : newLanc.dataCompra,
       contaId: finalContaId
     };
 
@@ -171,6 +174,7 @@ export default function App() {
           id: `lanc-${Date.now()}-${i}`,
           descricao: `${adjustedLanc.descricao} (${i + 1}/${num})`,
           data: installmentDate,
+          dataCompra: adjustedLanc.tipo === 'despesa_cartao' ? (adjustedLanc.dataCompra || originalDataCompra) : adjustedLanc.dataCompra,
           valor: installmentValor,
           grupoId: group
         });
@@ -320,6 +324,7 @@ export default function App() {
     if (updated.data) {
       const tipo = updated.tipo || target.tipo;
       if (tipo === 'despesa_cartao') {
+        finalUpdated.dataCompra = updated.data;
         const cartaoId = updated.cartaoId || target.cartaoId;
         const card = state.cartoes.find((c) => c.id === cartaoId);
         if (card) {
@@ -327,6 +332,8 @@ export default function App() {
           const diaFechamento = card.diaFechamento;
           if (day > diaFechamento) {
             finalUpdated.data = addMonthsToDateStr(updated.data, 1);
+          } else {
+            finalUpdated.data = updated.data;
           }
         }
       }

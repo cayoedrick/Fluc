@@ -47,7 +47,7 @@ export function EditLancamentoModal({
       setValor(lancamento.valor.toString().replace('.', ','));
       setRecebidoPagoEfetivado(lancamento.recebidoPagoEfetivado);
       setEstorno(lancamento.estorno || false);
-      setData(lancamento.data);
+      setData((lancamento.tipo === 'despesa_cartao' && lancamento.dataCompra) ? lancamento.dataCompra : lancamento.data);
       setDescricao(lancamento.descricao);
       setCategoriaId(lancamento.categoriaId || '');
       setContaId(lancamento.contaId || '');

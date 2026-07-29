@@ -129,7 +129,7 @@ export function SharedLancamentoDetailsModal({ isOpen, onClose, lancamento, allL
                 {item.descricao}
               </span>
               <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
-                Data: {formatDate(item.data)}
+                Data: {formatDate(item.tipo === 'despesa_cartao' && item.dataCompra ? item.dataCompra : item.data)}
               </span>
             </div>
           </div>

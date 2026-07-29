@@ -875,7 +875,7 @@ export function DashboardView({
                       {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {formatCurrency(l.valor)}
                     </p>
                     <span className="text-[10px] font-bold text-[var(--text-discreto)]">
-                      {l.data.split('-').reverse().slice(0, 2).join('/')}
+                      {(l.tipo === 'despesa_cartao' && l.dataCompra ? l.dataCompra : l.data).split('-').reverse().slice(0, 2).join('/')}
                     </span>
                     
                     <div className="flex items-center gap-1 mt-1">
