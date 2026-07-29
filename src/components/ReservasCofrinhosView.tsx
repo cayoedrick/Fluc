@@ -39,9 +39,7 @@ const PRESET_COLORS = [
   '#8e44ad', // Purple
 ];
 
-const formatCurrency = (val: number): string => {
-  return (val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
-};
+import { formatCurrency, parseCurrencyInput } from '../utils/currency';
 
 export function ReservasCofrinhosView({
   cofrinhos,
@@ -106,12 +104,12 @@ export function ReservasCofrinhosView({
       window.showToast?.('Por favor, preencha o nome do cofrinho.', 'erro');
       return;
     }
-    const valInicial = parseFloat(newValorInicial.replace(',', '.'));
+    const valInicial = parseCurrencyInput(newValorInicial);
     if (isNaN(valInicial) || valInicial < 0) {
       window.showToast?.('Por favor, preencha o valor inicial corretamente.', 'erro');
       return;
     }
-    const metaNum = newMeta.trim() ? parseFloat(newMeta.replace(',', '.')) : undefined;
+    const metaNum = newMeta.trim() ? parseCurrencyInput(newMeta) : undefined;
 
     const finalCor = useCustomColor ? customColor : newCor;
 
@@ -145,7 +143,7 @@ export function ReservasCofrinhosView({
   const handleConfirmOperation = () => {
     if (!activeCofrinho) return;
 
-    const val = parseFloat(opValor.replace(',', '.'));
+    const val = parseCurrencyInput(opValor);
     if (isNaN(val) || val <= 0) {
       window.showToast?.('Por favor, insira um valor válido.', 'erro');
       return;

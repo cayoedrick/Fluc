@@ -40,9 +40,7 @@ interface ExtratoViewProps {
   onOpenMenu?: () => void;
 }
 
-const formatCurrency = (val: number): string => {
-  return (val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
-};
+import { formatCurrency, parseCurrencyInput } from '../utils/currency';
 
 export function ExtratoView({
   contas,

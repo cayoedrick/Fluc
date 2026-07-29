@@ -3,9 +3,7 @@ import { Conta, Cartao, Categoria, Lancamento, ParticipanteDespesa } from '../ty
 import { Plus, X, Calendar, Check, ArrowRight, Wallet, CreditCard, Info, Share2, Users, Percent, Trash2 } from 'lucide-react';
 import { FloatingInfoModal } from './FloatingInfoModal';
 
-const formatCurrency = (val: number): string => {
-  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
-};
+import { formatCurrency, parseCurrencyInput } from '../utils/currency';
 
 interface LancamentoModalProps {
   isOpen: boolean;
@@ -129,7 +127,7 @@ export function LancamentoModal({
   };
 
   const handleConfirm = () => {
-    const parsedValor = parseFloat(valor.replace(',', '.'));
+    const parsedValor = parseCurrencyInput(valor);
     if (isNaN(parsedValor) || parsedValor <= 0) {
       window.showToast?.('Por favor, digite um valor válido.', 'erro');
       return;
@@ -161,8 +159,8 @@ export function LancamentoModal({
         if (p.rawValor && p.rawValor.includes('/')) {
           const parts = p.rawValor.split('/');
           if (parts.length === 2) {
-            const num = parseFloat(parts[0].replace(',', '.'));
-            const den = parseFloat(parts[1].replace(',', '.'));
+            const num = parseCurrencyInput(parts[0]);
+            const den = parseCurrencyInput(parts[1]);
             if (!isNaN(num) && !isNaN(den) && den !== 0) {
               if (p.isPorcentagem) {
                 return { ...p, valor: 100 * (num / den) };
@@ -489,19 +487,19 @@ export function LancamentoModal({
                                 if (val.includes('/')) {
                                   const parts = val.split('/');
                                   if (parts.length === 2) {
-                                    const num = parseFloat(parts[0].replace(',', '.'));
-                                    const den = parseFloat(parts[1].replace(',', '.'));
+                                    const num = parseCurrencyInput(parts[0]);
+                                    const den = parseCurrencyInput(parts[1]);
                                     if (!isNaN(num) && !isNaN(den) && den !== 0) {
                                       if (p.isPorcentagem) {
                                         parsedValor = 100 * (num / den);
                                       } else {
-                                        const total = parseFloat(valor.replace(',', '.')) || 0;
+                                        const total = parseCurrencyInput(valor);
                                         parsedValor = total * (num / den);
                                       }
                                     }
                                   }
                                 } else {
-                                  parsedValor = parseFloat(val.replace(',', '.')) || 0;
+                                  parsedValor = parseCurrencyInput(val);
                                 }
                                 updateParticipante(idx, { valor: parsedValor, rawValor: val });
                               }}
@@ -513,14 +511,14 @@ export function LancamentoModal({
                                   if (p.rawValor && p.rawValor.includes('/')) {
                                     const parts = p.rawValor.split('/');
                                     if (parts.length === 2) {
-                                      const num = parseFloat(parts[0].replace(',', '.'));
-                                      const den = parseFloat(parts[1].replace(',', '.'));
+                                      const num = parseCurrencyInput(parts[0]);
+                                      const den = parseCurrencyInput(parts[1]);
                                       if (!isNaN(num) && !isNaN(den) && den !== 0) {
-                                        return formatCurrency((parseFloat(valor.replace(',', '.')) || 0) * (num / den));
+                                        return formatCurrency(parseCurrencyInput(valor) * (num / den));
                                       }
                                     }
                                   }
-                                  return formatCurrency((parseFloat(valor.replace(',', '.')) || 0) * (p.valor / 100));
+                                  return formatCurrency(parseCurrencyInput(valor) * (p.valor / 100));
                                 })()}
                               </span>
                             ) : (p.rawValor && p.rawValor.includes('/')) ? (
@@ -528,10 +526,10 @@ export function LancamentoModal({
                                 {(() => {
                                    const parts = p.rawValor.split('/');
                                    if (parts.length === 2) {
-                                     const num = parseFloat(parts[0].replace(',', '.'));
-                                     const den = parseFloat(parts[1].replace(',', '.'));
+                                     const num = parseCurrencyInput(parts[0]);
+                                     const den = parseCurrencyInput(parts[1]);
                                      if (!isNaN(num) && !isNaN(den) && den !== 0) {
-                                       return formatCurrency((parseFloat(valor.replace(',', '.')) || 0) * (num / den));
+                                       return formatCurrency(parseCurrencyInput(valor) * (num / den));
                                      }
                                    }
                                    return '';
@@ -547,15 +545,15 @@ export function LancamentoModal({
                                 if (p.rawValor && p.rawValor.includes('/')) {
                                   const parts = p.rawValor.split('/');
                                   if (parts.length === 2) {
-                                    const num = parseFloat(parts[0].replace(',', '.'));
-                                    const den = parseFloat(parts[1].replace(',', '.'));
+                                    const num = parseCurrencyInput(parts[0]);
+                                    const den = parseCurrencyInput(parts[1]);
                                     if (!isNaN(num) && !isNaN(den) && den !== 0) {
-                                      const total = parseFloat(valor.replace(',', '.')) || 0;
+                                      const total = parseCurrencyInput(valor);
                                       newValor = total * (num / den);
                                     }
                                   }
                                 } else if (p.rawValor) {
-                                  newValor = parseFloat(p.rawValor.replace(',', '.')) || 0;
+                                  newValor = parseCurrencyInput(p.rawValor);
                                 }
                                 updateParticipante(idx, { isPorcentagem: false, valor: newValor });
                               }}
@@ -574,14 +572,14 @@ export function LancamentoModal({
                                 if (p.rawValor && p.rawValor.includes('/')) {
                                   const parts = p.rawValor.split('/');
                                   if (parts.length === 2) {
-                                    const num = parseFloat(parts[0].replace(',', '.'));
-                                    const den = parseFloat(parts[1].replace(',', '.'));
+                                    const num = parseCurrencyInput(parts[0]);
+                                    const den = parseCurrencyInput(parts[1]);
                                     if (!isNaN(num) && !isNaN(den) && den !== 0) {
                                       newValor = 100 * (num / den);
                                     }
                                   }
                                 } else if (p.rawValor) {
-                                  newValor = parseFloat(p.rawValor.replace(',', '.')) || 0;
+                                  newValor = parseCurrencyInput(p.rawValor);
                                 }
                                 updateParticipante(idx, { isPorcentagem: true, valor: newValor });
                               }}

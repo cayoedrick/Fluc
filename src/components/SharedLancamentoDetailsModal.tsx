@@ -3,9 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Share2, Users, Receipt, User, Layers, Info } from 'lucide-react';
 import { Lancamento } from '../types';
 
-const formatCurrency = (val: number): string => {
-  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
-};
+import { formatCurrency } from '../utils/currency';
 
 interface SharedLancamentoDetailsModalProps {
   isOpen: boolean;

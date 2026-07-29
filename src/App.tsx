@@ -15,9 +15,7 @@ import { SyncStatusIcon } from './components/SyncStatusIcon';
 import { SyncStatusModal } from './components/SyncStatusModal';
 import { motion, AnimatePresence } from 'motion/react';
 
-const formatCurrency = (val: number): string => {
-  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
-};
+import { formatCurrency } from './utils/currency';
 
 export default function App() {
   const {
@@ -159,9 +157,9 @@ export default function App() {
         if (!isValorParcela) {
           if (i === num - 1) {
             // Last installment gets the remainder to prevent rounding issues
-            installmentValor = Number((adjustedLanc.valor - sumOfInstallments).toFixed(3));
+            installmentValor = Number((adjustedLanc.valor - sumOfInstallments).toFixed(2));
           } else {
-            installmentValor = Number((adjustedLanc.valor / num).toFixed(3));
+            installmentValor = Number((adjustedLanc.valor / num).toFixed(2));
             sumOfInstallments += installmentValor;
           }
         }
@@ -216,7 +214,7 @@ export default function App() {
         reimbursementEntries = adjustedLanc.participantes.map((p, idx) => {
           let valorReembolso = p.valor;
           if (p.isPorcentagem) {
-            valorReembolso = Number((adjustedLanc.valor * (p.valor / 100)).toFixed(3));
+            valorReembolso = Number((adjustedLanc.valor * (p.valor / 100)).toFixed(2));
           }
 
           return {

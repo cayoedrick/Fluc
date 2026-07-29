@@ -3,9 +3,7 @@ import { Conta, Cartao, Lancamento } from '../types';
 import { Plus, Landmark, CreditCard, Paintbrush, Check, X, HelpCircle, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { SyncStatusIcon } from './SyncStatusIcon';
 
-const formatCurrency = (val: number): string => {
-  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 3 });
-};
+import { formatCurrency, parseCurrencyInput } from '../utils/currency';
 
 interface ContasCartoesViewProps {
   contas: Conta[];
@@ -95,7 +93,7 @@ export function ContasCartoesView({
   const handleConfirmInvoiceAdjust = () => {
     if (!invoiceAdjustCard) return;
 
-    const newValue = parseFloat(newInvoiceValue.replace(',', '.'));
+    const newValue = parseCurrencyInput(newInvoiceValue);
     if (isNaN(newValue) || newValue < 0) {
       window.showToast?.('Por favor, insira um valor de fatura válido.', 'erro');
       return;
@@ -230,7 +228,7 @@ export function ContasCartoesView({
         window.showToast?.('Por favor, insira o nome da conta.', 'erro');
         return;
       }
-      const saldo = parseFloat(contaSaldo.replace(',', '.'));
+      const saldo = parseCurrencyInput(contaSaldo);
       if (isNaN(saldo)) {
         window.showToast?.('Por favor, insira um saldo válido.', 'erro');
         return;
@@ -238,7 +236,7 @@ export function ContasCartoesView({
 
       let saldoAtual: number | undefined = undefined;
       if (editingConta) {
-        saldoAtual = parseFloat(contaSaldoAtual.replace(',', '.'));
+        saldoAtual = parseCurrencyInput(contaSaldoAtual);
         if (isNaN(saldoAtual)) {
           window.showToast?.('Por favor, insira um saldo atual válido.', 'erro');
           return;
@@ -265,8 +263,8 @@ export function ContasCartoesView({
         window.showToast?.('Por favor, insira o nome do cartão.', 'erro');
         return;
       }
-      const limite = parseFloat(cartaoLimite.replace(',', '.'));
-      const utilizado = parseFloat(cartaoLimiteUtilizado.replace(',', '.'));
+      const limite = parseCurrencyInput(cartaoLimite);
+      const utilizado = parseCurrencyInput(cartaoLimiteUtilizado);
       if (isNaN(limite) || isNaN(utilizado)) {
         window.showToast?.('Por favor, insira valores válidos para os limites.', 'erro');
         return;

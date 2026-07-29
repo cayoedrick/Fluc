@@ -59,9 +59,7 @@ interface DashboardViewProps {
   onDeleteLancamento?: (id: string, mode: 'este' | 'futuros' | 'todos') => void;
 }
 
-const formatCurrency = (val: number): string => {
-  return (val ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
-};
+import { formatCurrency, parseCurrencyInput } from '../utils/currency';
 
 export function DashboardView({
   contas,
@@ -328,7 +326,7 @@ export function DashboardView({
   const handleConfirmInvoiceAdjust = () => {
     if (!invoiceAdjustCard || !onAddLancamento) return;
 
-    const newValue = parseFloat(newInvoiceValue.replace(',', '.'));
+    const newValue = parseCurrencyInput(newInvoiceValue);
     if (isNaN(newValue) || newValue < 0) {
       window.showToast?.('Por favor, insira um valor de fatura válido.', 'erro');
       return;

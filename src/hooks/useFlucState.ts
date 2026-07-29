@@ -232,13 +232,13 @@ export function useFlucState() {
           
           let shareValue = p.valor;
           if (p.isPorcentagem) {
-            shareValue = Number((l.valor * (p.valor / 100)).toFixed(3));
+            shareValue = Number((l.valor * (p.valor / 100)).toFixed(2));
           }
           
           if (isReceita) {
-            current.total = Number((current.total - shareValue).toFixed(3));
+            current.total = Number((current.total - shareValue).toFixed(2));
           } else {
-            current.total = Number((current.total + shareValue).toFixed(3));
+            current.total = Number((current.total + shareValue).toFixed(2));
           }
           
           current.descriptions.push(l.descricao);
@@ -442,7 +442,7 @@ export function useFlucState() {
 
     return {
       ...c,
-      saldoAtual: Number(balance.toFixed(3))
+      saldoAtual: Number(balance.toFixed(2))
     };
   });
 
