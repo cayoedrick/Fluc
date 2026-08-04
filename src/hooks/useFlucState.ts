@@ -214,34 +214,44 @@ export function useFlucState() {
 
   const syncSharedExpenses = (lancamentos: Lancamento[], contas: Conta[] = state.contas): Lancamento[] => {
     // 1. Remove all generated reimbursement entries
-    const baseLancamentos = lancamentos.filter(l => !l.isReimbursement);
+    const baseLancamentos = lancamentos.filter(l => !l.id.startsWith('reimb-'));
     
-    // 2. Identify shared expenses and calculate totals per participant per month
-    // Map key: participantName + '|' + YYYY-MM
-    const sharesMap = new Map<string, { total: number, descriptions: string[], date: string }>();
-    
+    // Deduplicate baseLancamentos by ID to prevent duplicate key errors
+    const seenIds = new Set<string>();
+    const uniqueBaseLancamentos: Lancamento[] = [];
     baseLancamentos.forEach(l => {
+      if (!seenIds.has(l.id)) {
+        seenIds.add(l.id);
+        uniqueBaseLancamentos.push(l);
+      }
+    });
+
+    // 2. Identify shared expenses/reimbursements and calculate totals per participant per month
+    // Map key: participantName + '|' + YYYY-MM
+    const sharesMap = new Map<string, { total: number, count: number, descriptions: string[], date: string }>();
+    
+    uniqueBaseLancamentos.forEach(l => {
       if (l.isShared && l.participantes && l.participantes.length > 0) {
         const monthYear = l.data.substring(0, 7); // YYYY-MM
-        const isReceita = l.tipo === 'receita'; // Original is revenue (we owe them their share)
         
         l.participantes.forEach(p => {
-          if (!p.nome.trim()) return;
-          const key = `${p.nome}|${monthYear}`;
-          const current = sharesMap.get(key) || { total: 0, descriptions: [], date: l.data };
+          const participantName = p.nome.trim();
+          if (!participantName) return;
+          const key = `${participantName}|${monthYear}`;
+          const current = sharesMap.get(key) || { total: 0, count: 0, descriptions: [], date: l.data };
           
           let shareValue = p.valor;
           if (p.isPorcentagem) {
             shareValue = Number((l.valor * (p.valor / 100)).toFixed(2));
           }
           
-          if (isReceita) {
-            current.total = Number((current.total - shareValue).toFixed(2));
-          } else {
-            current.total = Number((current.total + shareValue).toFixed(2));
-          }
+          // Both shared expenses and shared reimbursements add to the participant's reimbursement total
+          current.count += 1;
+          current.total = Number((current.total + shareValue).toFixed(2));
           
-          current.descriptions.push(l.descricao);
+          if (!current.descriptions.includes(l.descricao)) {
+            current.descriptions.push(l.descricao);
+          }
           sharesMap.set(key, current);
         });
       }
@@ -260,19 +270,33 @@ export function useFlucState() {
       const [participantName, monthYear] = key.split('|');
       const logicalId = `reimb-${participantName}-${monthYear}`;
       
-      // Try to find if this reimbursement already exists (with or without account suffix) to preserve its status
-      const existing = lancamentos.find(l => l.id.startsWith(logicalId));
+      let finalId = logicalId;
+      let counter = 1;
+      while (seenIds.has(finalId)) {
+        finalId = `${logicalId}-${counter}`;
+        counter++;
+      }
+      seenIds.add(finalId);
+
+      // Try to find if this reimbursement already exists to preserve its paid status and account
+      const existing = lancamentos.find(l => l.id === logicalId || l.id.startsWith(logicalId));
       const isPaid = existing ? existing.recebidoPagoEfetivado : false;
       const existingContaId = existing ? existing.contaId : undefined;
       
       const isReceitaGenerated = data.total > 0;
       const prefix = isReceitaGenerated ? 'Reembolso' : 'Repasse';
-      const description = data.descriptions.length === 1 
-        ? `${prefix}: ${participantName} - ${data.descriptions[0]}`
-        : `${prefix}: ${participantName} - Variados`;
+      
+      let description = '';
+      if (data.count > 1 || data.descriptions.length > 1) {
+        description = `${prefix}: ${participantName} - Variados`;
+      } else if (data.descriptions.length === 1) {
+        description = `${prefix}: ${participantName} - ${data.descriptions[0]}`;
+      } else {
+        description = `${prefix}: ${participantName}`;
+      }
         
       reimbursements.push({
-        id: logicalId,
+        id: finalId,
         tipo: isReceitaGenerated ? 'receita' : 'despesa',
         valor: Math.abs(data.total),
         recebidoPagoEfetivado: isPaid,
@@ -284,7 +308,7 @@ export function useFlucState() {
       });
     });
     
-    return [...baseLancamentos, ...reimbursements];
+    return [...uniqueBaseLancamentos, ...reimbursements];
   };
 
   // Helper to enrich state items with updatedAt timestamps when modified or created
@@ -534,6 +558,7 @@ export function useFlucState() {
 
     state.lancamentos.forEach((l) => {
       if (!isDateInMonthYear(l.data, monthYearStr)) return;
+      if (l.tipo === 'receita' && l.isShared && !l.id.startsWith('reimb-')) return;
 
       if (accountId) {
         // filter by bank account

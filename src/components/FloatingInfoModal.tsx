@@ -76,7 +76,7 @@ export function FloatingInfoModal({
               {bullets && bullets.length > 0 && (
                 <div className="space-y-3">
                   {bullets.map((bullet, idx) => (
-                    <div key={idx} className="flex gap-3">
+                    <div key={`bullet-${bullet.title}-${idx}`} className="flex gap-3">
                       <div className="w-1.5 h-1.5 rounded-full bg-[var(--bg-secondary)] mt-1.5 shrink-0" />
                       <div>
                         <h4 className="text-xs font-bold text-[var(--text-general)]">

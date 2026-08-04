@@ -83,7 +83,12 @@ export function EditLancamentoModal({
     }
 
     if (isShared && participantes.length === 0) {
-      window.showToast?.('Por favor, adicione ao menos um participante para a despesa compartilhada.', 'erro');
+      window.showToast?.(
+        isIncome 
+          ? 'Por favor, adicione ao menos um participante para o reembolso.'
+          : 'Por favor, adicione ao menos um participante para a despesa compartilhada.',
+        'erro'
+      );
       return;
     }
     
@@ -407,15 +412,17 @@ export function EditLancamentoModal({
               </div>
             </div>
 
-            {/* Shared Expense Toggle */}
-            {(isExpense || isCard) && (
+            {/* Shared / Reimbursement Toggle */}
+            {(isExpense || isCard || isIncome) && (
               <div className="border-t border-[var(--bg-tertiary)] pt-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Share2 size={18} className="text-indigo-500" />
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-[var(--text-general)]">Despesa Compartilhada</span>
+                        <span className="text-sm font-semibold text-[var(--text-general)]">
+                          {isIncome ? 'Reembolso' : 'Despesa Compartilhada'}
+                        </span>
                         <button
                           type="button"
                           onClick={() => setShowSharedInfo(!showSharedInfo)}
@@ -429,7 +436,11 @@ export function EditLancamentoModal({
                           <Info size={14} />
                         </button>
                       </div>
-                      <span className="text-xs text-[var(--text-discreto)]">Dividir esta despesa com outras pessoas</span>
+                      <span className="text-xs text-[var(--text-discreto)]">
+                        {isIncome 
+                          ? 'Atribuir ou abater reembolso de um participante' 
+                          : 'Dividir esta despesa com outras pessoas'}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -470,7 +481,7 @@ export function EditLancamentoModal({
                     )}
 
                     {participantes.map((p, idx) => (
-                      <div key={idx} className="bg-[var(--bg-app)] p-3 rounded-xl border border-[var(--bg-tertiary)] space-y-3">
+                      <div key={`part-edit-${idx}`} className="bg-[var(--bg-app)] p-3 rounded-xl border border-[var(--bg-tertiary)] space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider">Participante {idx + 1}</span>
                           <button 

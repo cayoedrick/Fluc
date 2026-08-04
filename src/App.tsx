@@ -211,35 +211,9 @@ export default function App() {
         id: mainId
       };
 
-      let reimbursementEntries: Lancamento[] = [];
-      if (adjustedLanc.isShared && adjustedLanc.participantes && adjustedLanc.participantes.length > 0) {
-        const mainConta = state.contas.find(c => c.isMain) || state.contas[0];
-        
-        reimbursementEntries = adjustedLanc.participantes.map((p, idx) => {
-          let valorReembolso = p.valor;
-          if (p.isPorcentagem) {
-            valorReembolso = Number((adjustedLanc.valor * (p.valor / 100)).toFixed(2));
-          }
-
-          return {
-            id: `reimb-${Date.now()}-${idx}`,
-            tipo: 'receita',
-            valor: valorReembolso,
-            recebidoPagoEfetivado: false,
-            data: adjustedLanc.data,
-            descricao: `Reembolso: ${p.nome} (${adjustedLanc.descricao})`,
-            categoriaId: adjustedLanc.categoriaId,
-            contaId: adjustedLanc.contaId || (mainConta ? mainConta.id : undefined),
-            isReimbursement: true,
-            originalSharedLancamentoId: mainId,
-            updatedAt: Date.now()
-          };
-        });
-      }
-
       updateState((prev) => ({
         ...prev,
-        lancamentos: [lanc, ...reimbursementEntries, ...prev.lancamentos]
+        lancamentos: [lanc, ...prev.lancamentos]
       }));
     }
   };
@@ -719,6 +693,7 @@ export default function App() {
               isDateInMonthYear={isDateInMonthYear}
               onDeleteLancamento={handleDeleteLancamento}
               onEditLancamento={handleEditLancamento}
+              onAddLancamento={handleAddLancamento}
               onOpenMenu={() => setIsSidebarOpen(true)}
               onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />

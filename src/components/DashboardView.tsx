@@ -248,6 +248,7 @@ export function DashboardView({
     lancamentos.forEach((l) => {
       if (l.tipo !== 'receita') return;
       if (!l.data.startsWith(currentDate)) return;
+      if (l.isShared && !l.id.startsWith('reimb-')) return;
 
       if (activeTab === 'contas') {
         if (selectedContaId === 'all' || l.contaId === selectedContaId) {
@@ -265,6 +266,8 @@ export function DashboardView({
 
   // Filtered launches inside the selected month-year
   const filteredLancamentos = lancamentos.filter((l) => {
+    if (l.tipo === 'receita' && l.isShared && !l.id.startsWith('reimb-')) return false;
+
     const inMonth = l.data.startsWith(currentDate);
     if (!inMonth) return false;
 
@@ -750,7 +753,7 @@ export function DashboardView({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {sortedLancamentos.map((l) => {
+            {sortedLancamentos.map((l, idx) => {
               const cat = categorias.find((c) => c.id === l.categoriaId);
               const isRec = l.tipo === 'receita';
               const isRetiradaCof = l.tipo === 'retirada_cofrinho';
@@ -776,7 +779,7 @@ export function DashboardView({
 
               return (
                 <div 
-                  key={l.id}
+                  key={`${l.id}-${idx}`}
                   className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] p-4 flex items-center justify-between gap-4 transition-transform hover:scale-[1.01]"
                 >
                   <div className="flex items-center gap-3">
@@ -1328,6 +1331,9 @@ export function DashboardView({
         onClose={() => setIsSharedDetailsOpen(false)}
         lancamento={sharedLancamento}
         allLancamentos={lancamentos}
+        onDeleteLancamento={onDeleteLancamento}
+        onEditLancamento={onEditLancamento}
+        onAddLancamento={onAddLancamento}
       />
 
       {/* Delete Confirmation Overlay Modal */}

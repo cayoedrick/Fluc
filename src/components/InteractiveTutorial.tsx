@@ -515,7 +515,7 @@ export function InteractiveTutorial({
             <div className="flex items-center justify-center gap-1 pt-1">
               {steps.map((_, idx) => (
                 <div
-                  key={idx}
+                  key={`dot-${idx}`}
                   className={`h-1.5 rounded-full transition-all ${
                     idx === currentStep ? 'w-4 bg-[var(--bg-secondary)]' : 'w-1.5 bg-[var(--bg-tertiary)]'
                   }`}

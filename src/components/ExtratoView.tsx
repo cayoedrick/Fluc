@@ -37,6 +37,7 @@ interface ExtratoViewProps {
   isDateInMonthYear: (dateStr: string, monthYearStr: string) => boolean;
   onDeleteLancamento?: (id: string, mode: 'este' | 'futuros' | 'todos') => void;
   onEditLancamento?: (id: string, updatedFields: Partial<Lancamento>, mode: 'este' | 'futuros' | 'todos') => void;
+  onAddLancamento?: (newLanc: Omit<Lancamento, 'id'>) => void;
   onOpenMenu?: () => void;
 }
 
@@ -53,6 +54,7 @@ export function ExtratoView({
   isDateInMonthYear,
   onDeleteLancamento,
   onEditLancamento,
+  onAddLancamento,
   onOpenMenu
 }: ExtratoViewProps) {
   
@@ -170,6 +172,9 @@ export function ExtratoView({
 
   // Filter calculations & stats
   const filteredLancamentos = lancamentos.filter((l) => {
+    // Hide parent shared reimbursement receitas from main list (only show participant reimbursement entries)
+    if (l.tipo === 'receita' && l.isShared && !l.id.startsWith('reimb-')) return false;
+
     // 1. Month-Year check
     // If searchAllMonths is active, we bypass the month filter
     if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return false;
@@ -787,7 +792,7 @@ export function ExtratoView({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {sortedLancamentos.map((l) => {
+            {sortedLancamentos.map((l, idx) => {
               const cat = categorias.find((c) => c.id === l.categoriaId);
               const isRec = l.tipo === 'receita';
               const isRetiradaCof = l.tipo === 'retirada_cofrinho';
@@ -812,7 +817,7 @@ export function ExtratoView({
 
               return (
                 <div 
-                  key={l.id}
+                  key={`${l.id}-${idx}`}
                   className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] p-4 flex justify-between gap-4"
                 >
                   <div className="flex items-center gap-3">
@@ -986,6 +991,9 @@ export function ExtratoView({
         onClose={() => setIsSharedDetailsOpen(false)}
         lancamento={sharedLancamento}
         allLancamentos={lancamentos}
+        onDeleteLancamento={onDeleteLancamento}
+        onEditLancamento={onEditLancamento}
+        onAddLancamento={onAddLancamento}
       />
 
       {/* Delete Confirmation Overlay Modal */}
