@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master # Suporta tanto repositórios novos quanto antigos
+  workflow_dispatch: # Permite disparar o deploy manualmente via painel do GitHub
 
 permissions:
   contents: write # Necessário para fazer push na branch gh-pages
@@ -36,9 +37,13 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: Copy index.html to 404.html for SPA 📄
+        run: cp dist/index.html dist/404.html
+
       - name: Deploy to GitHub Pages 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: dist # O diretório de saída gerado pelo Vite Build
           branch: gh-pages # A branch de destino para o GitHub Pages
           clean: true # Remove arquivos antigos que não estão mais no build atual
+
