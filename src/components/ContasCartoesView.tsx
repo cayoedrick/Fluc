@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Conta, Cartao, Lancamento } from '../types';
-import { Plus, Landmark, CreditCard, Paintbrush, Check, X, HelpCircle, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Plus, Landmark, CreditCard, Paintbrush, Check, X, HelpCircle, ChevronLeft, ChevronRight, Pencil, QrCode, Copy } from 'lucide-react';
 import { SyncStatusIcon } from './SyncStatusIcon';
 
 import { formatCurrency, parseCurrencyInput } from '../utils/currency';
@@ -138,7 +138,16 @@ export function ContasCartoesView({
   const [contaSaldo, setContaSaldo] = useState<string>('');
   const [contaSaldoAtual, setContaSaldoAtual] = useState<string>('');
   const [contaCor, setContaCor] = useState<string>('#1c7ae4');
+  const [contaChavePix, setContaChavePix] = useState<string>('');
   const [contaIsMain, setContaIsMain] = useState<boolean>(false);
+  const [copiedPixId, setCopiedPixId] = useState<string | null>(null);
+
+  const handleCopyPix = (pix: string, contaId: string) => {
+    navigator.clipboard.writeText(pix);
+    setCopiedPixId(contaId);
+    window.showToast?.('Chave PIX copiada para a área de transferência!', 'sucesso');
+    setTimeout(() => setCopiedPixId(null), 2000);
+  };
 
   // Form Fields - Card
   const [cartaoNome, setCartaoNome] = useState<string>('');
@@ -162,6 +171,7 @@ export function ContasCartoesView({
     setModalTab('conta');
     setContaNome(c.nome);
     setContaSaldo(String(c.saldoInicial).replace('.', ','));
+    setContaChavePix(c.chavePix || '');
     
     // Set current balance
     const currentBal = getAccountBalance(c.id);
@@ -211,6 +221,7 @@ export function ContasCartoesView({
     setContaNome('');
     setContaSaldo('');
     setContaSaldoAtual('');
+    setContaChavePix('');
     setContaIsMain(false);
     setCartaoNome('');
     setCartaoLimite('');
@@ -248,6 +259,7 @@ export function ContasCartoesView({
           nome: contaNome.trim(),
           saldoInicial: saldo,
           cor: finalCor,
+          chavePix: contaChavePix.trim() || undefined,
           isMain: contaIsMain
         }, saldoAtual);
       } else {
@@ -255,6 +267,7 @@ export function ContasCartoesView({
           nome: contaNome.trim(),
           saldoInicial: saldo,
           cor: finalCor,
+          chavePix: contaChavePix.trim() || undefined,
           isMain: contaIsMain
         });
       }
@@ -401,6 +414,35 @@ export function ContasCartoesView({
                       Saldo Inicial: {formatCurrency(c.saldoInicial)}
                     </span>
                   </div>
+
+                  {c.chavePix && (
+                    <div className="mt-3 pt-3 border-t border-[var(--bg-tertiary)]/60 flex items-center justify-between text-xs text-[var(--text-discreto)]">
+                      <div className="flex items-center gap-1.5 truncate max-w-[75%]">
+                        <QrCode size={13} className="text-[#00cc52] flex-shrink-0" />
+                        <span className="font-bold text-[var(--text-general)] truncate" title={c.chavePix}>
+                          PIX: {c.chavePix}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPix(c.chavePix!, c.id)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-[var(--bg-app)] hover:bg-[var(--bg-tertiary)] text-[var(--text-general)] text-[11px] font-bold transition-colors cursor-pointer flex-shrink-0"
+                        title="Copiar Chave PIX"
+                      >
+                        {copiedPixId === c.id ? (
+                          <>
+                            <Check size={12} className="text-emerald-500" />
+                            <span className="text-emerald-500">Copiado</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>Copiar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -605,6 +647,21 @@ export function ContasCartoesView({
                       </span>
                     </div>
                   )}
+
+                  {/* Chave PIX */}
+                  <div>
+                    <span className="text-xs font-semibold text-[var(--text-discreto)] block mb-1">CHAVE PIX (OPCIONAL)</span>
+                    <div className="relative flex items-center">
+                      <QrCode size={16} className="absolute left-3.5 text-[var(--text-discreto)] pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="CPF, E-mail, Telefone, CNPJ ou Aleatória"
+                        value={contaChavePix}
+                        onChange={(e) => setContaChavePix(e.target.value)}
+                        className="w-full py-2.5 pl-10 pr-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
 
                   {/* Conta Principal Checkbox */}
                   <label className="flex items-center gap-3 p-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] cursor-pointer hover:bg-[var(--bg-tertiary)]/20 transition-colors">

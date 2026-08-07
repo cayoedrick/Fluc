@@ -1,9 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Share2, Users, Receipt, User, Layers, Info, Download, FileText, Image, FileCode, ChevronDown, Trash2, TrendingUp, UserPlus } from 'lucide-react';
+import { X, Share2, Users, Receipt, User, Layers, Info, Download, FileText, Image, FileCode, ChevronDown, Trash2, TrendingUp, UserPlus, QrCode, Landmark, Check } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { Lancamento } from '../types';
+import QRCode from 'qrcode';
+import { Lancamento, Conta } from '../types';
+import { generatePixPayload } from '../utils/pix';
 
 import { formatCurrency } from '../utils/currency';
 
@@ -12,6 +14,7 @@ interface SharedLancamentoDetailsModalProps {
   onClose: () => void;
   lancamento: Lancamento | null;
   allLancamentos?: Lancamento[];
+  contas?: Conta[];
   onDeleteLancamento?: (id: string, mode?: 'este' | 'futuros' | 'todos') => void;
   onAddLancamento?: (newLanc: Omit<Lancamento, 'id'>) => void;
   onEditLancamento?: (id: string, updatedFields: Partial<Lancamento>, mode?: 'este' | 'futuros' | 'todos') => void;
@@ -22,6 +25,7 @@ export function SharedLancamentoDetailsModal({
   onClose,
   lancamento,
   allLancamentos = [],
+  contas = [],
   onDeleteLancamento,
   onAddLancamento,
   onEditLancamento
@@ -68,24 +72,9 @@ export function SharedLancamentoDetailsModal({
         : []);
 
   const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
     const [year, month, day] = dateStr.split('-');
     return `${day}/${month}/${year}`;
-  };
-
-  const getMonthNamePortuguese = (dateStr: string) => {
-    const monthNames = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ];
-    const parts = dateStr.split('-');
-    if (parts.length >= 2) {
-      const monthIndex = parseInt(parts[1], 10) - 1;
-      const year = parts[0];
-      if (monthIndex >= 0 && monthIndex < 12) {
-        return `${monthNames[monthIndex]} de ${year}`;
-      }
-    }
-    return '';
   };
 
   const calculateShareValue = (valorTotal: number, p: { valor: number; isPorcentagem: boolean }) => {
@@ -124,12 +113,97 @@ export function SharedLancamentoDetailsModal({
   const [deleteMode, setDeleteMode] = useState<'select' | 'new_participant'>('select');
   const [newParticipantName, setNewParticipantName] = useState<string>('');
 
-  // Extract target participant name if deleting from a participant reimbursement view
+  // PIX & Account State for Export
+  const [selectedContaId, setSelectedContaId] = useState<string>('');
+  const [customPixKey, setCustomPixKey] = useState<string>('');
+  const [includePixInExport, setIncludePixInExport] = useState<boolean>(true);
+  const [pixQrCodeUrl, setPixQrCodeUrl] = useState<string>('');
+
+  // Auto-select initial account with PIX key when opening modal
+  useEffect(() => {
+    if (isOpen && contas.length > 0) {
+      const contaWithPix = contas.find(c => c.chavePix && c.chavePix.trim().length > 0);
+      const defaultConta = contaWithPix || contas.find(c => c.isMain) || contas[0];
+      if (defaultConta) {
+        setSelectedContaId(defaultConta.id);
+        setCustomPixKey(defaultConta.chavePix || '');
+        setIncludePixInExport(!!defaultConta.chavePix);
+      }
+    }
+  }, [isOpen, contas]);
+
+  const handleSelectConta = (contaId: string) => {
+    setSelectedContaId(contaId);
+    const selected = contas.find(c => c.id === contaId);
+    if (selected) {
+      setCustomPixKey(selected.chavePix || '');
+      if (selected.chavePix) {
+        setIncludePixInExport(true);
+      }
+    }
+  };
+
+  // Extract target participant name if deleting or filtering for a participant reimbursement view
   let targetParticipantName = combinedParticipantName;
   if (!targetParticipantName && lancamento.descricao.startsWith('Reembolso: ')) {
     const extracted = lancamento.descricao.substring('Reembolso: '.length).split(' - ')[0];
     if (extracted) targetParticipantName = extracted.trim();
   }
+
+  // Formatted items list for export statement (excluding other participants)
+  const itemsToExport = isGeneratedReimbursement
+    ? (combinedExpenses.length > 0 ? combinedExpenses : [lancamento])
+    : (groupedLancamentos.length > 0 ? groupedLancamentos : [targetLanc]);
+
+  const exportItemsFormatted = itemsToExport.map(item => {
+    let itemVal = item.valor;
+    if (isGeneratedReimbursement && combinedParticipantName) {
+      const part = item.participantes?.find(p => p.nome === combinedParticipantName);
+      if (part) {
+        itemVal = calculateShareValue(item.valor, part);
+      }
+    } else if (!isGeneratedReimbursement && targetParticipantName) {
+      const part = item.participantes?.find(p => p.nome.trim().toLowerCase() === targetParticipantName.trim().toLowerCase());
+      if (part) {
+        itemVal = calculateShareValue(item.valor, part);
+      }
+    }
+    return {
+      id: item.id,
+      descricao: item.descricao,
+      data: item.tipo === 'despesa_cartao' && item.dataCompra ? item.dataCompra : item.data,
+      valor: itemVal
+    };
+  });
+
+  const exportTotalVal = exportItemsFormatted.reduce((acc, i) => acc + i.valor, 0);
+  const selectedContaObj = contas.find(c => c.id === selectedContaId);
+
+  // Generate PIX payload & QR code whenever PIX settings change
+  useEffect(() => {
+    if (!includePixInExport || !customPixKey.trim()) {
+      setPixQrCodeUrl('');
+      return;
+    }
+
+    const payload = generatePixPayload({
+      chave: customPixKey.trim(),
+      valor: exportTotalVal,
+      nomeRecebedor: selectedContaObj?.nome || 'HORUS',
+      descricao: targetLanc.descricao
+    });
+
+    QRCode.toDataURL(payload, {
+      width: 240,
+      margin: 1,
+      color: { dark: '#0f172a', light: '#ffffff' }
+    })
+      .then(url => setPixQrCodeUrl(url))
+      .catch(err => {
+        console.error('Erro ao gerar QR Code PIX:', err);
+        setPixQrCodeUrl('');
+      });
+  }, [customPixKey, includePixInExport, exportTotalVal, selectedContaObj, targetLanc.descricao]);
 
   const targetParticipantObj = (targetParticipantName && itemToDelete?.participantes)
     ? itemToDelete.participantes.find(p => p.nome.trim().toLowerCase() === targetParticipantName.trim().toLowerCase())
@@ -390,40 +464,29 @@ export function SharedLancamentoDetailsModal({
     document.body.removeChild(link);
   };
 
-  const getExportBackgroundColor = () => {
-    if (!exportContentRef.current) return '#1b2a2f';
-    const computedBg = window.getComputedStyle(exportContentRef.current).backgroundColor;
-    if (computedBg && computedBg !== 'transparent' && computedBg !== 'rgba(0, 0, 0, 0)') {
-      return computedBg;
-    }
-    return document.body.classList.contains('theme-clean') ? '#fdfefe' : '#1b2a2f';
-  };
-
   const handleExportPNG = async () => {
     if (!exportContentRef.current) return;
     setIsExporting(true);
     setIsExportMenuOpen(false);
     try {
-      const bg = getExportBackgroundColor();
       const dataUrl = await toPng(exportContentRef.current, {
         quality: 1.0,
         pixelRatio: 2,
-        backgroundColor: bg,
+        backgroundColor: '#ffffff',
         cacheBust: true,
       });
-      triggerDownload(dataUrl, `detalhamento_compartilhado_${targetLanc.id}.png`);
-      window.showToast?.('Detalhamento exportado em PNG com sucesso!', 'sucesso');
+      triggerDownload(dataUrl, `extrato_compartilhado_${targetLanc.id}.png`);
+      window.showToast?.('Extrato exportado em PNG com sucesso!', 'sucesso');
     } catch (err) {
       console.error('Erro ao exportar PNG:', err);
       try {
-        const bg = getExportBackgroundColor();
         const dataUrl = await toPng(exportContentRef.current, {
           quality: 0.9,
           pixelRatio: 1.5,
-          backgroundColor: bg,
+          backgroundColor: '#ffffff',
         });
-        triggerDownload(dataUrl, `detalhamento_compartilhado_${targetLanc.id}.png`);
-        window.showToast?.('Detalhamento exportado em PNG com sucesso!', 'sucesso');
+        triggerDownload(dataUrl, `extrato_compartilhado_${targetLanc.id}.png`);
+        window.showToast?.('Extrato exportado em PNG com sucesso!', 'sucesso');
       } catch (fallbackErr) {
         console.error('Erro no fallback do PNG:', fallbackErr);
         window.showToast?.('Erro ao gerar imagem PNG.', 'erro');
@@ -438,11 +501,10 @@ export function SharedLancamentoDetailsModal({
     setIsExporting(true);
     setIsExportMenuOpen(false);
     try {
-      const bg = getExportBackgroundColor();
       const dataUrl = await toPng(exportContentRef.current, {
         quality: 1.0,
         pixelRatio: 2,
-        backgroundColor: bg,
+        backgroundColor: '#ffffff',
         cacheBust: true,
       });
 
@@ -457,7 +519,7 @@ export function SharedLancamentoDetailsModal({
       const imgHeight = img.height;
 
       const pdf = new jsPDF({
-        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        orientation: 'portrait',
         unit: 'px',
         format: [imgWidth / 2, imgHeight / 2]
       });
@@ -466,10 +528,10 @@ export function SharedLancamentoDetailsModal({
       
       const pdfBlob = pdf.output('blob');
       const blobUrl = URL.createObjectURL(pdfBlob);
-      triggerDownload(blobUrl, `detalhamento_compartilhado_${targetLanc.id}.pdf`);
+      triggerDownload(blobUrl, `extrato_compartilhado_${targetLanc.id}.pdf`);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 
-      window.showToast?.('Detalhamento exportado em PDF com sucesso!', 'sucesso');
+      window.showToast?.('Extrato exportado em PDF com sucesso!', 'sucesso');
     } catch (err) {
       console.error('Erro ao exportar PDF:', err);
       window.showToast?.('Erro ao gerar PDF.', 'erro');
@@ -481,86 +543,86 @@ export function SharedLancamentoDetailsModal({
   const handleExportDOC = () => {
     setIsExportMenuOpen(false);
     try {
-      const dateStr = formatDate(targetLanc.tipo === 'despesa_cartao' && targetLanc.dataCompra ? targetLanc.dataCompra : targetLanc.data);
-      const totalVal = formatCurrency(targetLanc.valor);
-      
-      let participantsRows = '';
-      if (targetLanc.participantes && targetLanc.participantes.length > 0) {
-        participantsRows = targetLanc.participantes.map(p => {
-          const val = calculateShareValue(targetLanc.valor, p);
-          return `
-            <tr>
-              <td style="padding: 8px; border: 1px solid #cbd5e1;">${p.nome}</td>
-              <td style="padding: 8px; border: 1px solid #cbd5e1;">${p.isPorcentagem ? `${p.valor}%` : formatCurrency(p.valor)}</td>
-              <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;">${formatCurrency(val)}</td>
-            </tr>
-          `;
-        }).join('');
-      }
+      const itemsRows = exportItemsFormatted.map(item => `
+        <tr>
+          <td style="padding: 10px; border: 1px solid #e2e8f0; font-[13px] font-weight: 600;">${item.descricao}</td>
+          <td style="padding: 10px; border: 1px solid #e2e8f0; font-[13px] color: #64748b;">${formatDate(item.data)}</td>
+          <td style="padding: 10px; border: 1px solid #e2e8f0; font-[13px] font-weight: bold; text-align: right; color: #0f172a;">${formatCurrency(item.valor)}</td>
+        </tr>
+      `).join('');
 
-      const yourShareVal = formatCurrency(getYourShare(targetLanc));
+      const pixHtml = (includePixInExport && customPixKey) ? `
+        <div style="margin-top: 24px; padding: 20px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; text-align: center;">
+          <h3 style="color: #15803d; margin: 0 0 8px 0; font-size: 14px; font-weight: bold;">DADOS PARA PAGAMENTO VIA PIX</h3>
+          ${selectedContaObj ? `<p style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; color: #334155;">Conta Bancária: ${selectedContaObj.nome}</p>` : ''}
+          ${pixQrCodeUrl ? `<div style="margin: 12px 0;"><img src="${pixQrCodeUrl}" width="180" height="180" alt="QR Code PIX" /></div>` : ''}
+          <div style="background-color: #ffffff; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; display: inline-block; margin-top: 6px;">
+            <p style="font-family: monospace; font-size: 13px; font-weight: bold; color: #0f172a; margin: 0;">Chave PIX: ${customPixKey}</p>
+          </div>
+          <p style="font-size: 11px; color: #64748b; margin: 10px 0 0 0;">Escaneie o QR Code com o aplicativo do seu banco para realizar o pagamento de <strong>${formatCurrency(exportTotalVal)}</strong>.</p>
+        </div>
+      ` : '';
 
       const docHtml = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
         <head>
           <meta charset='utf-8'>
-          <title>Detalhamento do Lançamento Compartilhado</title>
+          <title>Extrato Detalhado de Lançamento Compartilhado</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 30px; color: #0f172a; line-height: 1.5; }
-            .header { border-bottom: 2px solid #6366f1; padding-bottom: 12px; margin-bottom: 20px; }
-            .header h1 { color: #4f46e5; margin: 0; font-size: 22px; }
-            .header p { color: #64748b; margin: 4px 0 0 0; font-size: 13px; }
+            .header { border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 20px; }
+            .header h1 { color: #4f46e5; margin: 0; font-size: 20px; font-weight: bold; }
+            .header p { color: #64748b; margin: 4px 0 0 0; font-size: 12px; }
             .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
-            .row { margin-bottom: 10px; font-size: 14px; }
-            .label { font-weight: bold; color: #475569; width: 140px; display: inline-block; }
-            .value { font-weight: bold; color: #0f172a; }
-            .amount { font-size: 18px; color: #4f46e5; font-weight: bold; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th { background-color: #e0e7ff; color: #3730a3; padding: 10px; text-align: left; font-size: 12px; border: 1px solid #cbd5e1; }
-            .summary { background-color: #eef2ff; border: 1px solid #c7d2fe; padding: 14px; border-radius: 10px; margin-top: 20px; }
+            th { background-color: #f1f5f9; color: #475569; padding: 10px; text-align: left; font-size: 11px; font-weight: bold; text-transform: uppercase; border: 1px solid #cbd5e1; }
+            .total-row { background-color: #eef2ff; font-weight: bold; font-size: 14px; }
+            .total-row td { padding: 12px; border: 1px solid #cbd5e1; }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>Detalhamento do Lançamento Compartilhado</h1>
-            <p>Relatório gerado pelo Hórus Monitoramento</p>
+            <h1>HÓRUS MONITORAMENTO — EXTRATO DETALHADO</h1>
+            <p>Emissão: ${formatDate(new Date().toISOString().split('T')[0])}</p>
           </div>
 
           <div class="card">
-            <div class="row"><span class="label">Descrição:</span> <span class="value">${targetLanc.descricao}</span></div>
-            <div class="row"><span class="label">Data do Lançamento:</span> <span class="value">${dateStr}</span></div>
-            <div class="row"><span class="label">Valor Total:</span> <span class="amount">${totalVal}</span></div>
+            <p style="margin: 0; font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase;">Lançamento</p>
+            <h2 style="margin: 4px 0 0 0; font-size: 16px; color: #0f172a; font-weight: bold;">${targetLanc.descricao}</h2>
+            ${combinedParticipantName ? `<p style="margin: 4px 0 0 0; font-size: 12px; color: #4f46e5; font-weight: bold;">Participante: ${combinedParticipantName}</p>` : ''}
           </div>
 
-          ${targetLanc.participantes && targetLanc.participantes.length > 0 ? `
-            <h3>Divisão entre Participantes</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Participante</th>
-                  <th>Fração / Porcentagem</th>
-                  <th>Valor da Parte</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${participantsRows}
-              </tbody>
-            </table>
-            <div class="summary">
-              <strong>${isGeneratedReimbursement ? 'Total a Receber:' : 'Sua Parte na Despesa:'}</strong> 
-              <span class="amount" style="float: right;">${isGeneratedReimbursement ? formatCurrency(calculateShareValue(targetLanc.valor, targetLanc.participantes?.find(p => p.nome === combinedParticipantName) || { valor: 0, isPorcentagem: false })) : yourShareVal}</span>
-            </div>
-          ` : ''}
+          <h3>Itens do Extrato</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Item / Descrição</th>
+                <th>Data</th>
+                <th style="text-align: right;">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="2" style="color: #334155;">VALOR TOTAL</td>
+                <td style="text-align: right; color: #4f46e5;">${formatCurrency(exportTotalVal)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          ${pixHtml}
         </body>
         </html>
       `;
 
       const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword;charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);
-      triggerDownload(blobUrl, `detalhamento_compartilhado_${targetLanc.id}.doc`);
+      triggerDownload(blobUrl, `extrato_compartilhado_${targetLanc.id}.doc`);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 
-      window.showToast?.('Detalhamento exportado em .DOC com sucesso!', 'sucesso');
+      window.showToast?.('Extrato exportado em .DOC com sucesso!', 'sucesso');
     } catch (err) {
       console.error('Erro ao exportar DOC:', err);
       window.showToast?.('Erro ao gerar documento .DOC.', 'erro');
@@ -710,7 +772,7 @@ export function SharedLancamentoDetailsModal({
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
             className="relative w-full max-w-lg bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
           >
-            {/* Header - Identical for both Expense and Revenue (Reimbursement) */}
+            {/* Header */}
             <div className="p-6 border-b border-[var(--bg-tertiary)] flex items-center justify-between bg-indigo-500/5 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
@@ -733,9 +795,9 @@ export function SharedLancamentoDetailsModal({
               </button>
             </div>
 
-            {/* Content */}
+            {/* Content Body */}
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
-              <div ref={exportContentRef} className="space-y-6 p-2 rounded-2xl bg-[var(--bg-primary)]">
+              <div className="space-y-6">
                 {isGeneratedReimbursement ? (
                   <div className="space-y-4">
                     {groupedLancamentos.map((item, idx) => renderExpenseCard(item, false, true, `gen-${idx}`))}
@@ -799,8 +861,82 @@ export function SharedLancamentoDetailsModal({
                 )}
               </div>
 
+              {/* Export Config Box: Conta Bancária & PIX key selection */}
+              <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <QrCode size={16} className="text-[#00cc52]" />
+                    <span className="text-xs font-bold text-[var(--text-general)] uppercase tracking-wider">
+                      Pagamento via PIX no Extrato
+                    </span>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-[var(--text-discreto)]">
+                    <input
+                      type="checkbox"
+                      checked={includePixInExport}
+                      onChange={(e) => setIncludePixInExport(e.target.checked)}
+                      className="accent-[#00cc52] rounded-md cursor-pointer"
+                    />
+                    <span>Incluir QR Code</span>
+                  </label>
+                </div>
+
+                {includePixInExport && (
+                  <div className="space-y-3 pt-1 border-t border-emerald-500/10">
+                    <div>
+                      <label className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-1">
+                        Conta Bancária
+                      </label>
+                      <div className="relative flex items-center">
+                        <Landmark size={14} className="absolute left-3 text-[var(--text-discreto)] pointer-events-none" />
+                        <select
+                          value={selectedContaId}
+                          onChange={(e) => handleSelectConta(e.target.value)}
+                          className="w-full py-2 pl-9 pr-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-xl text-xs text-[var(--text-general)] font-medium focus:outline-hidden"
+                        >
+                          <option value="">-- Nenhuma / Digitar PIX Manual --</option>
+                          {contas.map(c => (
+                            <option key={`conta-option-${c.id}`} value={c.id}>
+                              {c.nome} {c.chavePix ? `(PIX: ${c.chavePix})` : '(Sem PIX cadastrado)'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-1">
+                        Chave PIX Cadastrada / Para Recebimento
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Informe o CPF, e-mail, telefone ou chave aleatória"
+                        value={customPixKey}
+                        onChange={(e) => setCustomPixKey(e.target.value)}
+                        className="w-full py-2 px-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-xl text-xs text-[var(--text-general)] font-mono focus:outline-hidden"
+                      />
+                    </div>
+
+                    {pixQrCodeUrl && (
+                      <div className="flex items-center gap-3 p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl">
+                        <img src={pixQrCodeUrl} alt="Preview QR Code PIX" className="w-14 h-14 bg-white p-1 rounded-lg shrink-0 border border-slate-200" />
+                        <div className="text-[11px] leading-tight">
+                          <span className="font-bold text-[#00cc52] block">QR Code gerado para o extrato</span>
+                          <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
+                            Valor total: <strong className="text-[var(--text-general)]">{formatCurrency(exportTotalVal)}</strong>
+                          </span>
+                          <span className="text-[9px] font-mono text-[var(--text-general)] truncate block mt-0.5 max-w-[200px]">
+                            {customPixKey}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Export Options Dropdown Menu */}
-              <div className="relative pt-2">
+              <div className="relative pt-1">
                 <button
                   type="button"
                   onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -809,7 +945,7 @@ export function SharedLancamentoDetailsModal({
                 >
                   <div className="flex items-center gap-2">
                     <Download size={16} />
-                    <span>{isExporting ? 'Exportando...' : 'Exportar Detalhamento'}</span>
+                    <span>{isExporting ? 'Exportando Extrato...' : 'Exportar Extrato Detalhado'}</span>
                   </div>
                   <ChevronDown size={16} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -832,7 +968,7 @@ export function SharedLancamentoDetailsModal({
                         </div>
                         <div>
                           <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para PDF (.pdf)</span>
-                          <span className="text-[10px] text-[var(--text-discreto)]">Documento PDF formatado</span>
+                          <span className="text-[10px] text-[var(--text-discreto)]">Extrato detalhado com itens e QR Code PIX</span>
                         </div>
                       </button>
 
@@ -846,7 +982,7 @@ export function SharedLancamentoDetailsModal({
                         </div>
                         <div>
                           <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para Imagem (.png)</span>
-                          <span className="text-[10px] text-[var(--text-discreto)]">Imagem de alta definição</span>
+                          <span className="text-[10px] text-[var(--text-discreto)]">Imagem do extrato formatado</span>
                         </div>
                       </button>
 
@@ -860,7 +996,7 @@ export function SharedLancamentoDetailsModal({
                         </div>
                         <div>
                           <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para Word (.doc)</span>
-                          <span className="text-[10px] text-[var(--text-discreto)]">Documento editável em Word</span>
+                          <span className="text-[10px] text-[var(--text-discreto)]">Documento editável com dados de pagamento</span>
                         </div>
                       </button>
                     </motion.div>
@@ -879,6 +1015,107 @@ export function SharedLancamentoDetailsModal({
           </motion.div>
         </div>
       )}
+
+      {/* Hidden / Offscreen template container captured for PNG and PDF exports */}
+      <div style={{ position: 'fixed', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
+        <div
+          ref={exportContentRef}
+          className="w-[600px] p-8 bg-white font-sans space-y-6 rounded-none shadow-none"
+          style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
+        >
+          {/* Header */}
+          <div className="border-b-2 border-indigo-600 pb-4 flex justify-between items-end">
+            <div>
+              <h1 className="text-xl font-black text-indigo-600 tracking-tight">
+                HÓRUS MONITORAMENTO
+              </h1>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                Extrato Detalhado de Lançamento Compartilhado
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest">Emissão</span>
+              <span className="text-xs font-bold text-slate-700">{formatDate(new Date().toISOString().split('T')[0])}</span>
+            </div>
+          </div>
+
+          {/* Title & Info */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Lançamento</span>
+            <h2 className="text-base font-extrabold text-slate-800 leading-snug">{targetLanc.descricao}</h2>
+            {combinedParticipantName && (
+              <p className="text-xs font-semibold text-indigo-600">
+                Participante: {combinedParticipantName}
+              </p>
+            )}
+          </div>
+
+          {/* Table of Items - Without other participants */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Itens do Lançamento</h3>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b-2 border-slate-200 bg-slate-100 text-[11px] font-bold text-slate-600">
+                  <th className="py-2.5 px-3">Item / Descrição</th>
+                  <th className="py-2.5 px-3">Data</th>
+                  <th className="py-2.5 px-3 text-right">Valor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                {exportItemsFormatted.map((item, idx) => (
+                  <tr key={`exp-item-${item.id}-${idx}`}>
+                    <td className="py-2.5 px-3 font-semibold">{item.descricao}</td>
+                    <td className="py-2.5 px-3 text-slate-500">{formatDate(item.data)}</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatCurrency(item.valor)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-800 text-sm font-extrabold bg-slate-50">
+                  <td colSpan={2} className="py-3 px-3 text-slate-800 uppercase tracking-wider">Valor Total</td>
+                  <td className="py-3 px-3 text-right text-indigo-600 text-base font-black">{formatCurrency(exportTotalVal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* PIX Payment Section at bottom */}
+          {includePixInExport && customPixKey && (
+            <div className="mt-6 pt-5 border-t-2 border-dashed border-emerald-300 bg-emerald-50/60 p-5 rounded-2xl border border-emerald-200 text-center space-y-3">
+              <div className="text-emerald-800 font-black text-xs uppercase tracking-widest">
+                Dados para Pagamento via PIX
+              </div>
+
+              {selectedContaObj && (
+                <p className="text-xs font-bold text-slate-700">
+                  Conta Bancária: <span className="text-emerald-700 font-extrabold">{selectedContaObj.nome}</span>
+                </p>
+              )}
+
+              {pixQrCodeUrl && (
+                <div className="p-3 bg-white inline-block rounded-2xl border border-slate-200 shadow-xs my-1">
+                  <img src={pixQrCodeUrl} alt="QR Code PIX" className="w-40 h-40 object-contain mx-auto" />
+                </div>
+              )}
+
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 max-w-md mx-auto">
+                <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Chave PIX</span>
+                <span className="font-mono font-black text-xs text-slate-900 select-all">{customPixKey}</span>
+              </div>
+
+              <p className="text-[11px] text-slate-600 font-medium max-w-sm mx-auto leading-relaxed">
+                Escaneie o QR Code acima pelo aplicativo do seu banco para pagar o valor de <strong className="text-slate-900 font-black">{formatCurrency(exportTotalVal)}</strong>.
+              </p>
+            </div>
+          )}
+
+          {/* Document footer watermark */}
+          <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-medium">
+            <span>Hórus Monitoramento Financeiro</span>
+            <span>Documento Oficial de Cobrança</span>
+          </div>
+        </div>
+      </div>
 
       {/* Item Delete Confirmation Overlay */}
       {itemToDelete && (

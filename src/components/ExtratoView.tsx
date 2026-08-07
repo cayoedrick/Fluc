@@ -1032,6 +1032,7 @@ export function ExtratoView({
         onClose={() => setIsSharedDetailsOpen(false)}
         lancamento={sharedLancamento}
         allLancamentos={lancamentos}
+        contas={contas}
         onDeleteLancamento={onDeleteLancamento}
         onEditLancamento={onEditLancamento}
         onAddLancamento={onAddLancamento}

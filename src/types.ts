@@ -3,6 +3,7 @@ export interface Conta {
   nome: string;
   saldoInicial: number;
   cor: string;
+  chavePix?: string;
   updatedAt?: number;
   isMain?: boolean;
 }
