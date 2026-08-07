@@ -538,6 +538,40 @@ export function SharedLancamentoDetailsModal({
       });
 
       pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidth / 2, imgHeight / 2);
+
+      // Embed selectable text layer for Chave PIX and PIX Copia e Cola into the PDF document
+      if (includePixInExport && exportContentRef.current) {
+        const container = exportContentRef.current;
+        const containerRect = container.getBoundingClientRect();
+
+        if (customPixKey) {
+          const keyEl = container.querySelector('[data-pix-key-text]') as HTMLElement | null;
+          if (keyEl) {
+            const rect = keyEl.getBoundingClientRect();
+            const relX = rect.left - containerRect.left;
+            const relY = rect.top - containerRect.top;
+            pdf.setFont('courier', 'bold');
+            pdf.setFontSize(9);
+            pdf.setTextColor(15, 23, 42);
+            pdf.text(customPixKey, relX, relY + 9);
+          }
+        }
+
+        if (pixPayload) {
+          const payloadEl = container.querySelector('[data-pix-payload-text]') as HTMLElement | null;
+          if (payloadEl) {
+            const rect = payloadEl.getBoundingClientRect();
+            const relX = rect.left - containerRect.left;
+            const relY = rect.top - containerRect.top;
+            const relWidth = rect.width;
+
+            pdf.setFont('courier', 'bold');
+            pdf.setFontSize(7);
+            pdf.setTextColor(15, 23, 42);
+            pdf.text(pixPayload, relX + 8, relY + 10, { maxWidth: relWidth - 16 });
+          }
+        }
+      }
       
       const pdfBlob = pdf.output('blob');
       const blobUrl = URL.createObjectURL(pdfBlob);
@@ -937,40 +971,17 @@ export function SharedLancamentoDetailsModal({
                     </div>
 
                     {pixQrCodeUrl && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3 p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl">
-                          <img src={pixQrCodeUrl} alt="Preview QR Code PIX" className="w-14 h-14 bg-white p-1 rounded-lg shrink-0 border border-slate-200" />
-                          <div className="text-[11px] leading-tight min-w-0 flex-1">
-                            <span className="font-bold text-[#00cc52] block">QR Code gerado para o extrato</span>
-                            <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
-                              Valor total: <strong className="text-[var(--text-general)]">{formatCurrency(exportTotalVal)}</strong>
-                            </span>
-                            <span className="text-[9px] font-mono text-[var(--text-general)] truncate block mt-0.5 max-w-[200px]">
-                              {customPixKey}
-                            </span>
-                          </div>
+                      <div className="flex items-center gap-3 p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl">
+                        <img src={pixQrCodeUrl} alt="Preview QR Code PIX" className="w-14 h-14 bg-white p-1 rounded-lg shrink-0 border border-slate-200" />
+                        <div className="text-[11px] leading-tight min-w-0 flex-1">
+                          <span className="font-bold text-[#00cc52] block">QR Code gerado para o extrato</span>
+                          <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
+                            Valor total: <strong className="text-[var(--text-general)]">{formatCurrency(exportTotalVal)}</strong>
+                          </span>
+                          <span className="text-[9px] font-mono text-[var(--text-general)] truncate block mt-0.5 max-w-[200px]">
+                            {customPixKey}
+                          </span>
                         </div>
-
-                        {pixPayload && (
-                          <div className="p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl space-y-1.5">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider">
-                                Código Pix Copia e Cola
-                              </span>
-                              <button
-                                type="button"
-                                onClick={handleCopyPixPayload}
-                                className="px-2 py-0.5 bg-[#00cc52]/10 hover:bg-[#00cc52]/20 text-[#00cc52] font-bold text-[10px] rounded-md transition-colors flex items-center gap-1 cursor-pointer"
-                              >
-                                {copiedPix ? <Check size={11} /> : <Copy size={11} />}
-                                <span>{copiedPix ? 'Copiado!' : 'Copiar Código'}</span>
-                              </button>
-                            </div>
-                            <p className="text-[9px] font-mono text-[var(--text-general)] bg-[var(--bg-primary)] p-1.5 rounded-lg border border-[var(--bg-tertiary)] break-all line-clamp-2 leading-tight">
-                              {pixPayload}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -1142,7 +1153,7 @@ export function SharedLancamentoDetailsModal({
 
               <div className="bg-white p-2.5 rounded-xl border border-slate-200 max-w-md mx-auto">
                 <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Chave PIX</span>
-                <span className="font-mono font-black text-xs text-slate-900 select-all">{customPixKey}</span>
+                <span data-pix-key-text className="font-mono font-black text-xs text-slate-900 select-all">{customPixKey}</span>
               </div>
 
               {pixPayload && (
@@ -1150,7 +1161,7 @@ export function SharedLancamentoDetailsModal({
                   <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
                     PIX Copia e Cola (Código para Aplicativo do Banco)
                   </span>
-                  <p className="font-mono text-[9px] text-slate-800 break-all select-all font-semibold leading-tight bg-slate-50 p-2 rounded-lg border border-slate-200">
+                  <p data-pix-payload-text className="font-mono text-[9px] text-slate-800 break-all select-all font-semibold leading-tight bg-slate-50 p-2 rounded-lg border border-slate-200">
                     {pixPayload}
                   </p>
                 </div>
