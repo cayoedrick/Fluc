@@ -677,15 +677,22 @@ export function SharedLancamentoDetailsModal({
 
       // 4. PIX Payment Section
       if (includePixInExport && customPixKey) {
-        let pixBoxHeight = 110;
+        // Calculate dynamic PIX box height for 180pt QR Code and 14pt font size payload
+        let pixBoxHeight = 36; // top/bottom padding
         if (selectedContaObj) pixBoxHeight += 16;
-        if (pixQrCodeUrl) pixBoxHeight += 114;
+        if (pixQrCodeUrl) pixBoxHeight += 180 + 18; // qrSize (180) + card margin
+        pixBoxHeight += 42; // Chave PIX box (34px) + margin
+
+        let calculatedPayloadLines: string[] = [];
+        let calculatedPayloadBoxHeight = 0;
         if (pixPayload) {
           pdf.setFont('courier', 'bold');
-          pdf.setFontSize(7.5);
-          const payloadLines = pdf.splitTextToSize(pixPayload, contentWidth - 40);
-          pixBoxHeight += Math.max(32, payloadLines.length * 9.5 + 16) + 10;
+          pdf.setFontSize(14);
+          calculatedPayloadLines = pdf.splitTextToSize(pixPayload, contentWidth - 48);
+          calculatedPayloadBoxHeight = Math.max(42, calculatedPayloadLines.length * 15 + 24);
+          pixBoxHeight += calculatedPayloadBoxHeight + 12;
         }
+        pixBoxHeight += 20; // Instructions text
 
         checkPageOverflow(pixBoxHeight);
 
@@ -715,65 +722,60 @@ export function SharedLancamentoDetailsModal({
           pixY += 16;
         }
 
-        // QR Code Image
+        // QR Code Image (doubled size: 180pt)
         if (pixQrCodeUrl) {
           try {
-            const qrSize = 90;
+            const qrSize = 180;
             const qrX = (pageWidth - qrSize) / 2;
             
             // White background card for QR Code
             pdf.setFillColor(255, 255, 255);
             pdf.setDrawColor(226, 232, 240);
-            pdf.roundedRect(qrX - 6, pixY - 2, qrSize + 12, qrSize + 4, 6, 6, 'FD');
+            pdf.roundedRect(qrX - 8, pixY - 2, qrSize + 16, qrSize + 4, 8, 8, 'FD');
 
             pdf.addImage(pixQrCodeUrl, 'PNG', qrX, pixY, qrSize, qrSize);
-            pixY += qrSize + 12;
+            pixY += qrSize + 16;
           } catch (qrErr) {
             console.error('Erro ao adicionar QR Code no PDF:', qrErr);
           }
         }
 
         // Chave PIX Box
-        const keyBoxWidth = 320;
+        const keyBoxWidth = Math.min(contentWidth - 24, 380);
         const keyBoxX = (pageWidth - keyBoxWidth) / 2;
         pdf.setFillColor(255, 255, 255);
         pdf.setDrawColor(226, 232, 240);
-        pdf.roundedRect(keyBoxX, pixY, keyBoxWidth, 26, 6, 6, 'FD');
+        pdf.roundedRect(keyBoxX, pixY, keyBoxWidth, 34, 6, 6, 'FD');
 
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(7);
+        pdf.setFontSize(7.5);
         pdf.setTextColor(148, 163, 184);
-        pdf.text('CHAVE PIX', pageWidth / 2, pixY + 9, { align: 'center' });
+        pdf.text('CHAVE PIX', pageWidth / 2, pixY + 11, { align: 'center' });
 
         pdf.setFont('courier', 'bold');
-        pdf.setFontSize(9.5);
+        pdf.setFontSize(14); // 14pt font size for better readability
         pdf.setTextColor(15, 23, 42);
-        pdf.text(customPixKey, pageWidth / 2, pixY + 20, { align: 'center' });
+        pdf.text(customPixKey, pageWidth / 2, pixY + 26, { align: 'center' });
 
-        pixY += 32;
+        pixY += 42;
 
         // PIX Copia e Cola Payload Box
-        if (pixPayload) {
-          pdf.setFont('courier', 'bold');
-          pdf.setFontSize(7.5);
-          const payloadLines = pdf.splitTextToSize(pixPayload, contentWidth - 40);
-          const payloadBoxHeight = Math.max(32, payloadLines.length * 9.5 + 16);
-
+        if (pixPayload && calculatedPayloadLines.length > 0) {
           pdf.setFillColor(255, 255, 255);
           pdf.setDrawColor(226, 232, 240);
-          pdf.roundedRect(margin + 12, pixY, contentWidth - 24, payloadBoxHeight, 6, 6, 'FD');
+          pdf.roundedRect(margin + 12, pixY, contentWidth - 24, calculatedPayloadBoxHeight, 6, 6, 'FD');
 
           pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(7);
+          pdf.setFontSize(7.5);
           pdf.setTextColor(100, 116, 139);
-          pdf.text('PIX COPIA E COLA (CÓDIGO PARA APLICATIVO DO BANCO)', margin + 20, pixY + 11);
+          pdf.text('PIX COPIA E COLA (CÓDIGO PARA APLICATIVO DO BANCO)', margin + 20, pixY + 13);
 
           pdf.setFont('courier', 'bold');
-          pdf.setFontSize(7.5);
+          pdf.setFontSize(14); // 14pt font size for better readability
           pdf.setTextColor(15, 23, 42);
-          pdf.text(payloadLines, margin + 20, pixY + 22);
+          pdf.text(calculatedPayloadLines, margin + 20, pixY + 28);
 
-          pixY += payloadBoxHeight + 10;
+          pixY += calculatedPayloadBoxHeight + 12;
         }
 
         // Instructions
