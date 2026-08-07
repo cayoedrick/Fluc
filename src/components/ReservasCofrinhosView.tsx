@@ -39,7 +39,7 @@ const PRESET_COLORS = [
   '#8e44ad', // Purple
 ];
 
-import { formatCurrency, parseCurrencyInput } from '../utils/currency';
+import { formatCurrency, parseCurrencyInput, formatCurrencyInput } from '../utils/currency';
 
 export function ReservasCofrinhosView({
   cofrinhos,
@@ -523,7 +523,7 @@ export function ReservasCofrinhosView({
                           type="text"
                           placeholder="0,00"
                           value={opValor}
-                          onChange={(e) => setOpValor(e.target.value)}
+                          onChange={(e) => setOpValor(formatCurrencyInput(e.target.value))}
                           className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                         />
                       </div>
@@ -591,7 +591,7 @@ export function ReservasCofrinhosView({
                           type="text"
                           placeholder="0,00"
                           value={opValor}
-                          onChange={(e) => setOpValor(e.target.value)}
+                          onChange={(e) => setOpValor(formatCurrencyInput(e.target.value))}
                           className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                         />
                       </div>
@@ -695,7 +695,7 @@ export function ReservasCofrinhosView({
                               type="text"
                               placeholder="0,00"
                               value={opValor}
-                              onChange={(e) => setOpValor(e.target.value)}
+                              onChange={(e) => setOpValor(formatCurrencyInput(e.target.value))}
                               className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                             />
                           </div>
@@ -745,7 +745,7 @@ export function ReservasCofrinhosView({
                               type="text"
                               placeholder="0,00"
                               value={opValor}
-                              onChange={(e) => setOpValor(e.target.value)}
+                              onChange={(e) => setOpValor(formatCurrencyInput(e.target.value))}
                               className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                             />
                           </div>
@@ -838,7 +838,7 @@ export function ReservasCofrinhosView({
                   type="text"
                   placeholder="0,00"
                   value={newValorInicial}
-                  onChange={(e) => setNewValorInicial(e.target.value)}
+                  onChange={(e) => setNewValorInicial(formatCurrencyInput(e.target.value))}
                   className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                 />
               </div>
@@ -848,9 +848,9 @@ export function ReservasCofrinhosView({
                 <span className="text-xs font-semibold text-[var(--text-discreto)] block mb-1">META DE ECONOMIA (OPCIONAL)</span>
                 <input
                   type="text"
-                  placeholder="Ex: 5000,00"
+                  placeholder="0,00"
                   value={newMeta}
-                  onChange={(e) => setNewMeta(e.target.value)}
+                  onChange={(e) => setNewMeta(formatCurrencyInput(e.target.value))}
                   className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] focus:outline-hidden"
                 />
               </div>

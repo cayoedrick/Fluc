@@ -41,3 +41,23 @@ export const formatCurrency = (val: number): string => {
     maximumFractionDigits: 2
   });
 };
+
+export const formatCurrencyInput = (val: string | number | undefined | null): string => {
+  if (val === undefined || val === null) return '';
+  if (typeof val === 'number') {
+    if (isNaN(val) || val === 0) return '';
+    return formatCurrency(val);
+  }
+
+  const digits = val.replace(/\D/g, '');
+  if (!digits) return '';
+
+  const cents = parseInt(digits, 10);
+  if (isNaN(cents) || cents === 0) return '';
+
+  const amount = cents / 100;
+  return amount.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};

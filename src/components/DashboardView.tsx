@@ -59,7 +59,7 @@ interface DashboardViewProps {
   onDeleteLancamento?: (id: string, mode: 'este' | 'futuros' | 'todos') => void;
 }
 
-import { formatCurrency, parseCurrencyInput } from '../utils/currency';
+import { formatCurrency, parseCurrencyInput, formatCurrencyInput } from '../utils/currency';
 
 export function DashboardView({
   contas,
@@ -1050,7 +1050,7 @@ export function DashboardView({
                     <button 
                       onClick={() => {
                         setInvoiceAdjustCard(card);
-                        setNewInvoiceValue('');
+                        setNewInvoiceValue(formatCurrency(getCardInvoiceValue(card.id, currentDate)));
                         setIsInvoiceModalOpen(true);
                         setActivePopup(null);
                       }}
@@ -1562,7 +1562,7 @@ export function DashboardView({
                   type="text"
                   placeholder="0,00"
                   value={newInvoiceValue}
-                  onChange={(e) => setNewInvoiceValue(e.target.value)}
+                  onChange={(e) => setNewInvoiceValue(formatCurrencyInput(e.target.value))}
                   className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden focus:border-[var(--bg-secondary)]"
                 />
                 <span className="text-[10px] text-[var(--text-discreto)] mt-2 block leading-relaxed">

@@ -3,7 +3,7 @@ import { Conta, Cartao, Categoria, Lancamento, ParticipanteDespesa } from '../ty
 import { Plus, X, Calendar, Check, ArrowRight, Wallet, CreditCard, Info, Share2, Users, Percent, Trash2 } from 'lucide-react';
 import { FloatingInfoModal } from './FloatingInfoModal';
 
-import { formatCurrency, parseCurrencyInput } from '../utils/currency';
+import { formatCurrency, parseCurrencyInput, formatCurrencyInput } from '../utils/currency';
 
 interface LancamentoModalProps {
   isOpen: boolean;
@@ -312,7 +312,7 @@ export function LancamentoModal({
                 type="text"
                 inputMode="decimal"
                 value={valor}
-                onChange={(e) => setValor(e.target.value)}
+                onChange={(e) => setValor(formatCurrencyInput(e.target.value))}
                 placeholder="0,00"
                 className="w-full text-3xl font-bold bg-transparent text-[var(--text-general)] focus:outline-hidden border-b border-dashed border-[var(--bg-secondary)] pb-1"
                 id="modal-value-input"

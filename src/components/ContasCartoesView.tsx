@@ -3,7 +3,7 @@ import { Conta, Cartao, Lancamento } from '../types';
 import { Plus, Landmark, CreditCard, Paintbrush, Check, X, HelpCircle, ChevronLeft, ChevronRight, Pencil, QrCode, Copy } from 'lucide-react';
 import { SyncStatusIcon } from './SyncStatusIcon';
 
-import { formatCurrency, parseCurrencyInput } from '../utils/currency';
+import { formatCurrency, parseCurrencyInput, formatCurrencyInput } from '../utils/currency';
 
 interface ContasCartoesViewProps {
   contas: Conta[];
@@ -86,7 +86,7 @@ export function ContasCartoesView({
   const handleStartEditInvoice = (card: Cartao) => {
     setInvoiceAdjustCard(card);
     const currentValue = getCardInvoiceValue ? getCardInvoiceValue(card.id, invoiceMonth) : 0;
-    setNewInvoiceValue(String(currentValue).replace('.', ','));
+    setNewInvoiceValue(formatCurrency(currentValue));
     setIsInvoiceModalOpen(true);
   };
 
@@ -170,12 +170,12 @@ export function ContasCartoesView({
     setEditingConta(c);
     setModalTab('conta');
     setContaNome(c.nome);
-    setContaSaldo(String(c.saldoInicial).replace('.', ','));
+    setContaSaldo(formatCurrency(c.saldoInicial));
     setContaChavePix(c.chavePix || '');
     
     // Set current balance
     const currentBal = getAccountBalance(c.id);
-    setContaSaldoAtual(String(currentBal).replace('.', ','));
+    setContaSaldoAtual(formatCurrency(currentBal));
     
     setContaCor(c.cor);
     setContaIsMain(c.isMain || false);
@@ -191,8 +191,8 @@ export function ContasCartoesView({
     setEditingCartao(card);
     setModalTab('cartao');
     setCartaoNome(card.nome);
-    setCartaoLimite(String(card.limiteTotal).replace('.', ','));
-    setCartaoLimiteUtilizado(String(card.limiteUtilizado).replace('.', ','));
+    setCartaoLimite(formatCurrency(card.limiteTotal));
+    setCartaoLimiteUtilizado(formatCurrency(card.limiteUtilizado));
     setCartaoDiaFechamento(card.diaFechamento);
     setCartaoDiaVencimento(card.diaVencimento);
     setCartaoContaVinculada(card.contaVinculadaId);
@@ -626,7 +626,7 @@ export function ContasCartoesView({
                       type="text"
                       placeholder="0,00"
                       value={contaSaldo}
-                      onChange={(e) => setContaSaldo(e.target.value)}
+                      onChange={(e) => setContaSaldo(formatCurrencyInput(e.target.value))}
                       className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                     />
                   </div>
@@ -639,7 +639,7 @@ export function ContasCartoesView({
                         type="text"
                         placeholder="0,00"
                         value={contaSaldoAtual}
-                        onChange={(e) => setContaSaldoAtual(e.target.value)}
+                        onChange={(e) => setContaSaldoAtual(formatCurrencyInput(e.target.value))}
                         className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                       />
                       <span className="text-[10px] text-[var(--text-discreto)] mt-1.5 block leading-relaxed">
@@ -701,7 +701,7 @@ export function ContasCartoesView({
                         type="text"
                         placeholder="0,00"
                         value={cartaoLimite}
-                        onChange={(e) => setCartaoLimite(e.target.value)}
+                        onChange={(e) => setCartaoLimite(formatCurrencyInput(e.target.value))}
                         className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden"
                       />
                     </div>
@@ -713,7 +713,7 @@ export function ContasCartoesView({
                         type="text"
                         placeholder="0,00"
                         value={cartaoLimiteUtilizado}
-                        onChange={(e) => setCartaoLimiteUtilizado(e.target.value)}
+                        onChange={(e) => setCartaoLimiteUtilizado(formatCurrencyInput(e.target.value))}
                         className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] focus:outline-hidden"
                       />
                     </div>
@@ -874,7 +874,7 @@ export function ContasCartoesView({
                   type="text"
                   placeholder="0,00"
                   value={newInvoiceValue}
-                  onChange={(e) => setNewInvoiceValue(e.target.value)}
+                  onChange={(e) => setNewInvoiceValue(formatCurrencyInput(e.target.value))}
                   className="w-full py-2.5 px-4 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-[16px] text-sm text-[var(--text-general)] font-bold focus:outline-hidden focus:border-[var(--bg-secondary)]"
                 />
                 <span className="text-[10px] text-[var(--text-discreto)] mt-2 block leading-relaxed">

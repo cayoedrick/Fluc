@@ -3,7 +3,7 @@ import { Conta, Cartao, Categoria, Lancamento } from '../types';
 import { X, Calendar, Check, Wallet, CreditCard, ArrowRight, Share2, Users, Percent, Trash2, Plus, Info } from 'lucide-react';
 import { ParticipanteDespesa } from '../types';
 
-import { formatCurrency, parseCurrencyInput } from '../utils/currency';
+import { formatCurrency, parseCurrencyInput, formatCurrencyInput } from '../utils/currency';
 
 interface EditLancamentoModalProps {
   isOpen: boolean;
@@ -44,7 +44,7 @@ export function EditLancamentoModal({
 
   useEffect(() => {
     if (isOpen && lancamento) {
-      setValor(lancamento.valor.toString().replace('.', ','));
+      setValor(formatCurrency(lancamento.valor));
       setRecebidoPagoEfetivado(lancamento.recebidoPagoEfetivado);
       setEstorno(lancamento.estorno || false);
       setData((lancamento.tipo === 'despesa_cartao' && lancamento.dataCompra) ? lancamento.dataCompra : lancamento.data);
@@ -196,7 +196,7 @@ export function EditLancamentoModal({
                   type="text"
                   inputMode="decimal"
                   value={valor}
-                  onChange={(e) => setValor(e.target.value)}
+                  onChange={(e) => setValor(formatCurrencyInput(e.target.value))}
                   placeholder="0,00"
                   className="w-full text-3xl font-bold bg-transparent text-[var(--text-general)] focus:outline-hidden border-b border-dashed border-[var(--bg-secondary)] pb-1"
                 />
