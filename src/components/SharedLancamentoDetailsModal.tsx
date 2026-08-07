@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Share2, Users, Receipt, User, Layers, Info, Download, FileText, Image, FileCode, ChevronDown, Trash2, TrendingUp, UserPlus, QrCode, Landmark, Check } from 'lucide-react';
+import { X, Share2, Users, Receipt, User, Layers, Info, Download, FileText, Image, FileCode, ChevronDown, Trash2, TrendingUp, UserPlus, QrCode, Landmark, Check, Copy } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
@@ -118,6 +118,8 @@ export function SharedLancamentoDetailsModal({
   const [customPixKey, setCustomPixKey] = useState<string>('');
   const [includePixInExport, setIncludePixInExport] = useState<boolean>(true);
   const [pixQrCodeUrl, setPixQrCodeUrl] = useState<string>('');
+  const [pixPayload, setPixPayload] = useState<string>('');
+  const [copiedPix, setCopiedPix] = useState<boolean>(false);
 
   // Auto-select initial account with PIX key when opening modal
   useEffect(() => {
@@ -183,6 +185,7 @@ export function SharedLancamentoDetailsModal({
   useEffect(() => {
     if (!includePixInExport || !customPixKey.trim()) {
       setPixQrCodeUrl('');
+      setPixPayload('');
       return;
     }
 
@@ -192,6 +195,8 @@ export function SharedLancamentoDetailsModal({
       nomeRecebedor: selectedContaObj?.nome || 'HORUS',
       descricao: targetLanc.descricao
     });
+
+    setPixPayload(payload);
 
     QRCode.toDataURL(payload, {
       width: 240,
@@ -204,6 +209,14 @@ export function SharedLancamentoDetailsModal({
         setPixQrCodeUrl('');
       });
   }, [customPixKey, includePixInExport, exportTotalVal, selectedContaObj, targetLanc.descricao]);
+
+  const handleCopyPixPayload = () => {
+    if (!pixPayload) return;
+    navigator.clipboard.writeText(pixPayload);
+    setCopiedPix(true);
+    window.showToast?.('Código PIX Copia e Cola copiado para a área de transferência!', 'sucesso');
+    setTimeout(() => setCopiedPix(false), 2500);
+  };
 
   const targetParticipantObj = (targetParticipantName && itemToDelete?.participantes)
     ? itemToDelete.participantes.find(p => p.nome.trim().toLowerCase() === targetParticipantName.trim().toLowerCase())
@@ -559,7 +572,13 @@ export function SharedLancamentoDetailsModal({
           <div style="background-color: #ffffff; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; display: inline-block; margin-top: 6px;">
             <p style="font-family: monospace; font-size: 13px; font-weight: bold; color: #0f172a; margin: 0;">Chave PIX: ${customPixKey}</p>
           </div>
-          <p style="font-size: 11px; color: #64748b; margin: 10px 0 0 0;">Escaneie o QR Code com o aplicativo do seu banco para realizar o pagamento de <strong>${formatCurrency(exportTotalVal)}</strong>.</p>
+          ${pixPayload ? `
+            <div style="background-color: #ffffff; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; text-align: left;">
+              <p style="font-size: 10px; font-weight: bold; color: #64748b; margin: 0 0 4px 0; text-transform: uppercase;">Código PIX Copia e Cola (Para colar no App do Banco):</p>
+              <p style="font-family: monospace; font-size: 9px; font-weight: bold; color: #0f172a; margin: 0; word-break: break-all; background-color: #f8fafc; padding: 6px; border-radius: 4px;">${pixPayload}</p>
+            </div>
+          ` : ''}
+          <p style="font-size: 11px; color: #64748b; margin: 10px 0 0 0;">Escaneie o QR Code ou copie o código PIX acima para realizar o pagamento de <strong>${formatCurrency(exportTotalVal)}</strong>.</p>
         </div>
       ` : '';
 
@@ -918,17 +937,40 @@ export function SharedLancamentoDetailsModal({
                     </div>
 
                     {pixQrCodeUrl && (
-                      <div className="flex items-center gap-3 p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl">
-                        <img src={pixQrCodeUrl} alt="Preview QR Code PIX" className="w-14 h-14 bg-white p-1 rounded-lg shrink-0 border border-slate-200" />
-                        <div className="text-[11px] leading-tight">
-                          <span className="font-bold text-[#00cc52] block">QR Code gerado para o extrato</span>
-                          <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
-                            Valor total: <strong className="text-[var(--text-general)]">{formatCurrency(exportTotalVal)}</strong>
-                          </span>
-                          <span className="text-[9px] font-mono text-[var(--text-general)] truncate block mt-0.5 max-w-[200px]">
-                            {customPixKey}
-                          </span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3 p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl">
+                          <img src={pixQrCodeUrl} alt="Preview QR Code PIX" className="w-14 h-14 bg-white p-1 rounded-lg shrink-0 border border-slate-200" />
+                          <div className="text-[11px] leading-tight min-w-0 flex-1">
+                            <span className="font-bold text-[#00cc52] block">QR Code gerado para o extrato</span>
+                            <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
+                              Valor total: <strong className="text-[var(--text-general)]">{formatCurrency(exportTotalVal)}</strong>
+                            </span>
+                            <span className="text-[9px] font-mono text-[var(--text-general)] truncate block mt-0.5 max-w-[200px]">
+                              {customPixKey}
+                            </span>
+                          </div>
                         </div>
+
+                        {pixPayload && (
+                          <div className="p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider">
+                                Código Pix Copia e Cola
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleCopyPixPayload}
+                                className="px-2 py-0.5 bg-[#00cc52]/10 hover:bg-[#00cc52]/20 text-[#00cc52] font-bold text-[10px] rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                {copiedPix ? <Check size={11} /> : <Copy size={11} />}
+                                <span>{copiedPix ? 'Copiado!' : 'Copiar Código'}</span>
+                              </button>
+                            </div>
+                            <p className="text-[9px] font-mono text-[var(--text-general)] bg-[var(--bg-primary)] p-1.5 rounded-lg border border-[var(--bg-tertiary)] break-all line-clamp-2 leading-tight">
+                              {pixPayload}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1103,8 +1145,19 @@ export function SharedLancamentoDetailsModal({
                 <span className="font-mono font-black text-xs text-slate-900 select-all">{customPixKey}</span>
               </div>
 
+              {pixPayload && (
+                <div className="bg-white p-2.5 rounded-xl border border-slate-200 max-w-md mx-auto text-left space-y-1">
+                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                    PIX Copia e Cola (Código para Aplicativo do Banco)
+                  </span>
+                  <p className="font-mono text-[9px] text-slate-800 break-all select-all font-semibold leading-tight bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    {pixPayload}
+                  </p>
+                </div>
+              )}
+
               <p className="text-[11px] text-slate-600 font-medium max-w-sm mx-auto leading-relaxed">
-                Escaneie o QR Code acima pelo aplicativo do seu banco para pagar o valor de <strong className="text-slate-900 font-black">{formatCurrency(exportTotalVal)}</strong>.
+                Escaneie o QR Code ou copie o código <strong>PIX Copia e Cola</strong> acima pelo aplicativo do seu banco para pagar o valor de <strong className="text-slate-900 font-black">{formatCurrency(exportTotalVal)}</strong>.
               </p>
             </div>
           )}
