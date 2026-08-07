@@ -72,6 +72,9 @@ export function ExtratoView({
   // Filter for payment mode: 'all' | 'parcelado' | 'a_vista'
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<'all' | 'parcelado' | 'a_vista'>('all');
 
+  // Filter for status: 'all' | 'pendente' | 'confirmado'
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pendente' | 'confirmado'>('all');
+
   // Edit State
   const [editingLancamento, setEditingLancamento] = useState<Lancamento | null>(null);
   const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
@@ -239,6 +242,13 @@ export function ExtratoView({
       if (!l.parcelado) return false;
     } else if (paymentTypeFilter === 'a_vista') {
       if (l.parcelado) return false;
+    }
+
+    // 6. Status filter (Pendente / Confirmado)
+    if (statusFilter === 'pendente') {
+      if (l.recebidoPagoEfetivado) return false;
+    } else if (statusFilter === 'confirmado') {
+      if (!l.recebidoPagoEfetivado) return false;
     }
 
     return true;
@@ -653,8 +663,8 @@ export function ExtratoView({
             </div>
           </div>
 
-          {/* E. Sort & Payment Type Filters (box below search / Todos switch) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* E. Sort, Status & Payment Type Filters */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* Ordenar por */}
             <div>
               <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-2">Ordenar por</span>
@@ -696,6 +706,37 @@ export function ExtratoView({
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Status (Pendente / Confirmado) */}
+            <div>
+              <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-2">Status</span>
+              <div className="flex gap-1.5 text-xs font-bold">
+                <button
+                  type="button"
+                  id="filter-btn-pendente"
+                  onClick={() => setStatusFilter(statusFilter === 'pendente' ? 'all' : 'pendente')}
+                  className={`px-3 py-2 flex items-center gap-1.5 rounded-[12px] transition-colors border cursor-pointer ${
+                    statusFilter === 'pendente'
+                      ? 'bg-[var(--bg-secondary)] border-transparent text-white'
+                      : 'bg-[var(--bg-app)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                  }`}
+                >
+                  <span>Pendente</span>
+                </button>
+                <button
+                  type="button"
+                  id="filter-btn-confirmado"
+                  onClick={() => setStatusFilter(statusFilter === 'confirmado' ? 'all' : 'confirmado')}
+                  className={`px-3 py-2 flex items-center gap-1.5 rounded-[12px] transition-colors border cursor-pointer ${
+                    statusFilter === 'confirmado'
+                      ? 'bg-[var(--bg-secondary)] border-transparent text-white'
+                      : 'bg-[var(--bg-app)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                  }`}
+                >
+                  <span>Confirmado</span>
+                </button>
               </div>
             </div>
 
