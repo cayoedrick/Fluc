@@ -510,69 +510,299 @@ export function SharedLancamentoDetailsModal({
   };
 
   const handleExportPDF = async () => {
-    if (!exportContentRef.current) return;
     setIsExporting(true);
     setIsExportMenuOpen(false);
     try {
-      const dataUrl = await toPng(exportContentRef.current, {
-        quality: 1.0,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        cacheBust: true,
-      });
-
-      const img = document.createElement('img');
-      img.src = dataUrl;
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-
-      const imgWidth = img.width;
-      const imgHeight = img.height;
-
       const pdf = new jsPDF({
         orientation: 'portrait',
-        unit: 'px',
-        format: [imgWidth / 2, imgHeight / 2]
+        unit: 'pt',
+        format: 'a4'
       });
 
-      pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidth / 2, imgHeight / 2);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 40;
+      const contentWidth = pageWidth - margin * 2;
+      const rightX = pageWidth - margin;
 
-      // Embed selectable text layer for Chave PIX and PIX Copia e Cola into the PDF document
-      if (includePixInExport && exportContentRef.current) {
-        const container = exportContentRef.current;
-        const containerRect = container.getBoundingClientRect();
+      let y = 45;
 
-        if (customPixKey) {
-          const keyEl = container.querySelector('[data-pix-key-text]') as HTMLElement | null;
-          if (keyEl) {
-            const rect = keyEl.getBoundingClientRect();
-            const relX = rect.left - containerRect.left;
-            const relY = rect.top - containerRect.top;
-            pdf.setFont('courier', 'bold');
-            pdf.setFontSize(9);
-            pdf.setTextColor(15, 23, 42);
-            pdf.text(customPixKey, relX, relY + 9);
-          }
+      const checkPageOverflow = (neededHeight: number) => {
+        if (y + neededHeight > pageHeight - 50) {
+          pdf.addPage();
+          y = 45;
         }
+      };
 
-        if (pixPayload) {
-          const payloadEl = container.querySelector('[data-pix-payload-text]') as HTMLElement | null;
-          if (payloadEl) {
-            const rect = payloadEl.getBoundingClientRect();
-            const relX = rect.left - containerRect.left;
-            const relY = rect.top - containerRect.top;
-            const relWidth = rect.width;
+      // 1. Header
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      pdf.setTextColor(79, 70, 229); // Indigo-600
+      pdf.text('HÓRUS MONITORAMENTO', margin, y);
 
-            pdf.setFont('courier', 'bold');
-            pdf.setFontSize(7);
-            pdf.setTextColor(15, 23, 42);
-            pdf.text(pixPayload, relX + 8, relY + 10, { maxWidth: relWidth - 16 });
-          }
-        }
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 116, 139); // Slate-500
+      pdf.text('EMISSÃO', rightX, y - 6, { align: 'right' });
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(51, 65, 85); // Slate-700
+      const todayFormatted = formatDate(new Date().toISOString().split('T')[0]);
+      pdf.text(todayFormatted, rightX, y + 6, { align: 'right' });
+
+      y += 14;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('EXTRATO DETALHADO DE LANÇAMENTO COMPARTILHADO', margin, y);
+
+      y += 12;
+      // Header border line
+      pdf.setDrawColor(79, 70, 229);
+      pdf.setLineWidth(2);
+      pdf.line(margin, y, rightX, y);
+
+      y += 15;
+
+      // 2. Lançamento Info Box
+      const boxHeight = combinedParticipantName ? 54 : 42;
+      checkPageOverflow(boxHeight);
+
+      pdf.setFillColor(248, 250, 252); // Slate-50
+      pdf.setDrawColor(226, 232, 240); // Slate-200
+      pdf.setLineWidth(1);
+      pdf.roundedRect(margin, y, contentWidth, boxHeight, 8, 8, 'FD');
+
+      let boxY = y + 14;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.setTextColor(148, 163, 184); // Slate-400
+      pdf.text('LANÇAMENTO', margin + 12, boxY);
+
+      boxY += 13;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(30, 41, 59); // Slate-800
+      pdf.text(targetLanc.descricao, margin + 12, boxY, { maxWidth: contentWidth - 24 });
+
+      if (combinedParticipantName) {
+        boxY += 14;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9);
+        pdf.setTextColor(79, 70, 229); // Indigo-600
+        pdf.text(`Participante: ${combinedParticipantName}`, margin + 12, boxY);
       }
-      
+
+      y += boxHeight + 18;
+
+      // 3. Table of Items
+      checkPageOverflow(60);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('ITENS DO LANÇAMENTO', margin, y);
+
+      y += 10;
+
+      // Table Header Row
+      const colItemX = margin + 10;
+      const colDateX = margin + 300;
+      const colValorX = rightX - 10;
+
+      pdf.setFillColor(241, 245, 249); // Slate-100
+      pdf.rect(margin, y, contentWidth, 22, 'F');
+
+      pdf.setDrawColor(203, 213, 225); // Slate-300
+      pdf.setLineWidth(1.5);
+      pdf.line(margin, y + 22, rightX, y + 22);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.setTextColor(71, 85, 105); // Slate-600
+      pdf.text('Item / Descrição', colItemX, y + 14);
+      pdf.text('Data', colDateX, y + 14);
+      pdf.text('Valor', colValorX, y + 14, { align: 'right' });
+
+      y += 22;
+
+      // Table Body Rows
+      exportItemsFormatted.forEach((item) => {
+        checkPageOverflow(22);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(51, 65, 85);
+        
+        const descText = pdf.splitTextToSize(item.descricao, 270)[0];
+        pdf.text(descText, colItemX, y + 14);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(formatDate(item.data), colDateX, y + 14);
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(formatCurrency(item.valor), colValorX, y + 14, { align: 'right' });
+
+        y += 22;
+
+        pdf.setDrawColor(241, 245, 249);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, y, rightX, y);
+      });
+
+      // Table Total Row
+      checkPageOverflow(28);
+
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(margin, y, contentWidth, 26, 'F');
+
+      pdf.setDrawColor(15, 23, 42); // Slate-900 line above total
+      pdf.setLineWidth(1.5);
+      pdf.line(margin, y, rightX, y);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.setTextColor(15, 23, 42);
+      pdf.text('VALOR TOTAL', colItemX, y + 17);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(79, 70, 229);
+      pdf.text(formatCurrency(exportTotalVal), colValorX, y + 17, { align: 'right' });
+
+      y += 26;
+
+      // 4. PIX Payment Section
+      if (includePixInExport && customPixKey) {
+        let pixBoxHeight = 110;
+        if (selectedContaObj) pixBoxHeight += 16;
+        if (pixQrCodeUrl) pixBoxHeight += 114;
+        if (pixPayload) {
+          pdf.setFont('courier', 'bold');
+          pdf.setFontSize(7.5);
+          const payloadLines = pdf.splitTextToSize(pixPayload, contentWidth - 40);
+          pixBoxHeight += Math.max(32, payloadLines.length * 9.5 + 16) + 10;
+        }
+
+        checkPageOverflow(pixBoxHeight);
+
+        y += 18;
+
+        // Draw background box for PIX
+        pdf.setFillColor(236, 253, 245); // Emerald-50
+        pdf.setDrawColor(167, 243, 208); // Emerald-200
+        pdf.setLineWidth(1);
+        pdf.roundedRect(margin, y, contentWidth, pixBoxHeight, 10, 10, 'FD');
+
+        let pixY = y + 18;
+
+        // Header
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        pdf.setTextColor(4, 120, 87); // Emerald-700
+        pdf.text('DADOS PARA PAGAMENTO VIA PIX', pageWidth / 2, pixY, { align: 'center' });
+
+        pixY += 14;
+
+        if (selectedContaObj) {
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(9);
+          pdf.setTextColor(51, 65, 85);
+          pdf.text(`Conta Bancária: ${selectedContaObj.nome}`, pageWidth / 2, pixY, { align: 'center' });
+          pixY += 16;
+        }
+
+        // QR Code Image
+        if (pixQrCodeUrl) {
+          try {
+            const qrSize = 90;
+            const qrX = (pageWidth - qrSize) / 2;
+            
+            // White background card for QR Code
+            pdf.setFillColor(255, 255, 255);
+            pdf.setDrawColor(226, 232, 240);
+            pdf.roundedRect(qrX - 6, pixY - 2, qrSize + 12, qrSize + 4, 6, 6, 'FD');
+
+            pdf.addImage(pixQrCodeUrl, 'PNG', qrX, pixY, qrSize, qrSize);
+            pixY += qrSize + 12;
+          } catch (qrErr) {
+            console.error('Erro ao adicionar QR Code no PDF:', qrErr);
+          }
+        }
+
+        // Chave PIX Box
+        const keyBoxWidth = 320;
+        const keyBoxX = (pageWidth - keyBoxWidth) / 2;
+        pdf.setFillColor(255, 255, 255);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(keyBoxX, pixY, keyBoxWidth, 26, 6, 6, 'FD');
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text('CHAVE PIX', pageWidth / 2, pixY + 9, { align: 'center' });
+
+        pdf.setFont('courier', 'bold');
+        pdf.setFontSize(9.5);
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(customPixKey, pageWidth / 2, pixY + 20, { align: 'center' });
+
+        pixY += 32;
+
+        // PIX Copia e Cola Payload Box
+        if (pixPayload) {
+          pdf.setFont('courier', 'bold');
+          pdf.setFontSize(7.5);
+          const payloadLines = pdf.splitTextToSize(pixPayload, contentWidth - 40);
+          const payloadBoxHeight = Math.max(32, payloadLines.length * 9.5 + 16);
+
+          pdf.setFillColor(255, 255, 255);
+          pdf.setDrawColor(226, 232, 240);
+          pdf.roundedRect(margin + 12, pixY, contentWidth - 24, payloadBoxHeight, 6, 6, 'FD');
+
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(7);
+          pdf.setTextColor(100, 116, 139);
+          pdf.text('PIX COPIA E COLA (CÓDIGO PARA APLICATIVO DO BANCO)', margin + 20, pixY + 11);
+
+          pdf.setFont('courier', 'bold');
+          pdf.setFontSize(7.5);
+          pdf.setTextColor(15, 23, 42);
+          pdf.text(payloadLines, margin + 20, pixY + 22);
+
+          pixY += payloadBoxHeight + 10;
+        }
+
+        // Instructions
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(71, 85, 105);
+        const instrText = `Escaneie o QR Code ou copie o código PIX Copia e Cola acima pelo aplicativo do seu banco para pagar o valor de ${formatCurrency(exportTotalVal)}.`;
+        pdf.text(instrText, pageWidth / 2, pixY + 4, { align: 'center', maxWidth: contentWidth - 30 });
+
+        y += pixBoxHeight;
+      }
+
+      // 5. Footer (watermark line at bottom of each page)
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        const footerY = pageHeight - 25;
+        
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, footerY - 8, rightX, footerY - 8);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text('Hórus Monitoramento Financeiro', margin, footerY);
+        pdf.text('Documento Oficial de Cobrança', rightX, footerY, { align: 'right' });
+      }
+
       const pdfBlob = pdf.output('blob');
       const blobUrl = URL.createObjectURL(pdfBlob);
       triggerDownload(blobUrl, `extrato_compartilhado_${targetLanc.id}.pdf`);
