@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Share2, Users, Receipt, User, Layers, Info, Download, FileText, Image, FileCode, ChevronDown, Trash2, TrendingUp, UserPlus } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { Lancamento } from '../types';
 
@@ -381,25 +381,53 @@ export function SharedLancamentoDetailsModal({
     }
   };
 
+  const triggerDownload = (url: string, filename: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getExportBackgroundColor = () => {
+    if (!exportContentRef.current) return '#1b2a2f';
+    const computedBg = window.getComputedStyle(exportContentRef.current).backgroundColor;
+    if (computedBg && computedBg !== 'transparent' && computedBg !== 'rgba(0, 0, 0, 0)') {
+      return computedBg;
+    }
+    return document.body.classList.contains('theme-clean') ? '#fdfefe' : '#1b2a2f';
+  };
+
   const handleExportPNG = async () => {
     if (!exportContentRef.current) return;
     setIsExporting(true);
     setIsExportMenuOpen(false);
     try {
-      const canvas = await html2canvas(exportContentRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#0f172a'
+      const bg = getExportBackgroundColor();
+      const dataUrl = await toPng(exportContentRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: bg,
+        cacheBust: true,
       });
-      const imgData = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = imgData;
-      link.download = `detalhamento_compartilhado_${targetLanc.id}.png`;
-      link.click();
+      triggerDownload(dataUrl, `detalhamento_compartilhado_${targetLanc.id}.png`);
       window.showToast?.('Detalhamento exportado em PNG com sucesso!', 'sucesso');
     } catch (err) {
       console.error('Erro ao exportar PNG:', err);
-      window.showToast?.('Erro ao gerar imagem PNG.', 'erro');
+      try {
+        const bg = getExportBackgroundColor();
+        const dataUrl = await toPng(exportContentRef.current, {
+          quality: 0.9,
+          pixelRatio: 1.5,
+          backgroundColor: bg,
+        });
+        triggerDownload(dataUrl, `detalhamento_compartilhado_${targetLanc.id}.png`);
+        window.showToast?.('Detalhamento exportado em PNG com sucesso!', 'sucesso');
+      } catch (fallbackErr) {
+        console.error('Erro no fallback do PNG:', fallbackErr);
+        window.showToast?.('Erro ao gerar imagem PNG.', 'erro');
+      }
     } finally {
       setIsExporting(false);
     }
@@ -410,23 +438,37 @@ export function SharedLancamentoDetailsModal({
     setIsExporting(true);
     setIsExportMenuOpen(false);
     try {
-      const canvas = await html2canvas(exportContentRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#0f172a'
+      const bg = getExportBackgroundColor();
+      const dataUrl = await toPng(exportContentRef.current, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: bg,
+        cacheBust: true,
       });
-      const imgData = canvas.toDataURL('image/png');
-      
-      const pdfWidth = canvas.width / 2;
-      const pdfHeight = canvas.height / 2;
+
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const imgWidth = img.width;
+      const imgHeight = img.height;
+
       const pdf = new jsPDF({
-        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
         unit: 'px',
-        format: [pdfWidth, pdfHeight]
+        format: [imgWidth / 2, imgHeight / 2]
       });
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidth / 2, imgHeight / 2);
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`detalhamento_compartilhado_${targetLanc.id}.pdf`);
+      const pdfBlob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      triggerDownload(blobUrl, `detalhamento_compartilhado_${targetLanc.id}.pdf`);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+
       window.showToast?.('Detalhamento exportado em PDF com sucesso!', 'sucesso');
     } catch (err) {
       console.error('Erro ao exportar PDF:', err);
@@ -514,10 +556,10 @@ export function SharedLancamentoDetailsModal({
       `;
 
       const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword;charset=utf-8' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `detalhamento_compartilhado_${targetLanc.id}.doc`;
-      link.click();
+      const blobUrl = URL.createObjectURL(blob);
+      triggerDownload(blobUrl, `detalhamento_compartilhado_${targetLanc.id}.doc`);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+
       window.showToast?.('Detalhamento exportado em .DOC com sucesso!', 'sucesso');
     } catch (err) {
       console.error('Erro ao exportar DOC:', err);
