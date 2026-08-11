@@ -197,6 +197,9 @@ export function ExtratoView({
     // Hide parent shared reimbursement receitas from main list (only show participant reimbursement entries)
     if (l.tipo === 'receita' && l.isShared && !l.id.startsWith('reimb-')) return false;
 
+    // Hide internal credit card payment receipts (e.g. 'Pagamento de Fatura Recibo') so they don't pollute list or totals
+    if (l.tipo === 'despesa_cartao' && l.descricao === 'Pagamento de Fatura Recibo') return false;
+
     // 1. Month-Year check
     // If searchAllMonths is active, we bypass the month filter
     if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return false;
@@ -295,153 +298,59 @@ export function ExtratoView({
     return sortOrder === 'asc' ? comparison : -comparison;
   });
 
-  // Total entries and exits calculations
-  let totalEntradas = 0;
-  let totalSaidas = 0;
+  // Total entries and exits calculations based on filtered movements in Extrato
+  const { 
+    extratoRevenueLancamentos, 
+    extratoRevenueRefunds, 
+    extratoTotalEntradas, 
+    extratoExpenseLancamentos, 
+    extratoExpenseCartoes, 
+    extratoTotalSaidas 
+  } = React.useMemo(() => {
+    let revLancamentos = 0;
+    let revRefunds = 0;
+    let expLancamentos = 0;
+    let expCartoes = 0;
 
-  filteredLancamentos.forEach((l) => {
-    if (l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') {
-      if (l.recebidoPagoEfetivado) totalEntradas += l.valor;
-    } else if (l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') {
-      if (l.recebidoPagoEfetivado) totalSaidas += l.valor;
-    } else if (l.tipo === 'despesa_cartao') {
-      if (l.estorno) {
-        totalEntradas += l.valor; // refund increases entries
-      } else {
-        totalSaidas += l.valor; // purchase increases exits
-      }
-    }
-  });
-
-  // Custom calculations for Extrato View "Total Saídas":
-  // - Standard expenses regardless of consolidation
-  // - Credit card invoices/expenses matching the active filters
-  const extratoExpenseLancamentos = React.useMemo(() => {
-    let sum = 0;
-    lancamentos.forEach((l) => {
-      if (l.tipo !== 'despesa' && l.tipo !== 'deposito_cofrinho') return;
-      if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
-      
-      if (activeTab === 'contas') {
-        if (selectedEntityId === 'all' || l.contaId === selectedEntityId) {
-          sum += l.valor;
-        }
-      }
-    });
-    return sum;
-  }, [lancamentos, currentDate, searchAllMonths, isDateInMonthYear, activeTab, selectedEntityId]);
-
-  const extratoExpenseCartoes = React.useMemo(() => {
-    let sum = 0;
-    if (activeTab === 'cartoes') {
-      if (selectedEntityId === 'all') {
-        lancamentos.forEach((l) => {
-          if (l.tipo === 'despesa_cartao') {
-            if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
-            if (l.estorno) {
-              sum -= l.valor;
-            } else {
-              sum += l.valor;
-            }
+    filteredLancamentos.forEach((l) => {
+      if (l.tipo === 'receita' || l.tipo === 'retirada_cofrinho') {
+        revLancamentos += l.valor;
+      } else if (l.tipo === 'despesa' || l.tipo === 'deposito_cofrinho') {
+        expLancamentos += l.valor;
+      } else if (l.tipo === 'despesa_cartao') {
+        if (l.estorno) {
+          if (l.descricao !== 'Pagamento de Fatura Recibo') {
+            revRefunds += l.valor;
           }
-        });
-      } else {
-        lancamentos.forEach((l) => {
-          if (l.tipo === 'despesa_cartao' && l.cartaoId === selectedEntityId) {
-            if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
-            if (l.estorno) {
-              sum -= l.valor;
-            } else {
-              sum += l.valor;
-            }
-          }
-        });
-      }
-    } else {
-      // activeTab === 'contas'
-      if (selectedEntityId === 'all') {
-        lancamentos.forEach((l) => {
-          if (l.tipo === 'despesa_cartao') {
-            if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
-            if (l.estorno) {
-              sum -= l.valor;
-            } else {
-              sum += l.valor;
-            }
-          }
-        });
-      } else {
-        const linkedCards = cartoes.filter(c => c.contaVinculadaId === selectedEntityId);
-        const linkedCardIds = new Set(linkedCards.map(c => c.id));
-        lancamentos.forEach((l) => {
-          if (l.tipo === 'despesa_cartao' && linkedCardIds.has(l.cartaoId || '')) {
-            if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
-            if (l.estorno) {
-              sum -= l.valor;
-            } else {
-              sum += l.valor;
-            }
-          }
-        });
-      }
-    }
-    return Math.max(0, sum);
-  }, [lancamentos, cartoes, currentDate, searchAllMonths, isDateInMonthYear, activeTab, selectedEntityId]);
-
-  // Custom calculations for Extrato View "Total Entradas":
-  // - Standard revenues (receitas) regardless of consolidation
-  // - Credit card refunds matching the active filters
-  const extratoRevenueLancamentos = React.useMemo(() => {
-    let sum = 0;
-    lancamentos.forEach((l) => {
-      if (l.tipo !== 'receita' && l.tipo !== 'retirada_cofrinho') return;
-      if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
-      
-      if (activeTab === 'contas') {
-        if (selectedEntityId === 'all' || l.contaId === selectedEntityId) {
-          sum += l.valor;
-        }
-      } else {
-        // activeTab === 'cartoes'
-        if (selectedEntityId === 'all') {
-          sum += l.valor;
-        }
-      }
-    });
-    return sum;
-  }, [lancamentos, currentDate, searchAllMonths, isDateInMonthYear, activeTab, selectedEntityId]);
-
-  const extratoRevenueRefunds = React.useMemo(() => {
-    let sum = 0;
-    lancamentos.forEach((l) => {
-      if (l.tipo !== 'despesa_cartao' || !l.estorno) return;
-      if (!searchAllMonths && !isDateInMonthYear(l.data, currentDate)) return;
-
-      if (activeTab === 'cartoes') {
-        if (selectedEntityId === 'all' || l.cartaoId === selectedEntityId) {
-          sum += l.valor;
-        }
-      } else {
-        // activeTab === 'contas'
-        if (selectedEntityId === 'all') {
-          sum += l.valor;
         } else {
-          const linkedCards = cartoes.filter(c => c.contaVinculadaId === selectedEntityId);
-          const linkedCardIds = new Set(linkedCards.map(c => c.id));
-          if (linkedCardIds.has(l.cartaoId || '')) {
-            sum += l.valor;
+          expCartoes += l.valor;
+        }
+      } else if (l.tipo === 'transferencia') {
+        if (selectedEntityId !== 'all') {
+          if (l.paraContaId === selectedEntityId) {
+            revLancamentos += l.valor;
+          } else if (l.contaId === selectedEntityId) {
+            expLancamentos += l.valor;
           }
         }
       }
     });
-    return sum;
-  }, [lancamentos, cartoes, currentDate, searchAllMonths, isDateInMonthYear, activeTab, selectedEntityId]);
 
-  const extratoTotalEntradas = extratoRevenueLancamentos + extratoRevenueRefunds;
-  totalEntradas = extratoTotalEntradas; // Override to match the requested rule
+    const totEntradas = revLancamentos + revRefunds;
+    const totSaidas = expLancamentos + expCartoes;
 
-  const extratoTotalSaidas = extratoExpenseLancamentos + extratoExpenseCartoes;
-  totalSaidas = extratoTotalSaidas; // Override to match the requested rule
+    return {
+      extratoRevenueLancamentos: revLancamentos,
+      extratoRevenueRefunds: revRefunds,
+      extratoTotalEntradas: totEntradas,
+      extratoExpenseLancamentos: expLancamentos,
+      extratoExpenseCartoes: expCartoes,
+      extratoTotalSaidas: totSaidas,
+    };
+  }, [filteredLancamentos, selectedEntityId]);
+
+  const totalEntradas = extratoTotalEntradas;
+  const totalSaidas = extratoTotalSaidas;
 
   return (
     <div className="w-full flex-1 flex flex-col space-y-6">
