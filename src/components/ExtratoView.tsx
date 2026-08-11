@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Conta, Cartao, Categoria, Lancamento, Cofrinho } from '../types';
 import { 
@@ -64,6 +64,25 @@ export function ExtratoView({
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     return `${today.getFullYear()}-${mm}`;
   });
+
+  // Floating Add Button visibility when scrolled past header button
+  const [showFloatingButton, setShowFloatingButton] = useState(false);
+  const headerAddButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const target = headerAddButtonRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowFloatingButton(!entry.isIntersecting);
+      },
+      { threshold: 0 }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
 
   // Sorting states
   const [sortBy, setSortBy] = useState<'data' | 'valor' | 'nome'>('data');
@@ -444,6 +463,7 @@ export function ExtratoView({
         {/* Action Controls */}
         <div className="flex items-center gap-2">
           <button
+            ref={headerAddButtonRef}
             onClick={onOpenAddModal}
             className="w-10 h-10 rounded-full bg-[var(--bg-secondary)] text-white flex items-center justify-center hover:opacity-90 transition-all cursor-pointer"
             title="Adicionar Lançamento"
@@ -1298,6 +1318,24 @@ export function ExtratoView({
           </div>
         </div>
       )}
+      {/* Floating Add Button when scrolling */}
+      <AnimatePresence>
+        {showFloatingButton && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            onClick={onOpenAddModal}
+            className="fixed bottom-20 md:bottom-8 right-6 md:right-8 z-40 w-14 h-14 rounded-full bg-[var(--bg-secondary)] text-white shadow-2xl shadow-[var(--bg-secondary)]/40 hover:scale-105 active:scale-95 transition-transform flex items-center justify-center cursor-pointer border-2 border-white/20"
+            title="Adicionar Lançamento"
+            aria-label="Adicionar Lançamento"
+            id="floating-add-button-extrato"
+          >
+            <Plus size={28} className="stroke-[2.5]" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
