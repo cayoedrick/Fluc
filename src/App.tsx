@@ -24,6 +24,8 @@ export default function App() {
     getAccountBalance,
     getTotalBalance,
     getCardInvoiceValue,
+    getCardUtilizedLimit,
+    getCardAvailableLimit,
     getTotalInvoicesValue,
     getTotalReservedValue,
     getPeriodStats,
@@ -722,6 +724,8 @@ export default function App() {
               onOpenMenu={() => setIsSidebarOpen(true)}
               onOpenSyncModal={() => setIsSyncModalOpen(true)}
               getCardInvoiceValue={getCardInvoiceValue}
+              getCardUtilizedLimit={getCardUtilizedLimit}
+              getCardAvailableLimit={getCardAvailableLimit}
               onAddLancamento={handleAddLancamento}
             />
           )}

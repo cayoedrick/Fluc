@@ -538,6 +538,42 @@ export function useFlucState() {
     return Math.max(0, sum);
   };
 
+  // DYNAMIC CREDIT CARD LIMIT CALCULATIONS:
+  // Calculate current utilized limit for a card based on active card purchases minus refunds/cleared payments
+  const getCardUtilizedLimit = (cartaoId: string): number => {
+    const card = state.cartoes.find((c) => c.id === cartaoId);
+    if (!card) return 0;
+
+    let sum = 0;
+    let hasTransactions = false;
+
+    state.lancamentos.forEach((l) => {
+      if (l.tipo === 'despesa_cartao' && l.cartaoId === cartaoId) {
+        hasTransactions = true;
+        if (l.estorno) {
+          if (l.recebidoPagoEfetivado) {
+            sum -= l.valor;
+          }
+        } else {
+          sum += l.valor;
+        }
+      }
+    });
+
+    if (!hasTransactions && card.limiteUtilizado !== undefined) {
+      return card.limiteUtilizado;
+    }
+
+    return Math.max(0, Number(sum.toFixed(2)));
+  };
+
+  const getCardAvailableLimit = (cartaoId: string): number => {
+    const card = state.cartoes.find((c) => c.id === cartaoId);
+    if (!card) return 0;
+    const utilized = getCardUtilizedLimit(cartaoId);
+    return Math.max(0, Number((card.limiteTotal - utilized).toFixed(2)));
+  };
+
   // Total invoice value for ALL cards in a given month-year
   const getTotalInvoicesValue = (monthYearStr: string, activeCardFilterId?: string): number => {
     if (activeCardFilterId) {
@@ -787,6 +823,8 @@ export function useFlucState() {
     getAccountBalance,
     getTotalBalance,
     getCardInvoiceValue,
+    getCardUtilizedLimit,
+    getCardAvailableLimit,
     getTotalInvoicesValue,
     getTotalReservedValue,
     getPeriodStats,

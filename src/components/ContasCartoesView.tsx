@@ -18,6 +18,8 @@ interface ContasCartoesViewProps {
   onOpenMenu?: () => void;
   onOpenSyncModal: () => void;
   getCardInvoiceValue?: (cartaoId: string, monthYearStr: string) => number;
+  getCardUtilizedLimit?: (cartaoId: string) => number;
+  getCardAvailableLimit?: (cartaoId: string) => number;
   onAddLancamento?: (newLanc: Omit<Lancamento, 'id'>) => void;
 }
 
@@ -44,6 +46,8 @@ export function ContasCartoesView({
   onOpenMenu,
   onOpenSyncModal,
   getCardInvoiceValue,
+  getCardUtilizedLimit,
+  getCardAvailableLimit,
   onAddLancamento
 }: ContasCartoesViewProps) {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -518,44 +522,54 @@ export function ContasCartoesView({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-                    <div>
-                      <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Limite Total</span>
-                      <span className="font-bold text-[var(--text-general)]">{formatCurrency(card.limiteTotal)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Limite Utilizado</span>
-                      <span className="font-bold text-[#ed793a]">{formatCurrency(card.limiteUtilizado)}</span>
-                    </div>
+                  {(() => {
+                    const utilized = getCardUtilizedLimit ? getCardUtilizedLimit(card.id) : card.limiteUtilizado;
+                    const available = getCardAvailableLimit ? getCardAvailableLimit(card.id) : Math.max(0, card.limiteTotal - utilized);
+                    return (
+                      <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
+                        <div>
+                          <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Limite Total</span>
+                          <span className="font-bold text-[var(--text-general)] text-xs truncate block">{formatCurrency(card.limiteTotal)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Utilizado</span>
+                          <span className="font-bold text-[#ed793a] text-xs truncate block">{formatCurrency(utilized)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">Disponível</span>
+                          <span className="font-bold text-[#00cc52] text-xs truncate block">{formatCurrency(available)}</span>
+                        </div>
 
-                    {/* CURRENT MONTH INVOICE ROW */}
-                    <div className="col-span-2 pt-2 border-t border-[var(--bg-tertiary)] flex items-center justify-between">
-                      <div>
-                        <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">
-                          Valor da Fatura ({getMonthNamePortuguese(invoiceMonth)})
-                        </span>
-                        <span className="font-extrabold text-[var(--text-general)] text-sm">
-                          {getCardInvoiceValue ? formatCurrency(getCardInvoiceValue(card.id, invoiceMonth)) : 'R$ 0,00'}
-                        </span>
+                        {/* CURRENT MONTH INVOICE ROW */}
+                        <div className="col-span-3 pt-2 border-t border-[var(--bg-tertiary)] flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-[var(--text-discreto)] uppercase block">
+                              Valor da Fatura ({getMonthNamePortuguese(invoiceMonth)})
+                            </span>
+                            <span className="font-extrabold text-[var(--text-general)] text-sm">
+                              {getCardInvoiceValue ? formatCurrency(getCardInvoiceValue(card.id, invoiceMonth)) : 'R$ 0,00'}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleStartEditInvoice(card)}
+                            className="flex items-center gap-1.5 py-1 px-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 dark:bg-indigo-400/10 rounded-[8px] text-[10px] font-bold cursor-pointer transition-all border border-indigo-500/10"
+                            title="Ajustar Fatura"
+                          >
+                            <Pencil size={11} className="stroke-[2.5]" />
+                            <span>Editar Fatura</span>
+                          </button>
+                        </div>
+
+                        <div className="col-span-3 pt-1.5 border-t border-[var(--bg-tertiary)] flex justify-between text-[10px] text-[var(--text-discreto)] font-semibold">
+                          <span>Fechamento: Dia {card.diaFechamento}</span>
+                          <span>Vencimento: Dia {card.diaVencimento}</span>
+                        </div>
+                        <div className="col-span-3 text-[10px] text-[var(--text-discreto)]">
+                          Conta Débito: <span className="text-[var(--text-general)] font-bold">{linkedAccount?.nome || 'Não vinculada'}</span>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleStartEditInvoice(card)}
-                        className="flex items-center gap-1.5 py-1 px-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 dark:bg-indigo-400/10 rounded-[8px] text-[10px] font-bold cursor-pointer transition-all border border-indigo-500/10"
-                        title="Ajustar Fatura"
-                      >
-                        <Pencil size={11} className="stroke-[2.5]" />
-                        <span>Editar Fatura</span>
-                      </button>
-                    </div>
-
-                    <div className="col-span-2 pt-1.5 border-t border-[var(--bg-tertiary)] flex justify-between text-[10px] text-[var(--text-discreto)] font-semibold">
-                      <span>Fechamento: Dia {card.diaFechamento}</span>
-                      <span>Vencimento: Dia {card.diaVencimento}</span>
-                    </div>
-                    <div className="col-span-2 text-[10px] text-[var(--text-discreto)]">
-                      Conta Débito: <span className="text-[var(--text-general)] font-bold">{linkedAccount?.nome || 'Não vinculada'}</span>
-                    </div>
-                  </div>
+                    );
+                  })()}
                 </div>
               );
             })}
