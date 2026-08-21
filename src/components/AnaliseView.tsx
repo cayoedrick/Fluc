@@ -302,7 +302,7 @@ export function AnaliseView({ lancamentos, categorias, state, setState, onOpenMe
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Erro ao conectar com a API");
+        throw new Error(errorData.details || errorData.error || `Erro HTTP ${res.status}: Não foi possível conectar ao backend.`);
       }
 
       const data = await res.json();
