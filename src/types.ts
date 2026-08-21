@@ -84,7 +84,7 @@ export interface CofrinhoHistorico {
   updatedAt?: number;
 }
 
-export type ViewType = 'dashboard' | 'extrato' | 'categorias' | 'contas_cartoes' | 'reservas_cofrinhos' | 'configuracoes';
+export type ViewType = 'dashboard' | 'extrato' | 'categorias' | 'contas_cartoes' | 'reservas_cofrinhos' | 'configuracoes' | 'analise';
 
 export interface FlucState {
   contas: Conta[];
