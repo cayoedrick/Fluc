@@ -139,12 +139,49 @@ export function ExtratoView({
   // Type filter: 'all' | 'receita' | 'despesa' | 'transferencia'
   const [selectedType, setSelectedType] = useState<'all' | 'receita' | 'despesa' | 'transferencia'>('all');
 
+  // Category filter: 'all' or category ID
+  const [selectedCategoriaId, setSelectedCategoriaId] = useState<string>('all');
+
   // Search filter query
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Toggle to search all months
   const [searchAllMonths, setSearchAllMonths] = useState<boolean>(false);
   const [showSearchAllMonthsInfo, setShowSearchAllMonthsInfo] = useState<boolean>(false);
+
+  // Available categories based on selectedType
+  const availableCategorias = React.useMemo(() => {
+    if (selectedType === 'receita') {
+      return categorias.filter(c => c.tipo === 'receita');
+    }
+    if (selectedType === 'despesa') {
+      return categorias.filter(c => c.tipo === 'despesa');
+    }
+    return categorias;
+  }, [categorias, selectedType]);
+
+  // Active filters count
+  const activeFiltersCount = React.useMemo(() => {
+    let count = 0;
+    if (selectedEntityId !== 'all') count++;
+    if (selectedType !== 'all') count++;
+    if (selectedCategoriaId !== 'all') count++;
+    if (paymentTypeFilter !== 'all') count++;
+    if (statusFilter !== 'all') count++;
+    if (searchQuery.trim() !== '') count++;
+    if (searchAllMonths) count++;
+    return count;
+  }, [selectedEntityId, selectedType, selectedCategoriaId, paymentTypeFilter, statusFilter, searchQuery, searchAllMonths]);
+
+  const handleResetFilters = () => {
+    setSelectedEntityId('all');
+    setSelectedType('all');
+    setSelectedCategoriaId('all');
+    setPaymentTypeFilter('all');
+    setStatusFilter('all');
+    setSearchQuery('');
+    setSearchAllMonths(false);
+  };
 
   // Direction state for month sliding animation (1 = next, -1 = prev)
   const [direction, setDirection] = useState<number>(0);
@@ -230,6 +267,11 @@ export function ExtratoView({
       } else if (selectedType === 'transferencia') {
         if (l.tipo !== 'transferencia') return false;
       }
+    }
+
+    // 3.5. Category check
+    if (selectedCategoriaId !== 'all') {
+      if (l.categoriaId !== selectedCategoriaId) return false;
     }
 
     // 4. Text and Value search check
@@ -459,6 +501,11 @@ export function ExtratoView({
         >
           <Filter size={14} />
           <span>Filtros</span>
+          {activeFiltersCount > 0 && (
+            <span className="w-4 h-4 rounded-full bg-[var(--bg-secondary)] text-white text-[10px] flex items-center justify-center font-extrabold">
+              {activeFiltersCount}
+            </span>
+          )}
           {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
@@ -467,6 +514,23 @@ export function ExtratoView({
       {showFilters && (
         <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-5 rounded-[24px] space-y-4">
           
+          {/* Header of filters with quick reset if any active */}
+          {activeFiltersCount > 0 && (
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--bg-tertiary)]">
+              <span className="text-[11px] font-bold text-[var(--text-discreto)]">
+                {activeFiltersCount} {activeFiltersCount === 1 ? 'filtro ativo' : 'filtros ativos'}
+              </span>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-[11px] font-bold text-[#1c7ae4] hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <X size={12} />
+                Limpar todos os filtros
+              </button>
+            </div>
+          )}
+
           {/* B. Specific Account / Credit Card Selector */}
           <div>
             <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-2">
@@ -529,7 +593,16 @@ export function ExtratoView({
               ] as const).map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => setSelectedType(t.id)}
+                  onClick={() => {
+                    setSelectedType(t.id);
+                    // If current selected category doesn't match new type, reset category
+                    if (t.id === 'receita' || t.id === 'despesa') {
+                      const cat = categorias.find(c => c.id === selectedCategoriaId);
+                      if (cat && cat.tipo !== t.id) {
+                        setSelectedCategoriaId('all');
+                      }
+                    }
+                  }}
                   className={`flex-1 py-2 text-center tag-flat transition-colors ${
                     selectedType === t.id
                       ? 'bg-[var(--bg-secondary)] text-white'
@@ -539,6 +612,60 @@ export function ExtratoView({
                   {t.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* C2. Categoria Filter */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider">
+                Categoria
+              </span>
+              {selectedCategoriaId !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategoriaId('all')}
+                  className="text-[10px] font-bold text-[#1c7ae4] hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <X size={10} />
+                  Limpar categoria
+                </button>
+              )}
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs font-semibold custom-scrollbar">
+              <button
+                type="button"
+                onClick={() => setSelectedCategoriaId('all')}
+                className={`px-3 py-1.5 tag-flat transition-colors shrink-0 cursor-pointer ${
+                  selectedCategoriaId === 'all'
+                    ? 'bg-[var(--bg-secondary)] text-white'
+                    : 'bg-[var(--bg-app)] border border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                }`}
+              >
+                Todas
+              </button>
+              {availableCategorias.map((cat) => {
+                const isSelected = selectedCategoriaId === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategoriaId(isSelected ? 'all' : cat.id)}
+                    className={`px-3 py-1.5 tag-flat border transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      isSelected
+                        ? 'bg-[var(--bg-secondary)] border-transparent text-white'
+                        : 'bg-[var(--bg-app)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        cat.tipo === 'receita' ? 'bg-[#00cc52]' : 'bg-[#d03c4d]'
+                      }`}
+                    />
+                    {cat.nome}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -756,9 +883,18 @@ export function ExtratoView({
         </h3>
 
         {filteredLancamentos.length === 0 ? (
-          <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-10 text-center text-[var(--text-discreto)]">
+          <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] p-10 text-center text-[var(--text-discreto)] flex flex-col items-center">
             <p className="text-sm font-medium">Nenhum lançamento corresponde aos filtros ativos.</p>
             <p className="text-xs mt-1">Experimente mudar o mês ou limpar os filtros de pesquisa.</p>
+            {activeFiltersCount > 0 && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="mt-3 px-3 py-1.5 text-xs font-bold text-[#1c7ae4] bg-[#1c7ae4]/10 hover:bg-[#1c7ae4]/20 rounded-xl transition-colors cursor-pointer"
+              >
+                Limpar todos os filtros
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-2.5">
