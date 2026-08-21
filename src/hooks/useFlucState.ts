@@ -18,6 +18,8 @@ export function useFlucState() {
             ...getDefaultState(),
             ...parsed,
             cofrinhoHistorico: parsed.cofrinhoHistorico || [],
+            metas: parsed.metas || [],
+            metaContribuicoes: parsed.metaContribuicoes || [],
             deletedIds: parsed.deletedIds || [],
             theme: parsed.theme || 'clean'
           };
@@ -837,6 +839,7 @@ export function useFlucState() {
     importStateFromJSON,
     isDateInMonthYear,
     isCloudSyncing,
+    setState,
     forceSync: async () => {
       if (!currentUser) return;
       const now = Date.now();

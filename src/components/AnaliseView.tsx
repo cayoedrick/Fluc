@@ -1,23 +1,33 @@
 import React, { useState, useMemo } from 'react';
-import { Lancamento, Categoria } from '../types';
+import { FlucState, Lancamento, Categoria, MetaFinanceira, MetaContribuicao } from '../types';
 import { formatCurrency } from '../utils/currency';
-import { Menu, TrendingUp, TrendingDown, Info, HelpCircle, PieChart as PieChartIcon } from 'lucide-react';
+import { Menu, TrendingUp, TrendingDown, Info, HelpCircle, PieChart as PieChartIcon, Target, Plus, CheckCircle2, AlertTriangle, ArrowRight, X, BrainCircuit, Sparkles, RefreshCw } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { MetasView } from './MetasView';
 
 interface AnaliseViewProps {
   lancamentos: Lancamento[];
   categorias: Categoria[];
+  state: FlucState;
+  setState: React.Dispatch<React.SetStateAction<FlucState>>;
   onOpenMenu?: () => void;
   onOpenSyncModal: () => void;
 }
 
 type PeriodType = 'este_mes' | 'mes_anterior' | 'ultimos_3_meses' | 'ultimos_6_meses' | 'este_ano' | 'personalizado';
 
-export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncModal }: AnaliseViewProps) {
+export function AnaliseView({ lancamentos, categorias, state, setState, onOpenMenu, onOpenSyncModal }: AnaliseViewProps) {
+  const [activeTab, setActiveTab] = useState<'visao_geral' | 'metas'>('visao_geral');
   const [periodo, setPeriodo] = useState<PeriodType>('este_mes');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<string | null>(null);
+
+  // IA Overview State
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   // Helper functions for date filtering
   const today = new Date();
@@ -121,10 +131,11 @@ export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncMod
     let pDespesas = 0;
 
     const catMap = new Map<string, { id: string, nome: string, valor: number, count: number }>();
-    const evoMap = new Map<string, { name: string, receitas: number, despesas: number }>();
+    const evoMap = new Map<string, { sortKey: string, name: string, receitas: number, despesas: number }>();
 
     // Format for evolution chart based on period
-    const evoFormat = periodo === 'este_mes' || periodo === 'mes_anterior' 
+    const isDaily = periodo === 'este_mes' || periodo === 'mes_anterior';
+    const evoFormat = isDaily
       ? (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
       : (d: Date) => d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
 
@@ -138,15 +149,15 @@ export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncMod
 
       const val = l.valor;
       const d = new Date(getValidDate(l) + 'T12:00:00');
-      const timeKey = evoFormat(d);
+      const sortKey = (periodo === "este_mes" || periodo === "mes_anterior") ? getValidDate(l) : getValidDate(l).substring(0, 7);
 
-      if (!evoMap.has(timeKey)) {
-        evoMap.set(timeKey, { name: timeKey, receitas: 0, despesas: 0 });
+      if (!evoMap.has(sortKey)) {
+        evoMap.set(sortKey, { sortKey, name: evoFormat(d), receitas: 0, despesas: 0 });
       }
 
       if (isDespesa) {
         despesas += val;
-        evoMap.get(timeKey)!.despesas += val;
+        evoMap.get(sortKey)!.despesas += val;
 
         const catId = l.categoriaId || 'sem_categoria';
         if (!catMap.has(catId)) {
@@ -159,7 +170,7 @@ export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncMod
         catMap.get(catId)!.count += 1;
       } else if (isReceita) {
         receitas += val;
-        evoMap.get(timeKey)!.receitas += val;
+        evoMap.get(sortKey)!.receitas += val;
       }
     });
 
@@ -173,13 +184,8 @@ export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncMod
 
     const gastos = Array.from(catMap.values()).sort((a, b) => b.valor - a.valor);
     
-    // Sort evolution by date conceptually (we'll just sort the keys which are strings, this is a bit simplified)
-    const evolucao = Array.from(evoMap.values());
-    if (periodo !== 'este_mes' && periodo !== 'mes_anterior') {
-        // More robust sort needed for month names, but keeping simple for MVP
-        // Actually, let's sort by date parsing if possible, or just rely on chronological insertion 
-        // A better approach is generating all periods between start and end.
-    }
+    // Sort evolution by date using the underlying YYYY-MM-DD or YYYY-MM sortKey
+    const evolucao = Array.from(evoMap.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
     return {
       currentLancamentos: current,
@@ -256,6 +262,59 @@ export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncMod
     return list;
   }, [variacaoDespesas, gastosPorCategoria, totalDespesas, saldo]);
 
+  const getPeriodoLabel = (p: PeriodType) => {
+    switch (p) {
+      case 'este_mes': return 'Este mês';
+      case 'mes_anterior': return 'Mês anterior';
+      case 'ultimos_3_meses': return 'Últimos 3 meses';
+      case 'ultimos_6_meses': return 'Últimos 6 meses';
+      case 'este_ano': return 'Este ano';
+      case 'personalizado': return 'Período personalizado';
+      default: return 'Período selecionado';
+    }
+  };
+
+  const fetchOverviewAIAnalysis = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    setIsAiModalOpen(true);
+    try {
+      const topCategorias = gastosPorCategoria.slice(0, 5).map(c => ({
+        nome: c.nome,
+        valor: formatCurrency(c.valor),
+        percentual: totalDespesas > 0 ? ((c.valor / totalDespesas) * 100).toFixed(1) : '0'
+      }));
+
+      const res = await fetch("/api/analyze-overview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          periodoLabel: getPeriodoLabel(periodo),
+          totalReceitas: formatCurrency(totalReceitas),
+          totalDespesas: formatCurrency(totalDespesas),
+          saldo: formatCurrency(saldo),
+          economizado: formatCurrency(economizado),
+          variacaoDespesas,
+          topCategorias,
+          qtdLancamentos: currentLancamentos.length
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Erro ao conectar com a API");
+      }
+
+      const data = await res.json();
+      setAiAnalysis(data);
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err.message || "Erro inesperado ao consultar a IA");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   // Selected Category Transactions
   const selectedCatTransactions = useMemo(() => {
     if (!selectedCategoriaId) return [];
@@ -284,28 +343,73 @@ export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncMod
         </div>
       </div>
 
-      {/* Filters */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold custom-scrollbar">
-            {[
-              { id: 'este_mes', label: 'Este mês' },
-              { id: 'mes_anterior', label: 'Mês anterior' },
-              { id: 'ultimos_3_meses', label: 'Últimos 3 meses' },
-              { id: 'ultimos_6_meses', label: 'Últimos 6 meses' },
-              { id: 'este_ano', label: 'Este ano' },
-              { id: 'personalizado', label: 'Personalizado' },
-            ].map(p => (
-              <button
-                key={p.id}
-                onClick={() => setPeriodo(p.id as PeriodType)}
-                className={`px-3.5 py-2 tag-flat border transition-colors shrink-0 flex items-center gap-1.5 ${
-                  periodo === p.id 
-                    ? 'bg-[var(--bg-secondary)] text-white font-bold border-[var(--bg-secondary)]' 
-                    : 'bg-[var(--bg-primary)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+      {/* 2. Top Tab Selector (Visão Geral vs Metas) */}
+      <div className="flex bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-1.5 rounded-[18px] text-sm font-semibold max-w-sm">
+        <button
+          onClick={() => setActiveTab('visao_geral')}
+          className={`flex-1 py-2.5 px-4 rounded-[14px] flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'visao_geral'
+              ? 'bg-[var(--bg-secondary)] text-white border border-[var(--bg-secondary)]'
+              : 'text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+          }`}
+        >
+          <PieChartIcon size={16} />
+          <span>Visão Geral</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('metas')}
+          className={`flex-1 py-2.5 px-4 rounded-[14px] flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'metas'
+              ? 'bg-[var(--bg-secondary)] text-white border border-[var(--bg-secondary)]'
+              : 'text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+          }`}
+        >
+          <Target size={16} />
+          <span>Metas</span>
+        </button>
+      </div>
+
+      {activeTab === 'metas' ? (
+        <MetasView 
+          state={state}
+          setState={setState}
+          currentDate={periodo === 'este_mes' ? new Date().toISOString().split('T')[0].substring(0,7) : null}
+        />
+      ) : (
+        <>
+          {/* Filters and AI Action */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold custom-scrollbar">
+              {[
+                { id: 'este_mes', label: 'Este mês' },
+                { id: 'mes_anterior', label: 'Mês anterior' },
+                { id: 'ultimos_3_meses', label: 'Últimos 3 meses' },
+                { id: 'ultimos_6_meses', label: 'Últimos 6 meses' },
+                { id: 'este_ano', label: 'Este ano' },
+                { id: 'personalizado', label: 'Personalizado' },
+              ].map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setPeriodo(p.id as PeriodType)}
+                  className={`px-3.5 py-2 tag-flat border transition-colors shrink-0 flex items-center gap-1.5 ${
+                    periodo === p.id 
+                      ? 'bg-[var(--bg-secondary)] text-white font-bold border-[var(--bg-secondary)]' 
+                      : 'bg-[var(--bg-primary)] border-[var(--bg-tertiary)] text-[var(--text-discreto)] hover:text-[var(--text-general)]'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={fetchOverviewAIAnalysis}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-[14px] bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 border border-indigo-500/20 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs"
+              title="Gerar diagnóstico inteligente com Gemini"
+            >
+              <BrainCircuit size={16} />
+              <span>Análise com IA</span>
+            </button>
           </div>
 
           {periodo === 'personalizado' && (
@@ -443,10 +547,19 @@ export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncMod
 
                 {/* Análises e Oportunidades */}
                 <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-3xl p-6 flex flex-col">
-                  <h3 className="text-sm font-bold text-[var(--text-general)] mb-6 flex items-center gap-2">
-                    <HelpCircle className="stroke-[2.5] text-[var(--text-discreto)]" size={18} />
-                    Análises e Oportunidades
-                  </h3>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-sm font-bold text-[var(--text-general)] flex items-center gap-2">
+                      <HelpCircle className="stroke-[2.5] text-[var(--text-discreto)]" size={18} />
+                      Análises e Oportunidades
+                    </h3>
+                    <button
+                      onClick={fetchOverviewAIAnalysis}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 text-xs font-bold rounded-xl transition-colors cursor-pointer border border-indigo-500/20"
+                    >
+                      <BrainCircuit size={14} />
+                      <span>Diagnóstico IA</span>
+                    </button>
+                  </div>
                   
                   <div className="flex-1 space-y-4">
                     {analises.map((an, idx) => (
@@ -517,6 +630,146 @@ export function AnaliseView({ lancamentos, categorias, onOpenMenu, onOpenSyncMod
               </div>
             </>
           )}
+        </>
+      )}
+
+      {/* Modal Análise Inteligente com IA na Visão Geral */}
+      {isAiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] overflow-hidden flex flex-col p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-3 border-b border-[var(--bg-tertiary)]">
+              <div className="flex items-center gap-2.5 text-indigo-500 font-bold">
+                <BrainCircuit size={22} />
+                <div className="flex flex-col">
+                  <h3 className="text-base text-[var(--text-general)] leading-tight">Diagnóstico Inteligente</h3>
+                  <span className="text-[11px] text-[var(--text-discreto)] font-medium">Gemini 3.6 Flash • {getPeriodoLabel(periodo)}</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsAiModalOpen(false)} 
+                className="text-[var(--text-discreto)] hover:text-[var(--text-general)] p-1 rounded-lg hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {aiLoading ? (
+              <div className="flex flex-col items-center justify-center py-10 space-y-3">
+                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm font-bold text-[var(--text-general)]">Processando dados do período...</p>
+                <p className="text-xs text-[var(--text-discreto)]">O Gemini está analisando receitas, despesas e hábitos de consumo.</p>
+              </div>
+            ) : aiError ? (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl text-sm space-y-2">
+                <div className="flex items-center gap-2 font-bold">
+                  <AlertTriangle size={18} />
+                  <span>Análise indisponível</span>
+                </div>
+                <p className="text-xs leading-relaxed">{aiError}</p>
+                <p className="text-[11px] text-[var(--text-discreto)] pt-1 border-t border-red-500/20">
+                  Certifique-se de que a variável <strong>GEMINI_API_KEY</strong> está definida nas configurações do projeto.
+                </p>
+              </div>
+            ) : aiAnalysis ? (
+              <div className="space-y-4 max-h-[65vh] overflow-y-auto custom-scrollbar pr-2">
+                {/* Resumo e Saúde Financeira */}
+                <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-4 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-500">Resumo Executivo</span>
+                    {aiAnalysis.saudeFinanceira && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                        {aiAnalysis.saudeFinanceira}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-[var(--text-general)] leading-relaxed">{aiAnalysis.resumoGeral}</p>
+                </div>
+
+                {/* Pontos Fortes e Pontos de Atenção em Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Pontos Fortes */}
+                  {aiAnalysis.pontosFortes && aiAnalysis.pontosFortes.length > 0 && (
+                    <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-3.5 rounded-2xl">
+                      <h4 className="text-xs font-bold text-[#00cc52] uppercase mb-2 flex items-center gap-1.5">
+                        <CheckCircle2 size={14} />
+                        Pontos Fortes
+                      </h4>
+                      <ul className="space-y-1.5 text-xs text-[var(--text-general)]">
+                        {aiAnalysis.pontosFortes.map((p: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-1.5 leading-snug">
+                            <span className="text-[#00cc52] font-bold shrink-0">•</span>
+                            <span>{p}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Pontos de Atenção */}
+                  {aiAnalysis.pontosAtencao && aiAnalysis.pontosAtencao.length > 0 && (
+                    <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-3.5 rounded-2xl">
+                      <h4 className="text-xs font-bold text-[#ed793a] uppercase mb-2 flex items-center gap-1.5">
+                        <AlertTriangle size={14} />
+                        Pontos de Atenção
+                      </h4>
+                      <ul className="space-y-1.5 text-xs text-[var(--text-general)]">
+                        {aiAnalysis.pontosAtencao.map((p: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-1.5 leading-snug">
+                            <span className="text-[#ed793a] font-bold shrink-0">•</span>
+                            <span>{p}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recomendações e Ações Práticas */}
+                {aiAnalysis.recomendacoes && aiAnalysis.recomendacoes.length > 0 && (
+                  <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-4 rounded-2xl">
+                    <h4 className="text-xs font-bold text-indigo-500 uppercase mb-2.5 flex items-center gap-1.5">
+                      <Sparkles size={14} />
+                      Ações Recomendadas
+                    </h4>
+                    <ol className="space-y-2 text-xs text-[var(--text-general)] list-decimal pl-4 leading-relaxed">
+                      {aiAnalysis.recomendacoes.map((rec: string, idx: number) => (
+                        <li key={idx} className="pl-1">{rec}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* Mensagem Final */}
+                {aiAnalysis.mensagemFinal && (
+                  <div className="text-center italic text-xs font-medium text-[var(--text-discreto)] pt-2 border-t border-[var(--bg-tertiary)] px-2">
+                    "{aiAnalysis.mensagemFinal}"
+                  </div>
+                )}
+              </div>
+            ) : null}
+            
+            {!aiLoading && (
+              <div className="flex gap-2 pt-2 border-t border-[var(--bg-tertiary)]">
+                {aiAnalysis && (
+                  <button 
+                    onClick={fetchOverviewAIAnalysis} 
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-[12px] text-xs font-bold bg-[var(--bg-app)] text-[var(--text-general)] border border-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                  >
+                    <RefreshCw size={14} />
+                    Recalcular
+                  </button>
+                )}
+                <button 
+                  onClick={() => setIsAiModalOpen(false)} 
+                  className="flex-1 py-2.5 rounded-[12px] text-xs font-bold bg-[var(--bg-secondary)] text-white hover:opacity-90 transition-opacity"
+                >
+                  Fechar Diagnóstico
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

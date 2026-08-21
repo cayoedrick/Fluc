@@ -37,7 +37,8 @@ export default function App() {
     resetAllData,
     eraseAllData,
     importStateFromJSON,
-    isDateInMonthYear
+    isDateInMonthYear,
+    setState
   } = useFlucState();
 
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
@@ -706,6 +707,8 @@ export default function App() {
             <AnaliseView
               lancamentos={state.lancamentos}
               categorias={state.categorias}
+              state={state}
+              setState={setState}
               onOpenMenu={() => setIsSidebarOpen(true)}
               onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />

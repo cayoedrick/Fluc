@@ -165,6 +165,8 @@ export const getDefaultState = () => {
     lancamentos,
     cofrinhos,
     cofrinhoHistorico,
+    metas: [],
+    metaContribuicoes: [],
     theme: 'clean' as const
   };
 };

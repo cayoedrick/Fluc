@@ -84,6 +84,30 @@ export interface CofrinhoHistorico {
   updatedAt?: number;
 }
 
+export interface MetaFinanceira {
+  id: string;
+  nome: string;
+  tipo: string;
+  valorDesejado: number;
+  valorAcumulado: number;
+  dataInicio: string;
+  dataDesejada: string;
+  prioridade: 'baixa' | 'media' | 'alta';
+  valorMensalDefinido: number;
+  status: 'em_andamento' | 'pausada' | 'concluida';
+  categoriasProtegidas: string[];
+  updatedAt?: number;
+}
+
+export interface MetaContribuicao {
+  id: string;
+  metaId: string;
+  valor: number;
+  data: string;
+  observacao?: string;
+  updatedAt?: number;
+}
+
 export type ViewType = 'dashboard' | 'extrato' | 'categorias' | 'contas_cartoes' | 'reservas_cofrinhos' | 'configuracoes' | 'analise';
 
 export interface FlucState {
@@ -93,6 +117,8 @@ export interface FlucState {
   lancamentos: Lancamento[];
   cofrinhos: Cofrinho[];
   cofrinhoHistorico: CofrinhoHistorico[];
+  metas: MetaFinanceira[];
+  metaContribuicoes: MetaContribuicao[];
   theme: 'dark' | 'clean';
   deletedIds?: string[];
   lastSyncUpload?: number;
