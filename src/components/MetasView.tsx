@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { FlucState, MetaFinanceira, MetaContribuicao, Categoria } from '../types';
 import { formatCurrency, formatCurrencyInput } from '../utils/currency';
-import { Plus, Target, CheckCircle2, AlertTriangle, ArrowRight, X, TrendingUp, TrendingDown, Info, Shield, BrainCircuit } from 'lucide-react';
+import { Plus, Target, CheckCircle2, AlertTriangle, ArrowRight, X, TrendingUp, TrendingDown, Info, Shield } from 'lucide-react';
 
 interface MetasViewProps {
   state: FlucState;
@@ -23,38 +23,6 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
   const [prioridade, setPrioridade] = useState<'baixa'|'media'|'alta'>('media');
   const [maxMensal, setMaxMensal] = useState('');
   const [categoriasProtegidas, setCategoriasProtegidas] = useState<string[]>([]);
-  
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<any | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [useAI, setUseAI] = useState<boolean | null>(null);
-
-  const fetchAIAnalysis = async (meta: MetaFinanceira, savingsCat: any[]) => {
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const res = await fetch("/api/analyze-meta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          meta,
-          averages,
-          savingsCat
-        })
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.details || errorData.error || `Erro HTTP ${res.status}: Não foi possível conectar ao backend.`);
-      }
-      const data = await res.json();
-      setAiAnalysis(data);
-    } catch (err: any) {
-      console.error(err);
-      setAiError(err.message);
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   // Contribute state
   const [isContributeOpen, setIsContributeOpen] = useState(false);
@@ -364,16 +332,8 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
             </ol>
             
             <div className="mt-6 flex gap-2">
-              <button onClick={() => setIsContributeOpen(true)} className="flex-1 bg-[#1c7ae4] text-white text-xs font-bold py-2 rounded-xl hover:opacity-90 transition-opacity">
+              <button onClick={() => setIsContributeOpen(true)} className="w-full bg-[#1c7ae4] text-white text-xs font-bold py-2 rounded-xl hover:opacity-90 transition-opacity">
                 Adicionar Valor
-              </button>
-              <button onClick={() => {
-                setUseAI(true);
-                if (!aiAnalysis) {
-                  fetchAIAnalysis(meta, savingsCat);
-                }
-              }} className="flex items-center justify-center gap-2 px-4 bg-indigo-500/10 text-indigo-500 text-xs font-bold rounded-xl hover:bg-indigo-500/20 transition-colors">
-                <BrainCircuit size={16} /> IA
               </button>
             </div>
           </div>
@@ -461,63 +421,6 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
               <button onClick={() => setIsContributeOpen(false)} className="flex-1 py-2 rounded-[12px] text-xs font-bold bg-[var(--bg-app)] text-[var(--text-discreto)] hover:bg-[var(--bg-tertiary)]/50 transition-colors">Cancelar</button>
               <button onClick={handleContribute} className="flex-1 py-2 rounded-[12px] text-xs font-bold bg-[#00cc52] text-white hover:opacity-90 transition-opacity">Adicionar</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {useAI === true && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] overflow-hidden flex flex-col p-6 space-y-4">
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2 text-indigo-500 font-bold">
-                <BrainCircuit size={20} />
-                <h3>Análise Inteligente</h3>
-              </div>
-              <button onClick={() => setUseAI(false)} className="text-[var(--text-discreto)] hover:text-[var(--text-general)]">
-                <X size={20} />
-              </button>
-            </div>
-            
-            {aiLoading ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-sm font-semibold text-[var(--text-discreto)]">O Gemini está analisando sua meta...</p>
-              </div>
-            ) : aiError ? (
-              <div className="bg-red-500/10 text-red-500 p-4 rounded-xl text-sm">
-                <p className="font-bold mb-1">Análise indisponível</p>
-                <p>{aiError}</p>
-                <p className="mt-2 text-xs opacity-80">Por favor, verifique se a GEMINI_API_KEY foi adicionada nas configurações e ao arquivo .env no backend.</p>
-              </div>
-            ) : aiAnalysis ? (
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                <div>
-                  <p className="text-sm text-[var(--text-general)]">{aiAnalysis.resumoCurto}</p>
-                </div>
-                
-                <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-4 rounded-xl">
-                  <h4 className="text-xs font-bold text-indigo-500 uppercase mb-2">Plano Estratégico</h4>
-                  <ul className="space-y-2 text-sm text-[var(--text-general)] list-disc pl-4">
-                    {aiAnalysis.passos.map((passo: string, idx: number) => (
-                      <li key={idx}>{passo}</li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="bg-[var(--bg-app)] border border-[var(--bg-tertiary)] p-4 rounded-xl">
-                  <h4 className="text-xs font-bold text-indigo-500 uppercase mb-2">Onde Ajustar</h4>
-                  <p className="text-sm text-[var(--text-general)]">{aiAnalysis.sugestoesAjustes}</p>
-                </div>
-                
-                <div className="text-center italic text-sm font-semibold text-[var(--text-discreto)] pt-2 border-t border-[var(--bg-tertiary)]">
-                  "{aiAnalysis.mensagemFinal}"
-                </div>
-              </div>
-            ) : null}
-            
-            {!aiLoading && (
-               <button onClick={() => setUseAI(false)} className="w-full mt-4 py-2.5 rounded-[12px] text-sm font-bold bg-[var(--bg-app)] text-[var(--text-general)] border border-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors">Fechar Análise</button>
-            )}
           </div>
         </div>
       )}
