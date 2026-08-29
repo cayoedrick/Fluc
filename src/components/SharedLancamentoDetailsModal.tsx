@@ -32,6 +32,9 @@ export function SharedLancamentoDetailsModal({
 }: SharedLancamentoDetailsModalProps) {
   if (!lancamento) return null;
 
+  // Check if this lancamento is a reimbursement / revenue
+  const isReceita = lancamento.tipo === 'receita' || Boolean(lancamento.isReimbursement);
+
   // Check if it's a generated reimbursement by useFlucState (starts with reimb-)
   const isGeneratedReimbursement = lancamento.isReimbursement && lancamento.id.startsWith('reimb-');
   let combinedExpenses: Lancamento[] = [];
@@ -997,15 +1000,16 @@ export function SharedLancamentoDetailsModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div 
-          key="shared-lancamento-modal-container"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            key="shared-lancamento-modal-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
           <div
             onClick={onClose}
             className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
@@ -1107,149 +1111,148 @@ export function SharedLancamentoDetailsModal({
                 )}
               </div>
 
-              {/* Export Config Box: Conta Bancária & PIX key selection */}
-              <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <QrCode size={16} className="text-[#00cc52]" />
-                    <span className="text-xs font-bold text-[var(--text-general)] uppercase tracking-wider">
-                      Pagamento via PIX no Extrato
-                    </span>
-                  </div>
-                  <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-[var(--text-discreto)]">
-                    <input
-                      type="checkbox"
-                      checked={includePixInExport}
-                      onChange={(e) => setIncludePixInExport(e.target.checked)}
-                      className="accent-[#00cc52] rounded-md cursor-pointer"
-                    />
-                    <span>Incluir QR Code</span>
-                  </label>
-                </div>
-
-                {includePixInExport && (
-                  <div className="space-y-3 pt-1 border-t border-emerald-500/10">
-                    <div>
-                      <label className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-1">
-                        Conta Bancária
-                      </label>
-                      <div className="relative flex items-center">
-                        <Landmark size={14} className="absolute left-3 text-[var(--text-discreto)] pointer-events-none" />
-                        <select
-                          value={selectedContaId}
-                          onChange={(e) => handleSelectConta(e.target.value)}
-                          className="w-full py-2 pl-9 pr-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-xl text-xs text-[var(--text-general)] font-medium focus:outline-hidden"
-                        >
-                          <option value="">-- Nenhuma / Digitar PIX Manual --</option>
-                          {contas.map(c => (
-                            <option key={`conta-option-${c.id}`} value={c.id}>
-                              {c.nome} {c.chavePix ? `(PIX: ${c.chavePix})` : '(Sem PIX cadastrado)'}
-                            </option>
-                          ))}
-                        </select>
+              {/* Export Config Box & Export Options (Only for Receitas / Reimbursements) */}
+              {isReceita && (
+                <>
+                  {/* Export Config Box: Conta Bancária & PIX key selection */}
+                  <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <QrCode size={16} className="text-[#00cc52]" />
+                        <span className="text-xs font-bold text-[var(--text-general)] uppercase tracking-wider">
+                          Pagamento via PIX no Extrato
+                        </span>
                       </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-1">
-                        Chave PIX Cadastrada / Para Recebimento
+                      <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-[var(--text-discreto)]">
+                        <input
+                          type="checkbox"
+                          checked={includePixInExport}
+                          onChange={(e) => setIncludePixInExport(e.target.checked)}
+                          className="accent-[#00cc52] rounded-md cursor-pointer"
+                        />
+                        <span>Incluir QR Code</span>
                       </label>
-                      <input
-                        type="text"
-                        placeholder="Informe o CPF, e-mail, telefone ou chave aleatória"
-                        value={customPixKey}
-                        onChange={(e) => setCustomPixKey(e.target.value)}
-                        className="w-full py-2 px-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-xl text-xs text-[var(--text-general)] font-mono focus:outline-hidden"
-                      />
                     </div>
 
-                    {pixQrCodeUrl && (
-                      <div className="flex items-center gap-3 p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl">
-                        <img src={pixQrCodeUrl} alt="Preview QR Code PIX" className="w-14 h-14 bg-white p-1 rounded-lg shrink-0 border border-slate-200" />
-                        <div className="text-[11px] leading-tight min-w-0 flex-1">
-                          <span className="font-bold text-[#00cc52] block">QR Code gerado para o extrato</span>
-                          <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
-                            Valor total: <strong className="text-[var(--text-general)]">{formatCurrency(exportTotalVal)}</strong>
-                          </span>
-                          <span className="text-[9px] font-mono text-[var(--text-general)] truncate block mt-0.5 max-w-[200px]">
-                            {customPixKey}
-                          </span>
+                    {includePixInExport && (
+                      <div className="space-y-3 pt-1 border-t border-emerald-500/10">
+                        <div>
+                          <label className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-1">
+                            Conta Bancária
+                          </label>
+                          <div className="relative flex items-center">
+                            <Landmark size={14} className="absolute left-3 text-[var(--text-discreto)] pointer-events-none" />
+                            <select
+                              value={selectedContaId}
+                              onChange={(e) => handleSelectConta(e.target.value)}
+                              className="w-full py-2 pl-9 pr-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-xl text-xs text-[var(--text-general)] font-medium focus:outline-hidden"
+                            >
+                              <option value="">-- Nenhuma / Digitar PIX Manual --</option>
+                              {contas.map(c => (
+                                <option key={`conta-option-${c.id}`} value={c.id}>
+                                  {c.nome} {c.chavePix ? `(PIX: ${c.chavePix})` : '(Sem PIX cadastrado)'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-[var(--text-discreto)] uppercase tracking-wider block mb-1">
+                            Chave PIX Cadastrada / Para Recebimento
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Informe o CPF, e-mail, telefone ou chave aleatória"
+                            value={customPixKey}
+                            onChange={(e) => setCustomPixKey(e.target.value)}
+                            className="w-full py-2 px-3 bg-[var(--bg-app)] border border-[var(--bg-tertiary)] rounded-xl text-xs text-[var(--text-general)] font-mono focus:outline-hidden"
+                          />
+                        </div>
+
+                        {pixQrCodeUrl && (
+                          <div className="flex items-center gap-3 p-2.5 bg-[var(--bg-app)] border border-emerald-500/20 rounded-xl">
+                            <img src={pixQrCodeUrl} alt="Preview QR Code PIX" className="w-14 h-14 bg-white p-1 rounded-lg shrink-0 border border-slate-200" />
+                            <div className="text-[11px] leading-tight min-w-0 flex-1">
+                              <span className="font-bold text-[#00cc52] block">QR Code gerado para o extrato</span>
+                              <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
+                                Valor total: <strong className="text-[var(--text-general)]">{formatCurrency(exportTotalVal)}</strong>
+                              </span>
+                              <span className="text-[9px] font-mono text-[var(--text-general)] truncate block mt-0.5 max-w-[200px]">
+                                {customPixKey}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              {/* Export Options Dropdown Menu */}
-              <div className="relative pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                  disabled={isExporting}
-                  className="w-full py-3.5 px-4 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 font-bold text-xs rounded-2xl transition-all flex items-center justify-between border border-indigo-500/20 cursor-pointer disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-2">
-                    <Download size={16} />
-                    <span>{isExporting ? 'Exportando Extrato...' : 'Exportar Extrato Detalhado'}</span>
-                  </div>
-                  <ChevronDown size={16} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                <AnimatePresence>
-                  {isExportMenuOpen && (
-                    <motion.div
-                      key="export-menu-dropdown"
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute bottom-full mb-2 left-0 right-0 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-2xl shadow-2xl overflow-hidden p-1.5 z-50 space-y-1"
+                  {/* Export Options Dropdown Menu */}
+                  <div className="relative pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                      disabled={isExporting}
+                      className="w-full py-3.5 px-4 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 font-bold text-xs rounded-2xl transition-all flex items-center justify-between border border-indigo-500/20 cursor-pointer disabled:opacity-50"
                     >
-                      <button
-                        type="button"
-                        onClick={handleExportPDF}
-                        className="w-full p-2.5 flex items-center gap-3 rounded-xl hover:bg-indigo-500/10 text-left transition-colors cursor-pointer group"
-                      >
-                        <div className="p-2 rounded-lg bg-red-500/10 text-red-500 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                          <FileText size={16} />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para PDF (.pdf)</span>
-                          <span className="text-[10px] text-[var(--text-discreto)]">Extrato detalhado com itens e QR Code PIX</span>
-                        </div>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <Download size={16} />
+                        <span>{isExporting ? 'Exportando Extrato...' : 'Exportar Extrato Detalhado'}</span>
+                      </div>
+                      <ChevronDown size={16} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
 
-                      <button
-                        type="button"
-                        onClick={handleExportPNG}
-                        className="w-full p-2.5 flex items-center gap-3 rounded-xl hover:bg-indigo-500/10 text-left transition-colors cursor-pointer group"
+                    {isExportMenuOpen && (
+                      <div
+                        className="absolute bottom-full mb-2 left-0 right-0 bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-2xl shadow-2xl overflow-hidden p-1.5 z-50 space-y-1"
                       >
-                        <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                          <Image size={16} />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para Imagem (.png)</span>
-                          <span className="text-[10px] text-[var(--text-discreto)]">Imagem do extrato formatado</span>
-                        </div>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={handleExportPDF}
+                          className="w-full p-2.5 flex items-center gap-3 rounded-xl hover:bg-indigo-500/10 text-left transition-colors cursor-pointer group"
+                        >
+                          <div className="p-2 rounded-lg bg-red-500/10 text-red-500 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                            <FileText size={16} />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para PDF (.pdf)</span>
+                            <span className="text-[10px] text-[var(--text-discreto)]">Extrato detalhado com itens e QR Code PIX</span>
+                          </div>
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={handleExportDOC}
-                        className="w-full p-2.5 flex items-center gap-3 rounded-xl hover:bg-indigo-500/10 text-left transition-colors cursor-pointer group"
-                      >
-                        <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                          <FileCode size={16} />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para Word (.doc)</span>
-                          <span className="text-[10px] text-[var(--text-discreto)]">Documento editável com dados de pagamento</span>
-                        </div>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                        <button
+                          type="button"
+                          onClick={handleExportPNG}
+                          className="w-full p-2.5 flex items-center gap-3 rounded-xl hover:bg-indigo-500/10 text-left transition-colors cursor-pointer group"
+                        >
+                          <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                            <Image size={16} />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para Imagem (.png)</span>
+                            <span className="text-[10px] text-[var(--text-discreto)]">Imagem do extrato formatado</span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleExportDOC}
+                          className="w-full p-2.5 flex items-center gap-3 rounded-xl hover:bg-indigo-500/10 text-left transition-colors cursor-pointer group"
+                        >
+                          <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                            <FileCode size={16} />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-general)] block">Exportar para Word (.doc)</span>
+                            <span className="text-[10px] text-[var(--text-discreto)]">Documento editável com dados de pagamento</span>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Close Button */}
               <button
@@ -1262,109 +1265,20 @@ export function SharedLancamentoDetailsModal({
           </motion.div>
         </motion.div>
       )}
+    </AnimatePresence>
 
-      {/* Hidden / Offscreen template container captured for PNG and PDF exports */}
-      <div style={{ position: 'fixed', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
-        <div
-          ref={exportContentRef}
-          className="w-[600px] p-8 bg-white font-sans space-y-6 rounded-none shadow-none"
-          style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
-        >
-          {/* Header */}
-          <div className="border-b-2 border-indigo-600 pb-4 flex justify-between items-end">
-            <div>
-              <h1 className="text-xl font-black text-indigo-600 tracking-tight">
-                Extrato Detalhado
-              </h1>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest">Emissão</span>
-              <span className="text-xs font-bold text-slate-700">{formatDate(new Date().toISOString().split('T')[0])}</span>
-            </div>
-          </div>
-
-          {/* Table of Items - Without other participants */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Itens do Lançamento</h3>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-2 border-slate-200 bg-slate-100 text-[11px] font-bold text-slate-600">
-                  <th className="py-2.5 px-3">Item / Descrição</th>
-                  <th className="py-2.5 px-3">Data</th>
-                  <th className="py-2.5 px-3 text-right">Valor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {exportItemsFormatted.map((item, idx) => (
-                  <tr key={`exp-item-${item.id}-${idx}`}>
-                    <td className="py-2.5 px-3 font-semibold">{item.descricao}</td>
-                    <td className="py-2.5 px-3 text-slate-500">{formatDate(item.data)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatCurrency(item.valor)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-slate-800 text-sm font-extrabold bg-slate-50">
-                  <td colSpan={2} className="py-3 px-3 text-slate-800 uppercase tracking-wider">Valor Total</td>
-                  <td className="py-3 px-3 text-right text-indigo-600 text-base font-black">{formatCurrency(exportTotalVal)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* PIX Payment Section at bottom */}
-          {includePixInExport && customPixKey && (
-            <div className="mt-6 pt-5 border-t-2 border-dashed border-emerald-300 bg-emerald-50/60 p-5 rounded-2xl border border-emerald-200 text-center space-y-3">
-              <div className="text-emerald-800 font-black text-xs uppercase tracking-widest">
-                Dados para Pagamento via PIX
-              </div>
-
-              {selectedContaObj && (
-                <p className="text-xs font-bold text-slate-700">
-                  Conta Bancária: <span className="text-emerald-700 font-extrabold">{selectedContaObj.nome}</span>
-                </p>
-              )}
-
-              {pixQrCodeUrl && (
-                <div className="p-3 bg-white inline-block rounded-2xl border border-slate-200 shadow-xs my-1">
-                  <img src={pixQrCodeUrl} alt="QR Code PIX" className="w-40 h-40 object-contain mx-auto" />
-                </div>
-              )}
-
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200 max-w-md mx-auto">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Chave PIX</span>
-                <span data-pix-key-text className="font-mono font-black text-xs text-slate-900 select-all">{customPixKey}</span>
-              </div>
-
-              {pixPayload && (
-                <div className="bg-white p-2.5 rounded-xl border border-slate-200 max-w-md mx-auto text-left space-y-1">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
-                    PIX Copia e Cola (Código para Aplicativo do Banco)
-                  </span>
-                  <p data-pix-payload-text className="font-mono text-[9px] text-slate-800 break-all select-all font-semibold leading-tight bg-slate-50 p-2 rounded-lg border border-slate-200">
-                    {pixPayload}
-                  </p>
-                </div>
-              )}
-
-              <p className="text-[11px] text-slate-600 font-medium max-w-sm mx-auto leading-relaxed">
-                Escaneie o QR Code ou copie o código <strong>PIX Copia e Cola</strong> acima pelo aplicativo do seu banco para pagar o valor de <strong className="text-slate-900 font-black">{formatCurrency(exportTotalVal)}</strong>.
-              </p>
-            </div>
-          )}
-
-          {/* Document footer watermark */}
-          <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-medium">
-            <span>Fluc Controle Financeiro</span>
-            <span>Documento Oficial de Cobrança</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Item Delete Confirmation Overlay */}
+    {/* Item Delete Confirmation Overlay */}
+    <AnimatePresence>
       {itemToDelete && (
-        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <motion.div
+          key="item-delete-modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
           <motion.div
+            key="item-delete-modal-content"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -1512,8 +1426,107 @@ export function SharedLancamentoDetailsModal({
               </div>
             )}
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
+
+    {/* Hidden / Offscreen template container captured for PNG and PDF exports */}
+    <div style={{ position: 'fixed', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
+      <div
+        ref={exportContentRef}
+        className="w-[600px] p-8 bg-white font-sans space-y-6 rounded-none shadow-none"
+        style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
+      >
+        {/* Header */}
+        <div className="border-b-2 border-indigo-600 pb-4 flex justify-between items-end">
+          <div>
+            <h1 className="text-xl font-black text-indigo-600 tracking-tight">
+              Extrato Detalhado
+            </h1>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest">Emissão</span>
+            <span className="text-xs font-bold text-slate-700">{formatDate(new Date().toISOString().split('T')[0])}</span>
+          </div>
+        </div>
+
+        {/* Table of Items - Without other participants */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Itens do Lançamento</h3>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b-2 border-slate-200 bg-slate-100 text-[11px] font-bold text-slate-600">
+                <th className="py-2.5 px-3">Item / Descrição</th>
+                <th className="py-2.5 px-3">Data</th>
+                <th className="py-2.5 px-3 text-right">Valor</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+              {exportItemsFormatted.map((item, idx) => (
+                <tr key={`exp-item-${item.id}-${idx}`}>
+                  <td className="py-2.5 px-3 font-semibold">{item.descricao}</td>
+                  <td className="py-2.5 px-3 text-slate-500">{formatDate(item.data)}</td>
+                  <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatCurrency(item.valor)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-800 text-sm font-extrabold bg-slate-50">
+                <td colSpan={2} className="py-3 px-3 text-slate-800 uppercase tracking-wider">Valor Total</td>
+                <td className="py-3 px-3 text-right text-indigo-600 text-base font-black">{formatCurrency(exportTotalVal)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* PIX Payment Section at bottom */}
+        {includePixInExport && customPixKey && (
+          <div className="mt-6 pt-5 border-t-2 border-dashed border-emerald-300 bg-emerald-50/60 p-5 rounded-2xl border border-emerald-200 text-center space-y-3">
+            <div className="text-emerald-800 font-black text-xs uppercase tracking-widest">
+              Dados para Pagamento via PIX
+            </div>
+
+            {selectedContaObj && (
+              <p className="text-xs font-bold text-slate-700">
+                Conta Bancária: <span className="text-emerald-700 font-extrabold">{selectedContaObj.nome}</span>
+              </p>
+            )}
+
+            {pixQrCodeUrl && (
+              <div className="p-3 bg-white inline-block rounded-2xl border border-slate-200 shadow-xs my-1">
+                <img src={pixQrCodeUrl} alt="QR Code PIX" className="w-40 h-40 object-contain mx-auto" />
+              </div>
+            )}
+
+            <div className="bg-white p-2.5 rounded-xl border border-slate-200 max-w-md mx-auto">
+              <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Chave PIX</span>
+              <span data-pix-key-text className="font-mono font-black text-xs text-slate-900 select-all">{customPixKey}</span>
+            </div>
+
+            {pixPayload && (
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 max-w-md mx-auto text-left space-y-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">
+                  PIX Copia e Cola (Código para Aplicativo do Banco)
+                </span>
+                <p data-pix-payload-text className="font-mono text-[9px] text-slate-800 break-all select-all font-semibold leading-tight bg-slate-50 p-2 rounded-lg border border-slate-200">
+                  {pixPayload}
+                </p>
+              </div>
+            )}
+
+            <p className="text-[11px] text-slate-600 font-medium max-w-sm mx-auto leading-relaxed">
+              Escaneie o QR Code ou copie o código <strong>PIX Copia e Cola</strong> acima pelo aplicativo do seu banco para pagar o valor de <strong className="text-slate-900 font-black">{formatCurrency(exportTotalVal)}</strong>.
+            </p>
+          </div>
+        )}
+
+        {/* Document footer watermark */}
+        <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-medium">
+          <span>Fluc Controle Financeiro</span>
+          <span>Documento Oficial de Cobrança</span>
+        </div>
+      </div>
+    </div>
+  </>
   );
 }
