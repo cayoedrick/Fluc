@@ -1028,15 +1028,15 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
                   Sugestões de Redução em Despesas
                 </span>
                 <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar pr-1">
-                  {savingsCat.slice(0, 3).map(c => c.avg > 0 ? (
-                    <div key={c.id} className="flex justify-between items-center bg-[var(--bg-primary)] p-2 rounded-xl border border-[var(--bg-tertiary)]">
+                  {savingsCat.filter(c => c.avg > 0).slice(0, 3).map((c, idx) => (
+                    <div key={`saving-cat-${c.id || idx}`} className="flex justify-between items-center bg-[var(--bg-primary)] p-2 rounded-xl border border-[var(--bg-tertiary)]">
                       <span className="text-xs font-semibold text-[var(--text-general)] truncate max-w-[130px]">{c.nome}</span>
                       <div className="flex gap-1.5 text-[10px] font-bold">
                         <span className="bg-[#f59e0b]/10 text-[#f59e0b] px-2 py-0.5 rounded-md">-5%: R$ {formatCurrency(c.avg * 0.05)}</span>
                         <span className="bg-red-500/10 text-red-500 px-2 py-0.5 rounded-md">-10%: R$ {formatCurrency(c.avg * 0.1)}</span>
                       </div>
                     </div>
-                  ) : null)}
+                  ))}
                 </div>
               </div>
             </div>

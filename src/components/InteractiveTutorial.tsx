@@ -395,38 +395,42 @@ export function InteractiveTutorial({
         : 'items-center'
     } justify-center p-4 pointer-events-none transition-all duration-300`}>
       {/* Background Dim Backdrop with Spotlight Cutout */}
-      {highlightRect ? (
-        <>
-          {/* Transparent click catcher to allow dismiss by clicking outside spotlight */}
-          <div 
-            className="fixed inset-0 bg-transparent z-[997] cursor-pointer pointer-events-auto" 
-            onClick={handleSkip} 
-          />
-          {/* Glowing Animated Spotlight Overlay */}
+      <AnimatePresence>
+        {highlightRect ? (
+          <React.Fragment key="spotlight-layer">
+            {/* Transparent click catcher to allow dismiss by clicking outside spotlight */}
+            <div 
+              className="fixed inset-0 bg-transparent z-[997] cursor-pointer pointer-events-auto" 
+              onClick={handleSkip} 
+            />
+            {/* Glowing Animated Spotlight Overlay */}
+            <motion.div
+              key="spotlight-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ 
+                opacity: 1,
+                top: highlightRect.top - 8,
+                left: highlightRect.left - 8,
+                width: highlightRect.width + 16,
+                height: highlightRect.height + 16
+              }}
+              exit={{ opacity: 0 }}
+              className="fixed border-2 border-[var(--bg-secondary)] rounded-2xl z-[998] shadow-[0_0_0_9999px_rgba(0,0,0,0.65),_0_0_15px_rgba(255,255,255,0.4)] pointer-events-none"
+              transition={{ type: 'spring', stiffness: 220, damping: 24 }}
+            />
+          </React.Fragment>
+        ) : (
+          /* Regular Full Backdrop */
           <motion.div
+            key="regular-backdrop"
             initial={{ opacity: 0 }}
-            animate={{ 
-              opacity: 1,
-              top: highlightRect.top - 8,
-              left: highlightRect.left - 8,
-              width: highlightRect.width + 16,
-              height: highlightRect.height + 16
-            }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed border-2 border-[var(--bg-secondary)] rounded-2xl z-[998] shadow-[0_0_0_9999px_rgba(0,0,0,0.65),_0_0_15px_rgba(255,255,255,0.4)] pointer-events-none"
-            transition={{ type: 'spring', stiffness: 220, damping: 24 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-[2px] cursor-pointer z-[997] pointer-events-auto"
+            onClick={handleSkip}
           />
-        </>
-      ) : (
-        /* Regular Full Backdrop */
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-[2px] cursor-pointer z-[997] pointer-events-auto"
-          onClick={handleSkip}
-        />
-      )}
+        )}
+      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {showWelcomePrompt ? (

@@ -55,7 +55,7 @@ export function useFlucState() {
       deletedIds: combinedDeletedIds 
     };
     
-    const collections: (keyof FlucState)[] = ['contas', 'cartoes', 'categorias', 'lancamentos', 'cofrinhos', 'cofrinhoHistorico'];
+    const collections: (keyof FlucState)[] = ['contas', 'cartoes', 'categorias', 'lancamentos', 'cofrinhos', 'cofrinhoHistorico', 'metas', 'metaContribuicoes'];
 
     for (const colKey of collections) {
       const localList = (local[colKey] || []) as any[];
@@ -315,7 +315,7 @@ export function useFlucState() {
 
   // Helper to enrich state items with updatedAt timestamps when modified or created
   const enrichStateWithTimestamps = (prev: FlucState, next: FlucState): FlucState => {
-    const collections: (keyof FlucState)[] = ['contas', 'cartoes', 'categorias', 'lancamentos', 'cofrinhos', 'cofrinhoHistorico'];
+    const collections: (keyof FlucState)[] = ['contas', 'cartoes', 'categorias', 'lancamentos', 'cofrinhos', 'cofrinhoHistorico', 'metas', 'metaContribuicoes'];
     const now = Date.now();
     const updatedCollections: Record<string, any> = {};
     let changed = false;
@@ -332,7 +332,9 @@ export function useFlucState() {
       ...(next.cartoes || []).map(i => i.id),
       ...(next.categorias || []).map(i => i.id),
       ...(next.lancamentos || []).map(i => i.id),
-      ...(next.cofrinhos || []).map(i => i.id)
+      ...(next.cofrinhos || []).map(i => i.id),
+      ...(next.metas || []).map(i => i.id),
+      ...(next.metaContribuicoes || []).map(i => i.id)
     ]);
     newDeletedIds = newDeletedIds.filter(id => !allNextIds.has(id));
 

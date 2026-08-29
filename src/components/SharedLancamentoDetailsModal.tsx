@@ -192,7 +192,7 @@ export function SharedLancamentoDetailsModal({
     const payload = generatePixPayload({
       chave: customPixKey.trim(),
       valor: exportTotalVal,
-      nomeRecebedor: selectedContaObj?.nome || 'HORUS',
+      nomeRecebedor: selectedContaObj?.nome || 'FLUC CONTROLE FINANCEIRO',
       descricao: targetLanc.descricao
     });
 
@@ -538,7 +538,7 @@ export function SharedLancamentoDetailsModal({
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       pdf.setTextColor(79, 70, 229); // Indigo-600
-      pdf.text('HÓRUS MONITORAMENTO', margin, y);
+      pdf.text('Extrato Detalhado', margin, y);
 
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
@@ -550,12 +550,6 @@ export function SharedLancamentoDetailsModal({
       pdf.setTextColor(51, 65, 85); // Slate-700
       const todayFormatted = formatDate(new Date().toISOString().split('T')[0]);
       pdf.text(todayFormatted, rightX, y + 6, { align: 'right' });
-
-      y += 14;
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(9);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text('EXTRATO DETALHADO DE LANÇAMENTO COMPARTILHADO', margin, y);
 
       y += 12;
       // Header border line
@@ -801,7 +795,7 @@ export function SharedLancamentoDetailsModal({
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(8);
         pdf.setTextColor(148, 163, 184);
-        pdf.text('Hórus Monitoramento Financeiro', margin, footerY);
+        pdf.text('Fluc Controle Financeiro', margin, footerY);
         pdf.text('Documento Oficial de Cobrança', rightX, footerY, { align: 'right' });
       }
 
@@ -867,7 +861,7 @@ export function SharedLancamentoDetailsModal({
         </head>
         <body>
           <div class="header">
-            <h1>HÓRUS MONITORAMENTO — EXTRATO DETALHADO</h1>
+            <h1>Extrato Detalhado</h1>
             <p>Emissão: ${formatDate(new Date().toISOString().split('T')[0])}</p>
           </div>
 
@@ -1042,16 +1036,20 @@ export function SharedLancamentoDetailsModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+        <motion.div 
+          key="shared-lancamento-modal-container"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div
             onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
           />
           
           <motion.div
+            key="shared-lancamento-modal-body"
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -1238,6 +1236,7 @@ export function SharedLancamentoDetailsModal({
                 <AnimatePresence>
                   {isExportMenuOpen && (
                     <motion.div
+                      key="export-menu-dropdown"
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -1298,7 +1297,7 @@ export function SharedLancamentoDetailsModal({
               </button>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
 
       {/* Hidden / Offscreen template container captured for PNG and PDF exports */}
@@ -1312,11 +1311,8 @@ export function SharedLancamentoDetailsModal({
           <div className="border-b-2 border-indigo-600 pb-4 flex justify-between items-end">
             <div>
               <h1 className="text-xl font-black text-indigo-600 tracking-tight">
-                HÓRUS MONITORAMENTO
+                Extrato Detalhado
               </h1>
-              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                Extrato Detalhado de Lançamento Compartilhado
-              </p>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest">Emissão</span>
@@ -1407,7 +1403,7 @@ export function SharedLancamentoDetailsModal({
 
           {/* Document footer watermark */}
           <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-medium">
-            <span>Hórus Monitoramento Financeiro</span>
+            <span>Fluc Controle Financeiro</span>
             <span>Documento Oficial de Cobrança</span>
           </div>
         </div>

@@ -23,7 +23,7 @@ function formatField(id: string, value: string): string {
 export function generatePixPayload({
   chave,
   valor,
-  nomeRecebedor = 'HORUS',
+  nomeRecebedor = 'FLUC CONTROLE FINANCEIRO',
   cidade = 'BRASILIA',
   descricao = ''
 }: {
