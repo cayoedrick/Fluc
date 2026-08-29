@@ -557,40 +557,9 @@ export function SharedLancamentoDetailsModal({
       pdf.setLineWidth(2);
       pdf.line(margin, y, rightX, y);
 
-      y += 15;
+      y += 18;
 
-      // 2. Lançamento Info Box
-      const boxHeight = combinedParticipantName ? 54 : 42;
-      checkPageOverflow(boxHeight);
-
-      pdf.setFillColor(248, 250, 252); // Slate-50
-      pdf.setDrawColor(226, 232, 240); // Slate-200
-      pdf.setLineWidth(1);
-      pdf.roundedRect(margin, y, contentWidth, boxHeight, 8, 8, 'FD');
-
-      let boxY = y + 14;
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8);
-      pdf.setTextColor(148, 163, 184); // Slate-400
-      pdf.text('LANÇAMENTO', margin + 12, boxY);
-
-      boxY += 13;
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(11);
-      pdf.setTextColor(30, 41, 59); // Slate-800
-      pdf.text(targetLanc.descricao, margin + 12, boxY, { maxWidth: contentWidth - 24 });
-
-      if (combinedParticipantName) {
-        boxY += 14;
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
-        pdf.setTextColor(79, 70, 229); // Indigo-600
-        pdf.text(`Participante: ${combinedParticipantName}`, margin + 12, boxY);
-      }
-
-      y += boxHeight + 18;
-
-      // 3. Table of Items
+      // Table of Items
       checkPageOverflow(60);
 
       pdf.setFont('helvetica', 'bold');
@@ -865,13 +834,7 @@ export function SharedLancamentoDetailsModal({
             <p>Emissão: ${formatDate(new Date().toISOString().split('T')[0])}</p>
           </div>
 
-          <div class="card">
-            <p style="margin: 0; font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase;">Lançamento</p>
-            <h2 style="margin: 4px 0 0 0; font-size: 16px; color: #0f172a; font-weight: bold;">${targetLanc.descricao}</h2>
-            ${combinedParticipantName ? `<p style="margin: 4px 0 0 0; font-size: 12px; color: #4f46e5; font-weight: bold;">Participante: ${combinedParticipantName}</p>` : ''}
-          </div>
-
-          <h3>Itens do Extrato</h3>
+          <h3 style="color: #64748b; font-size: 12px; text-transform: uppercase; margin: 16px 0 8px 0;">Itens do Lançamento</h3>
           <table>
             <thead>
               <tr>
@@ -1318,17 +1281,6 @@ export function SharedLancamentoDetailsModal({
               <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest">Emissão</span>
               <span className="text-xs font-bold text-slate-700">{formatDate(new Date().toISOString().split('T')[0])}</span>
             </div>
-          </div>
-
-          {/* Title & Info */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Lançamento</span>
-            <h2 className="text-base font-extrabold text-slate-800 leading-snug">{targetLanc.descricao}</h2>
-            {combinedParticipantName && (
-              <p className="text-xs font-semibold text-indigo-600">
-                Participante: {combinedParticipantName}
-              </p>
-            )}
           </div>
 
           {/* Table of Items - Without other participants */}
