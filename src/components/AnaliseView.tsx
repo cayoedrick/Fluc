@@ -263,6 +263,12 @@ export function AnaliseView({ lancamentos, categorias, state, setState, onOpenMe
       const catId = l.categoriaId || 'sem_categoria';
       const isDespesa = l.tipo === 'despesa' || (l.tipo === 'despesa_cartao' && !l.estorno) || l.tipo === 'deposito_cofrinho';
       return isDespesa && catId === selectedCategoriaId;
+    }).sort((a, b) => {
+      const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
+      const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+      const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
+      const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
+      return (bTime - aTime) || bDateStr.localeCompare(aDateStr);
     });
   }, [selectedCategoriaId, currentLancamentos]);
 

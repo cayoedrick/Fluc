@@ -221,7 +221,8 @@ export function DashboardView({
     activeTab === 'cartoes' && selectedCartaoId !== 'all' ? selectedCartaoId : undefined
   );
 
-  const forecastData = getForecastData(currentDate, activeTab === 'contas' && selectedContaId !== 'all' ? selectedContaId : undefined);
+  // Forecast data ignores account filters to always show total forecast for the card and forecast popup
+  const forecastData = getForecastData(currentDate);
 
   // Custom calculation: Sum of all expenses, regardless of consolidation status, plus card invoices
   const dashboardExpenseLancamentos = React.useMemo(() => {
@@ -308,11 +309,19 @@ export function DashboardView({
     }
   });
 
-  // Sorting logic
+  // Sorting logic with full chronological date comparison
   const sortedLancamentos = [...filteredLancamentos].sort((a, b) => {
+    const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
+    const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+
     let comparison = 0;
     if (sortBy === 'data') {
-      comparison = a.data.localeCompare(b.data);
+      const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
+      const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
+      comparison = aTime - bTime;
+      if (isNaN(comparison) || comparison === 0) {
+        comparison = aDateStr.localeCompare(bDateStr);
+      }
     } else if (sortBy === 'valor') {
       comparison = a.valor - b.valor;
     } else if (sortBy === 'nome') {
@@ -320,7 +329,13 @@ export function DashboardView({
     }
 
     if (comparison === 0) {
-      return b.data.localeCompare(a.data);
+      const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
+      const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
+      const timeDiff = bTime - aTime;
+      if (!isNaN(timeDiff) && timeDiff !== 0) {
+        return timeDiff;
+      }
+      return (b.id || '').localeCompare(a.id || '');
     }
 
     return sortOrder === 'asc' ? comparison : -comparison;
@@ -544,9 +559,7 @@ export function DashboardView({
                 <HelpCircle size={12} className="text-[var(--text-discreto)]" />
               </div>
               <h1 className="text-4xl font-extrabold text-[var(--text-general)] mt-1 tracking-tight">
-                R$ {selectedContaId === 'all' 
-                  ? formatCurrency(getSaldoAtual(currentDate))
-                  : formatCurrency(getSaldoAtual(currentDate, selectedContaId))}
+                R$ {formatCurrency(getSaldoAtual(currentDate))}
               </h1>
             </div>
 
@@ -898,7 +911,7 @@ export function DashboardView({
                       {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {formatCurrency(l.valor)}
                     </p>
                     <span className="text-[10px] font-bold text-[var(--text-discreto)]">
-                      {(l.tipo === 'despesa_cartao' && l.dataCompra ? l.dataCompra : l.data).split('-').reverse().slice(0, 2).join('/')}
+                      {(l.tipo === 'despesa_cartao' && l.dataCompra ? l.dataCompra : l.data).split('-').reverse().join('/')}
                     </span>
                     
                     <div className="flex items-center gap-1 mt-1">
@@ -965,6 +978,13 @@ export function DashboardView({
                 </div>
               ))}
             </div>
+
+            {contas.length > 0 && (
+              <div className="pt-2.5 border-t border-[var(--bg-tertiary)] flex items-center justify-between font-extrabold text-xs text-[var(--text-general)]">
+                <span>TOTAL CONSOLIDADO</span>
+                <span className="text-[var(--bg-secondary)]">R$ {formatCurrency(getSaldoAtual(currentDate))}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

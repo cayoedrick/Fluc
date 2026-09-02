@@ -318,13 +318,19 @@ export function ExtratoView({
     return true;
   });
 
-  // Sorting logic
+  // Sorting logic with full chronological date comparison
   const sortedLancamentos = [...filteredLancamentos].sort((a, b) => {
+    const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
+    const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+
     let comparison = 0;
     if (sortBy === 'data') {
-      const aDate = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
-      const bDate = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
-      comparison = aDate.localeCompare(bDate);
+      const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
+      const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
+      comparison = aTime - bTime;
+      if (isNaN(comparison) || comparison === 0) {
+        comparison = aDateStr.localeCompare(bDateStr);
+      }
     } else if (sortBy === 'valor') {
       comparison = a.valor - b.valor;
     } else if (sortBy === 'nome') {
@@ -332,9 +338,13 @@ export function ExtratoView({
     }
 
     if (comparison === 0) {
-      const aDate = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
-      const bDate = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
-      return bDate.localeCompare(aDate);
+      const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
+      const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
+      const timeDiff = bTime - aTime;
+      if (!isNaN(timeDiff) && timeDiff !== 0) {
+        return timeDiff;
+      }
+      return (b.id || '').localeCompare(a.id || '');
     }
 
     return sortOrder === 'asc' ? comparison : -comparison;

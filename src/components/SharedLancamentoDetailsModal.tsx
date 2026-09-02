@@ -53,7 +53,13 @@ export function SharedLancamentoDetailsModal({
         l.isShared && 
         l.data.startsWith(monthYear) &&
         l.participantes?.some(p => p.nome === combinedParticipantName)
-      ).sort((a, b) => a.data.localeCompare(b.data));
+      ).sort((a, b) => {
+        const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
+        const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+        const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
+        const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
+        return (aTime - bTime) || aDateStr.localeCompare(bDateStr);
+      });
     }
   }
 
@@ -71,7 +77,13 @@ export function SharedLancamentoDetailsModal({
     : (targetLanc.grupoId 
         ? allLancamentos
             .filter(l => l.grupoId === targetLanc.grupoId && !l.isReimbursement)
-            .sort((a, b) => a.data.localeCompare(b.data))
+            .sort((a, b) => {
+              const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
+              const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+              const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
+              const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
+              return (aTime - bTime) || aDateStr.localeCompare(bDateStr);
+            })
         : []);
 
   const formatDate = (dateStr: string) => {
