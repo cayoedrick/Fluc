@@ -250,43 +250,8 @@ function SharedLancamentoDetailsModalContent({
 
   const exportTotalVal = exportItemsFormatted.reduce((acc, i) => acc + i.valor, 0);
 
-  // Resolves the corresponding date of the statement (matching the launch/expense date)
+  // Resolves the emission date of the statement (the current day / today's local date)
   const emissionDate = (() => {
-    // 1. If it's a single item or all items share the exact same date
-    if (exportItemsFormatted.length > 0) {
-      const uniqueDates = Array.from(new Set(exportItemsFormatted.map(i => i.data?.split('T')[0]).filter(Boolean)));
-      if (uniqueDates.length === 1 && uniqueDates[0]) {
-        return uniqueDates[0];
-      }
-    }
-
-    // 2. If inspecting a specific transaction (not generated reimbursement)
-    if (!isGeneratedReimbursement) {
-      const targetDate = targetLanc.tipo === 'despesa_cartao' && targetLanc.dataCompra
-        ? targetLanc.dataCompra.split('T')[0]
-        : targetLanc.data?.split('T')[0];
-      if (targetDate) return targetDate;
-    }
-
-    // 3. If lancamento has a specific date (not placeholder month start)
-    if (lancamento.data && !lancamento.data.endsWith('-01')) {
-      return lancamento.data.split('T')[0];
-    }
-
-    // 4. If there are items, use the most recent item date
-    if (exportItemsFormatted.length > 0) {
-      const sortedDates = exportItemsFormatted
-        .map(i => i.data?.split('T')[0])
-        .filter((d): d is string => Boolean(d))
-        .sort();
-      if (sortedDates.length > 0) {
-        return sortedDates[sortedDates.length - 1];
-      }
-    }
-
-    if (lancamento.data) return lancamento.data.split('T')[0];
-
-    // 5. Fallback: local client date (ensuring user's local timezone is respected)
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
