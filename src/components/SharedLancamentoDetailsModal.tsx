@@ -20,7 +20,18 @@ interface SharedLancamentoDetailsModalProps {
   onEditLancamento?: (id: string, updatedFields: Partial<Lancamento>, mode?: 'este' | 'futuros' | 'todos') => void;
 }
 
-export function SharedLancamentoDetailsModal({
+interface SharedLancamentoDetailsModalContentProps {
+  isOpen: boolean;
+  onClose: () => void;
+  lancamento: Lancamento;
+  allLancamentos?: Lancamento[];
+  contas?: Conta[];
+  onDeleteLancamento?: (id: string, mode?: 'este' | 'futuros' | 'todos') => void;
+  onAddLancamento?: (newLanc: Omit<Lancamento, 'id'>) => void;
+  onEditLancamento?: (id: string, updatedFields: Partial<Lancamento>, mode?: 'este' | 'futuros' | 'todos') => void;
+}
+
+function SharedLancamentoDetailsModalContent({
   isOpen,
   onClose,
   lancamento,
@@ -29,9 +40,7 @@ export function SharedLancamentoDetailsModal({
   onDeleteLancamento,
   onAddLancamento,
   onEditLancamento
-}: SharedLancamentoDetailsModalProps) {
-  if (!lancamento) return null;
-
+}: SharedLancamentoDetailsModalContentProps) {
   // Check if this lancamento is a reimbursement / revenue
   const isReceita = lancamento.tipo === 'receita' || Boolean(lancamento.isReimbursement);
 
@@ -105,8 +114,13 @@ export function SharedLancamentoDetailsModal({
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
-    const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}/${year}`;
+    const cleanDate = dateStr.split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts;
+      return `${day}/${month}/${year}`;
+    }
+    return dateStr;
   };
 
   const calculateShareValue = (valorTotal: number, p: { valor: number; isPorcentagem: boolean }) => {
@@ -235,6 +249,51 @@ export function SharedLancamentoDetailsModal({
   });
 
   const exportTotalVal = exportItemsFormatted.reduce((acc, i) => acc + i.valor, 0);
+
+  // Resolves the corresponding date of the statement (matching the launch/expense date)
+  const emissionDate = (() => {
+    // 1. If it's a single item or all items share the exact same date
+    if (exportItemsFormatted.length > 0) {
+      const uniqueDates = Array.from(new Set(exportItemsFormatted.map(i => i.data?.split('T')[0]).filter(Boolean)));
+      if (uniqueDates.length === 1 && uniqueDates[0]) {
+        return uniqueDates[0];
+      }
+    }
+
+    // 2. If inspecting a specific transaction (not generated reimbursement)
+    if (!isGeneratedReimbursement) {
+      const targetDate = targetLanc.tipo === 'despesa_cartao' && targetLanc.dataCompra
+        ? targetLanc.dataCompra.split('T')[0]
+        : targetLanc.data?.split('T')[0];
+      if (targetDate) return targetDate;
+    }
+
+    // 3. If lancamento has a specific date (not placeholder month start)
+    if (lancamento.data && !lancamento.data.endsWith('-01')) {
+      return lancamento.data.split('T')[0];
+    }
+
+    // 4. If there are items, use the most recent item date
+    if (exportItemsFormatted.length > 0) {
+      const sortedDates = exportItemsFormatted
+        .map(i => i.data?.split('T')[0])
+        .filter((d): d is string => Boolean(d))
+        .sort();
+      if (sortedDates.length > 0) {
+        return sortedDates[sortedDates.length - 1];
+      }
+    }
+
+    if (lancamento.data) return lancamento.data.split('T')[0];
+
+    // 5. Fallback: local client date (ensuring user's local timezone is respected)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+
   const selectedContaObj = contas.find(c => c.id === selectedContaId);
 
   // Generate PIX payload & QR code whenever PIX settings change
@@ -605,8 +664,8 @@ export function SharedLancamentoDetailsModal({
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(9);
       pdf.setTextColor(51, 65, 85); // Slate-700
-      const todayFormatted = formatDate(new Date().toISOString().split('T')[0]);
-      pdf.text(todayFormatted, rightX, y + 6, { align: 'right' });
+      const emissionDateFormatted = formatDate(emissionDate);
+      pdf.text(emissionDateFormatted, rightX, y + 6, { align: 'right' });
 
       if (exportParticipantName) {
         pdf.setFont('helvetica', 'normal');
@@ -899,7 +958,7 @@ export function SharedLancamentoDetailsModal({
           <div class="header">
             <h1>Extrato Detalhado</h1>
             ${exportParticipantName ? `<p class="participant">Participante: ${exportParticipantName}</p>` : ''}
-            <p>Emissão: ${formatDate(new Date().toISOString().split('T')[0])}</p>
+            <p>Emissão: ${formatDate(emissionDate)}</p>
           </div>
 
           <h3 style="color: #64748b; font-size: 12px; text-transform: uppercase; margin: 16px 0 8px 0;">Itens do Lançamento</h3>
@@ -1517,7 +1576,7 @@ export function SharedLancamentoDetailsModal({
           </div>
           <div className="text-right">
             <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest">Emissão</span>
-            <span className="text-xs font-bold text-slate-700">{formatDate(new Date().toISOString().split('T')[0])}</span>
+            <span className="text-xs font-bold text-slate-700">{formatDate(emissionDate)}</span>
           </div>
         </div>
 
@@ -1601,3 +1660,9 @@ export function SharedLancamentoDetailsModal({
   </>
   );
 }
+
+export function SharedLancamentoDetailsModal(props: SharedLancamentoDetailsModalProps) {
+  if (!props.isOpen || !props.lancamento) return null;
+  return <SharedLancamentoDetailsModalContent {...props} lancamento={props.lancamento} />;
+}
+

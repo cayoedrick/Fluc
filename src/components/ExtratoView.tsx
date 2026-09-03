@@ -1102,16 +1102,18 @@ export function ExtratoView({
         />
       )}
 
-      <SharedLancamentoDetailsModal 
-        isOpen={isSharedDetailsOpen}
-        onClose={() => setIsSharedDetailsOpen(false)}
-        lancamento={sharedLancamento}
-        allLancamentos={lancamentos}
-        contas={contas}
-        onDeleteLancamento={onDeleteLancamento}
-        onEditLancamento={onEditLancamento}
-        onAddLancamento={onAddLancamento}
-      />
+      {isSharedDetailsOpen && sharedLancamento && (
+        <SharedLancamentoDetailsModal 
+          isOpen={isSharedDetailsOpen}
+          onClose={() => setIsSharedDetailsOpen(false)}
+          lancamento={sharedLancamento}
+          allLancamentos={lancamentos}
+          contas={contas}
+          onDeleteLancamento={onDeleteLancamento}
+          onEditLancamento={onEditLancamento}
+          onAddLancamento={onAddLancamento}
+        />
+      )}
 
       {/* Delete Confirmation Overlay Modal */}
       {showDeleteConfirm && deletingLancamento && (() => {
