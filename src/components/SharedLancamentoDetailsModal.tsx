@@ -43,8 +43,25 @@ export function SharedLancamentoDetailsModal({
   if (isGeneratedReimbursement) {
     // Extract participant name from ID: reimb-{participantName}-{YYYY-MM}__contaId or reimb-{participantName}-{YYYY-MM}
     const baseId = lancamento.id.split('__')[0];
+    const match = baseId.match(/^reimb-(.+)-(\d{4}-\d{2})(?:-\d+)?$/);
     const parts = baseId.split('-');
-    if (parts.length >= 4) { // reimb-Nome-2023-10 or reimb-Nome-Sobrenome-2023-10
+    if (match) {
+      combinedParticipantName = match[1];
+      const monthYear = match[2];
+      
+      combinedExpenses = allLancamentos.filter(l => 
+        !l.isReimbursement && 
+        l.isShared && 
+        l.data.startsWith(monthYear) &&
+        l.participantes?.some(p => p.nome === combinedParticipantName)
+      ).sort((a, b) => {
+        const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
+        const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+        const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
+        const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
+        return (aTime - bTime) || aDateStr.localeCompare(bDateStr);
+      });
+    } else if (parts.length >= 4) { // reimb-Nome-2023-10 or reimb-Nome-Sobrenome-2023-10
       combinedParticipantName = baseId.substring(6, baseId.length - 8);
       const monthYear = baseId.substring(baseId.length - 7);
       
@@ -165,7 +182,31 @@ export function SharedLancamentoDetailsModal({
   if (!targetParticipantName && lancamento.descricao.startsWith('Reembolso: ')) {
     const extracted = lancamento.descricao.substring('Reembolso: '.length).split(' - ')[0];
     if (extracted) targetParticipantName = extracted.trim();
+  } else if (!targetParticipantName && lancamento.descricao.startsWith('Repasse: ')) {
+    const extracted = lancamento.descricao.substring('Repasse: '.length).split(' - ')[0];
+    if (extracted) targetParticipantName = extracted.trim();
   }
+
+  // Resolved participant name for statement export naming
+  const exportParticipantName = (() => {
+    if (targetParticipantName) return targetParticipantName;
+    if (combinedParticipantName) return combinedParticipantName;
+    if (targetLanc.participantes && targetLanc.participantes.length > 0) {
+      const validNames = targetLanc.participantes.map(p => p.nome.trim()).filter(Boolean);
+      if (validNames.length > 0) return validNames.join(', ');
+    }
+    const consNames = Object.keys(consolidatedParticipants).map(n => n.trim()).filter(Boolean);
+    if (consNames.length > 0) return consNames.join(', ');
+    return '';
+  })();
+
+  const getExportFileName = (extension: 'png' | 'pdf' | 'doc') => {
+    const cleanParticipant = exportParticipantName.trim().replace(/[/\\?%*:|"<>]/g, '');
+    if (cleanParticipant) {
+      return `extrato compartilhado ${cleanParticipant}.${extension}`;
+    }
+    return `extrato compartilhado.${extension}`;
+  };
 
   // Formatted items list for export statement (excluding other participants)
   const itemsToExport = isGeneratedReimbursement
@@ -496,6 +537,7 @@ export function SharedLancamentoDetailsModal({
     if (!exportContentRef.current) return;
     setIsExporting(true);
     setIsExportMenuOpen(false);
+    const filename = getExportFileName('png');
     try {
       const dataUrl = await toPng(exportContentRef.current, {
         quality: 1.0,
@@ -503,7 +545,7 @@ export function SharedLancamentoDetailsModal({
         backgroundColor: '#ffffff',
         cacheBust: true,
       });
-      triggerDownload(dataUrl, `extrato_compartilhado_${targetLanc.id}.png`);
+      triggerDownload(dataUrl, filename);
       window.showToast?.('Extrato exportado em PNG com sucesso!', 'sucesso');
     } catch (err) {
       console.error('Erro ao exportar PNG:', err);
@@ -513,7 +555,7 @@ export function SharedLancamentoDetailsModal({
           pixelRatio: 1.5,
           backgroundColor: '#ffffff',
         });
-        triggerDownload(dataUrl, `extrato_compartilhado_${targetLanc.id}.png`);
+        triggerDownload(dataUrl, filename);
         window.showToast?.('Extrato exportado em PNG com sucesso!', 'sucesso');
       } catch (fallbackErr) {
         console.error('Erro no fallback do PNG:', fallbackErr);
@@ -566,7 +608,15 @@ export function SharedLancamentoDetailsModal({
       const todayFormatted = formatDate(new Date().toISOString().split('T')[0]);
       pdf.text(todayFormatted, rightX, y + 6, { align: 'right' });
 
-      y += 12;
+      if (exportParticipantName) {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(`Participante: ${exportParticipantName}`, margin, y + 13);
+        y += 20;
+      } else {
+        y += 12;
+      }
       // Header border line
       pdf.setDrawColor(79, 70, 229);
       pdf.setLineWidth(2);
@@ -785,7 +835,8 @@ export function SharedLancamentoDetailsModal({
 
       const pdfBlob = pdf.output('blob');
       const blobUrl = URL.createObjectURL(pdfBlob);
-      triggerDownload(blobUrl, `extrato_compartilhado_${targetLanc.id}.pdf`);
+      const filename = getExportFileName('pdf');
+      triggerDownload(blobUrl, filename);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 
       window.showToast?.('Extrato exportado em PDF com sucesso!', 'sucesso');
@@ -830,12 +881,13 @@ export function SharedLancamentoDetailsModal({
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
         <head>
           <meta charset='utf-8'>
-          <title>Extrato Detalhado de Lançamento Compartilhado</title>
+          <title>Extrato Compartilhado${exportParticipantName ? ` - ${exportParticipantName}` : ''}</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 30px; color: #0f172a; line-height: 1.5; }
             .header { border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 20px; }
             .header h1 { color: #4f46e5; margin: 0; font-size: 20px; font-weight: bold; }
             .header p { color: #64748b; margin: 4px 0 0 0; font-size: 12px; }
+            .header .participant { color: #4f46e5; font-size: 13px; font-weight: bold; margin: 4px 0; }
             .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; }
             th { background-color: #f1f5f9; color: #475569; padding: 10px; text-align: left; font-size: 11px; font-weight: bold; text-transform: uppercase; border: 1px solid #cbd5e1; }
@@ -846,6 +898,7 @@ export function SharedLancamentoDetailsModal({
         <body>
           <div class="header">
             <h1>Extrato Detalhado</h1>
+            ${exportParticipantName ? `<p class="participant">Participante: ${exportParticipantName}</p>` : ''}
             <p>Emissão: ${formatDate(new Date().toISOString().split('T')[0])}</p>
           </div>
 
@@ -876,7 +929,8 @@ export function SharedLancamentoDetailsModal({
 
       const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword;charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);
-      triggerDownload(blobUrl, `extrato_compartilhado_${targetLanc.id}.doc`);
+      const filename = getExportFileName('doc');
+      triggerDownload(blobUrl, filename);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 
       window.showToast?.('Extrato exportado em .DOC com sucesso!', 'sucesso');
@@ -1455,6 +1509,11 @@ export function SharedLancamentoDetailsModal({
             <h1 className="text-xl font-black text-indigo-600 tracking-tight">
               Extrato Detalhado
             </h1>
+            {exportParticipantName && (
+              <p className="text-xs font-bold text-slate-500 mt-0.5">
+                Participante: <span className="text-indigo-600 font-extrabold">{exportParticipantName}</span>
+              </p>
+            )}
           </div>
           <div className="text-right">
             <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-widest">Emissão</span>
