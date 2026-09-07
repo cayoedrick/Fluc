@@ -19,7 +19,8 @@ import {
   Trash2,
   Info,
   Share2,
-  HelpCircle
+  HelpCircle,
+  PiggyBank
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
 import { FloatingInfoModal } from './FloatingInfoModal';
@@ -913,6 +914,7 @@ export function ExtratoView({
               const isRec = l.tipo === 'receita';
               const isRetiradaCof = l.tipo === 'retirada_cofrinho';
               const isDepositoCof = l.tipo === 'deposito_cofrinho';
+              const isCof = isRetiradaCof || isDepositoCof || !!l.cofrinhoId || l.descricao.startsWith('Reserva:');
               const isCard = l.tipo === 'despesa_cartao';
               const isTransf = l.tipo === 'transferencia';
               const isPaid = l.recebidoPagoEfetivado;
@@ -939,16 +941,14 @@ export function ExtratoView({
                   <div className="flex items-center gap-3">
                     <div className={`p-2.5 rounded-[12px] ${
                       isRec ? 'bg-[#00cc52]/10 text-[#00cc52]' :
-                      isRetiradaCof ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
-                      isDepositoCof ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
+                      isCof ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
                       isCard ? 'bg-[#ed793a]/10 text-[#ed793a]' :
                       isTransf ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
                       'bg-[#d03c4d]/10 text-[#d03c4d]'
                     }`}>
                       {l.isShared || l.isReimbursement ? <Share2 size={16} /> :
                        isRec ? <TrendingUp size={16} /> :
-                       isRetiradaCof ? <ArrowRightLeft size={16} /> :
-                       isDepositoCof ? <ArrowRightLeft size={16} /> :
+                       isCof ? <PiggyBank size={16} /> :
                        isCard ? <CreditCard size={16} /> :
                        isTransf ? <ArrowRightLeft size={16} /> :
                        <TrendingDown size={16} />}
@@ -957,7 +957,7 @@ export function ExtratoView({
                     <div>
                       <h4 className="text-sm font-bold text-[var(--text-general)]">{l.descricao}</h4>
                       <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-[var(--text-discreto)] mt-0.5">
-                        <span className="uppercase tracking-wider">{cat?.nome || (isRetiradaCof || isDepositoCof ? 'Reserva / Cofrinho' : isTransf ? 'Transferência' : 'Geral')}</span>
+                        <span className="uppercase tracking-wider">{cat?.nome || (isCof ? 'Reserva / Cofrinho' : isTransf ? 'Transferência' : 'Geral')}</span>
                         <span>•</span>
                         <div className="flex items-center gap-1">
                           {isTransf ? (
@@ -982,7 +982,7 @@ export function ExtratoView({
                               style={{ 
                                 backgroundColor: isCard 
                                   ? cartoes.find(cr => cr.id === l.cartaoId)?.cor || '#718096' 
-                                  : isRetiradaCof || isDepositoCof 
+                                  : isCof 
                                     ? (cofrinhos.find(c => c.id === l.cofrinhoId) || cofrinhos.find(c => l.descricao.includes(c.nome)))?.cor || '#718096'
                                     : contas.find(c => c.id === l.contaId)?.cor || '#718096'
                               }}
@@ -990,7 +990,7 @@ export function ExtratoView({
                               <span className="truncate max-w-[80px]">
                                 {isCard 
                                   ? cartoes.find(cr => cr.id === l.cartaoId)?.nome || 'Cartão'
-                                  : isRetiradaCof || isDepositoCof 
+                                  : isCof 
                                     ? (cofrinhos.find(c => c.id === l.cofrinhoId) || cofrinhos.find(c => l.descricao.includes(c.nome)))?.nome || 'Reserva'
                                     : contas.find(c => c.id === l.contaId)?.nome || 'Sem conta'}
                               </span>

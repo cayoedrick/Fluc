@@ -81,6 +81,7 @@ export interface CofrinhoHistorico {
   motivo?: string;
   periodo?: string; // '15 dias', '30 dias', '60 dias', 'personalizado'
   isInitial?: boolean;
+  lancamentoId?: string;
   updatedAt?: number;
 }
 

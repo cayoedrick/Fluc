@@ -411,9 +411,53 @@ export default function App() {
         return l;
       });
 
+      // Process updates to Cofrinho based on recebidoPagoEfetivado changes
+      let newCofrinhos = [...prev.cofrinhos];
+      let newCofrinhoHistorico = [...prev.cofrinhoHistorico];
+
+      updatedLancamentos.forEach((l) => {
+        const oldL = prev.lancamentos.find(ol => ol.id === l.id);
+        if (oldL && oldL.recebidoPagoEfetivado !== l.recebidoPagoEfetivado) {
+          if (l.cofrinhoId && (l.tipo === 'deposito_cofrinho' || l.tipo === 'retirada_cofrinho')) {
+            const cofIndex = newCofrinhos.findIndex(c => c.id === l.cofrinhoId);
+            if (cofIndex !== -1) {
+              const cof = newCofrinhos[cofIndex];
+              const isEfetivado = l.recebidoPagoEfetivado;
+              const diff = l.tipo === 'deposito_cofrinho' 
+                ? (isEfetivado ? l.valor : -l.valor)
+                : (isEfetivado ? -l.valor : l.valor);
+
+              newCofrinhos[cofIndex] = {
+                ...cof,
+                saldoAtual: Math.max(0, cof.saldoAtual + diff)
+              };
+
+              const actionDesc = l.tipo === 'deposito_cofrinho' 
+                ? (isEfetivado ? 'Efetivação de Depósito' : 'Estorno de Depósito')
+                : (isEfetivado ? 'Efetivação de Retirada' : 'Estorno de Retirada');
+
+              const tipoHist = l.tipo === 'deposito_cofrinho'
+                ? (isEfetivado ? 'deposito' : 'retirada') 
+                : (isEfetivado ? 'retirada' : 'deposito');
+
+              newCofrinhoHistorico.push({
+                id: crypto.randomUUID(),
+                cofrinhoId: cof.id,
+                tipo: tipoHist as any,
+                valor: l.valor,
+                data: new Date().toISOString().split('T')[0],
+                motivo: actionDesc
+              });
+            }
+          }
+        }
+      });
+
       return {
         ...prev,
-        lancamentos: updatedLancamentos
+        lancamentos: updatedLancamentos,
+        cofrinhos: newCofrinhos,
+        cofrinhoHistorico: newCofrinhoHistorico
       };
     });
   };
@@ -660,6 +704,60 @@ export default function App() {
     }));
   };
 
+  const handleDeleteCofrinhoHistorico = (historyId: string) => {
+    const item = state.cofrinhoHistorico.find(h => h.id === historyId);
+    if (!item) return;
+
+    updateState((prev) => {
+      const updatedHistory = prev.cofrinhoHistorico.filter(h => h.id !== historyId);
+
+      let updatedLancamentos = prev.lancamentos;
+      if (item.lancamentoId) {
+        updatedLancamentos = prev.lancamentos.filter(l => l.id !== item.lancamentoId);
+      } else if (item.tipo === 'deposito' || item.tipo === 'retirada') {
+        const targetTipo = item.tipo === 'deposito' ? 'deposito_cofrinho' : 'retirada_cofrinho';
+        const targetCof = prev.cofrinhos.find(c => c.id === item.cofrinhoId);
+        const matchIdx = prev.lancamentos.findIndex(l =>
+          l.tipo === targetTipo &&
+          (l.cofrinhoId === item.cofrinhoId || (targetCof && l.descricao.includes(targetCof.nome))) &&
+          l.data === item.data &&
+          Math.abs(l.valor - item.valor) < 0.001
+        );
+        if (matchIdx !== -1) {
+          updatedLancamentos = prev.lancamentos.filter((_, idx) => idx !== matchIdx);
+        }
+      }
+
+      const updatedCofrinhos = prev.cofrinhos.map(c => {
+        if (c.id !== item.cofrinhoId) return c;
+        let newSaldo = c.saldoAtual;
+        let newValorInicial = c.valorInicial;
+        if (item.isInitial) {
+          newValorInicial = 0;
+          newSaldo = Math.max(0, newSaldo - item.valor);
+        } else if (item.tipo === 'deposito') {
+          newSaldo = Math.max(0, newSaldo - item.valor);
+        } else if (item.tipo === 'retirada') {
+          newSaldo = newSaldo + item.valor;
+        } else if (item.tipo === 'rendimento_adicionar' || item.tipo === 'rendimento_atualizar') {
+          newSaldo = Math.max(0, newSaldo - item.valor);
+        }
+        return {
+          ...c,
+          valorInicial: newValorInicial,
+          saldoAtual: Number(newSaldo.toFixed(2))
+        };
+      });
+
+      return {
+        ...prev,
+        cofrinhoHistorico: updatedHistory,
+        lancamentos: updatedLancamentos,
+        cofrinhos: updatedCofrinhos
+      };
+    });
+  };
+
   return (
     <div className={`theme-${state.theme} min-h-screen bg-[var(--bg-app)] text-[var(--text-general)] flex`}>
       
@@ -769,10 +867,13 @@ export default function App() {
               cofrinhos={state.cofrinhos}
               cofrinhoHistorico={state.cofrinhoHistorico}
               contas={state.contas}
+              lancamentos={state.lancamentos}
               onAddCofrinho={handleAddCofrinho}
               onUpdateCofrinho={handleUpdateCofrinho}
               onAddCofrinhoHistorico={handleAddCofrinhoHistorico}
+              onDeleteCofrinhoHistorico={handleDeleteCofrinhoHistorico}
               onDeleteCofrinho={handleDeleteCofrinho}
+              onDeleteLancamento={handleDeleteLancamento}
               onOpenMenu={() => setIsSidebarOpen(true)}
               onOpenSyncModal={() => setIsSyncModalOpen(true)}
               getAccountBalance={getAccountBalance}

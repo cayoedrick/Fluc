@@ -152,7 +152,7 @@ export const getDefaultState = () => {
       valor: 500.00,
       recebidoPagoEfetivado: true,
       data: '2026-06-15',
-      descricao: 'Depósito: Reserva de Emergência',
+      descricao: 'Reserva: Reserva de Emergência',
       contaId: 'conta-1',
       cofrinhoId: 'cof-1'
     }

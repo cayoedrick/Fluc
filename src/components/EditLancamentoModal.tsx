@@ -65,6 +65,8 @@ export function EditLancamentoModal({
   const isCard = lancamento.tipo === 'despesa_cartao';
   const isTransf = lancamento.tipo === 'transferencia';
   const isExpense = lancamento.tipo === 'despesa';
+  const isCofDep = lancamento.tipo === 'deposito_cofrinho';
+  const isCofRet = lancamento.tipo === 'retirada_cofrinho';
 
   const filteredCategorias = categorias.filter(
     c => c.tipo === (isIncome ? 'receita' : 'despesa')
@@ -176,6 +178,8 @@ export function EditLancamentoModal({
               {isExpense && 'Editar Despesa'}
               {isCard && 'Editar Lançamento Cartão'}
               {isTransf && 'Editar Transferência'}
+              {isCofDep && 'Editar Depósito em Reserva'}
+              {isCofRet && 'Editar Retirada de Reserva'}
             </h3>
           </div>
           <button 
