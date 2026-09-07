@@ -1117,7 +1117,7 @@ export function ExtratoView({
 
       {/* Delete Confirmation Overlay Modal */}
       {showDeleteConfirm && deletingLancamento && (() => {
-        const isGrouped = !!deletingLancamento.grupoId;
+        const isGrouped = !!(deletingLancamento.grupoId || deletingLancamento.fixoRecorrente || deletingLancamento.parcelado);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" id="delete-confirm-modal">
             <div className="w-full max-w-sm bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] overflow-hidden flex flex-col p-6 space-y-5 text-center">

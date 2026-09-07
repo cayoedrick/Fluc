@@ -221,6 +221,7 @@ export function LancamentoModal({
       payload.cartaoId = cartaoId;
       payload.categoriaId = categoriaId;
       payload.estorno = estorno;
+      payload.fixoRecorrente = fixoRecorrente;
       payload.parcelado = parcelado;
       if (parcelado) {
         const p = typeof numParcelas === 'string' ? parseInt(numParcelas) : numParcelas;
@@ -759,30 +760,28 @@ export function LancamentoModal({
           {/* Recurrence Toggles (Only for Receita, Despesa, Despesa de Cartão) */}
           {tipo !== 'transferencia' && (
             <div className="border-t border-[var(--bg-tertiary)] pt-4 space-y-4">
-              {tipo !== 'despesa_cartao' && (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-semibold text-[var(--text-general)] block">Fixo / Recorrente</span>
-                    <span className="text-xs text-[var(--text-discreto)]">Repetir todos os meses sem limite</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFixoRecorrente(!fixoRecorrente);
-                      if (!fixoRecorrente) setParcelado(false); // mutually exclusive
-                    }}
-                    className={`toggle-switch rounded-full transition-colors ${
-                      fixoRecorrente ? 'bg-[var(--bg-secondary)]' : 'bg-[var(--bg-tertiary)]'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white rounded-full transition-transform ${
-                        fixoRecorrente ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-semibold text-[var(--text-general)] block">Fixo / Recorrente</span>
+                  <span className="text-xs text-[var(--text-discreto)]">Repetir todos os meses sem limite</span>
                 </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFixoRecorrente(!fixoRecorrente);
+                    if (!fixoRecorrente) setParcelado(false); // mutually exclusive
+                  }}
+                  className={`toggle-switch rounded-full transition-colors ${
+                    fixoRecorrente ? 'bg-[var(--bg-secondary)]' : 'bg-[var(--bg-tertiary)]'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white rounded-full transition-transform ${
+                      fixoRecorrente ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
 
               <div className="flex items-center justify-between">
                 <div>

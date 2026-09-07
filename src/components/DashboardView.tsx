@@ -878,6 +878,12 @@ export function DashboardView({
                               </span>
                             </div>
                           )}
+                          {l.fixoRecorrente && (
+                            <span className="bg-[var(--bg-tertiary)] text-[var(--text-discreto)] px-1 py-0.5 rounded-[4px] uppercase text-[8px] font-bold">Fixo</span>
+                          )}
+                          {l.parcelado && (
+                            <span className="bg-[var(--bg-tertiary)] text-[var(--text-discreto)] px-1 py-0.5 rounded-[4px] uppercase text-[8px] font-bold">Parcelado</span>
+                          )}
                         </div>
                       </div>
                       {(l.tipo === 'receita' || l.tipo === 'despesa') ? (

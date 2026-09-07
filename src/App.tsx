@@ -195,11 +195,16 @@ export default function App() {
 
       for (let i = 0; i < num; i++) {
         const recurringDate = addMonthsToDateStr(adjustedLanc.data, i);
+        const recurringDataCompra = adjustedLanc.tipo === 'despesa_cartao'
+          ? addMonthsToDateStr(originalDataCompra, i)
+          : undefined;
+
         entries.push({
           ...adjustedLanc,
-          recebidoPagoEfetivado: i === 0 && adjustedLanc.recebidoPagoEfetivado,
+          recebidoPagoEfetivado: adjustedLanc.tipo === 'despesa_cartao' ? true : (i === 0 && adjustedLanc.recebidoPagoEfetivado),
           id: `lanc-${Date.now()}-${i}`,
           data: recurringDate,
+          dataCompra: recurringDataCompra,
           grupoId: group
         });
       }
@@ -345,8 +350,10 @@ export default function App() {
           return { ...l, ...finalUpdated };
         }
         
-        if (mode === 'todos') {
-          const isMatch = !!(target.grupoId && l.grupoId === target.grupoId);
+        if (mode === 'todos' || mode === 'futuros') {
+          const isMatch = mode === 'todos'
+            ? !!(target.grupoId && l.grupoId === target.grupoId)
+            : !!(target.grupoId && l.grupoId === target.grupoId && l.data >= target.data);
             
           if (isMatch) {
             let newDesc = finalUpdated.descricao !== undefined ? finalUpdated.descricao : l.descricao;
@@ -358,31 +365,45 @@ export default function App() {
               newDesc = finalUpdated.descricao + targetSuffixMatch[0];
             }
 
-            return {
-              ...l,
-              ...finalUpdated,
-              descricao: newDesc,
-              data: l.data // Keep the original date of that instance!
-            };
-          }
-        } else if (mode === 'futuros') {
-          const isFutureMatch = !!(target.grupoId && l.grupoId === target.grupoId && l.data >= target.data);
-            
-          if (isFutureMatch) {
-            let newDesc = finalUpdated.descricao !== undefined ? finalUpdated.descricao : l.descricao;
-            
-            // Try to preserve parcel suffix if exists (e.g. " (Parcela X/Y)" or " (X/Y)" or " (1/3)")
-            const parcelRegex = /\s*\(\d+\/\d+\)$|\s*\(Parcela\s+\d+\/\d+\)$/i;
-            const targetSuffixMatch = l.descricao.match(parcelRegex);
-            if (targetSuffixMatch && finalUpdated.descricao) {
-              newDesc = finalUpdated.descricao + targetSuffixMatch[0];
+            let instanceData = l.data;
+            let instanceDataCompra = l.dataCompra;
+
+            if (l.tipo === 'despesa_cartao' && l.dataCompra && target.dataCompra && finalUpdated.dataCompra) {
+              const oldDay = Number(target.dataCompra.split('-')[2]);
+              const newDay = Number(finalUpdated.dataCompra.split('-')[2]);
+              if (newDay !== oldDay) {
+                const [y, m] = l.dataCompra.split('-');
+                const maxD = new Date(Number(y), Number(m), 0).getDate();
+                const adjustedDay = Math.min(newDay, maxD);
+                const pad = (n: number) => String(n).padStart(2, '0');
+                instanceDataCompra = `${y}-${m}-${pad(adjustedDay)}`;
+
+                const cartaoId = finalUpdated.cartaoId || l.cartaoId;
+                const card = state.cartoes.find((c) => c.id === cartaoId);
+                if (card && adjustedDay > card.diaFechamento) {
+                  instanceData = addMonthsToDateStr(instanceDataCompra, 1);
+                } else {
+                  instanceData = instanceDataCompra;
+                }
+              }
+            } else if (l.tipo !== 'despesa_cartao' && l.data && target.data && finalUpdated.data) {
+              const oldDay = Number(target.data.split('-')[2]);
+              const newDay = Number(finalUpdated.data.split('-')[2]);
+              if (newDay !== oldDay) {
+                const [y, m] = l.data.split('-');
+                const maxD = new Date(Number(y), Number(m), 0).getDate();
+                const adjustedDay = Math.min(newDay, maxD);
+                const pad = (n: number) => String(n).padStart(2, '0');
+                instanceData = `${y}-${m}-${pad(adjustedDay)}`;
+              }
             }
 
             return {
               ...l,
               ...finalUpdated,
               descricao: newDesc,
-              data: l.data // Keep the original future date of that instance!
+              data: instanceData,
+              dataCompra: instanceDataCompra
             };
           }
         }
