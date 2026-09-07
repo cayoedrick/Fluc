@@ -885,7 +885,7 @@ export function DashboardView({
                           )}
                         </div>
                       </div>
-                      {(l.tipo === 'receita' || l.tipo === 'despesa') ? (
+                      {(l.tipo === 'receita' || l.tipo === 'despesa' || isDepositoCof || isRetiradaCof) ? (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -895,15 +895,15 @@ export function DashboardView({
                           }}
                           className={`mt-1.5 px-2 py-0.5 rounded-[6px] uppercase text-[9px] font-extrabold border transition-all flex items-center gap-1 cursor-pointer hover:scale-[1.03] active:scale-[0.97] select-none ${
                             isPaid 
-                              ? isRec 
+                              ? (isRec || isRetiradaCof) 
                                 ? 'bg-[#00cc52]/10 border-[#00cc52]/20 text-[#00cc52] hover:bg-[#00cc52]/20'
                                 : 'bg-[#d03c4d]/10 border-[#d03c4d]/20 text-[#d03c4d] hover:bg-[#d03c4d]/20'
                               : 'bg-[#ed793a]/10 border-[#ed793a]/20 text-[#ed793a] hover:bg-[#ed793a]/20'
                           }`}
-                          title={isPaid ? (isRec ? 'Marcar como Pendente' : 'Marcar como Pendente') : (isRec ? 'Confirmar Recebido' : 'Confirmar Pago')}
+                          title={isPaid ? 'Marcar como Pendente' : 'Confirmar'}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? (isRec ? 'bg-[#00cc52]' : 'bg-[#d03c4d]') : 'bg-[#ed793a]'}`} />
-                          {isPaid ? (isRec ? 'Recebido' : 'Pago') : (isRec ? 'Confirmar Recebido' : 'Confirmar Pago')}
+                          <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? ((isRec || isRetiradaCof) ? 'bg-[#00cc52]' : 'bg-[#d03c4d]') : 'bg-[#ed793a]'}`} />
+                          {isPaid ? (isRec ? 'Recebido' : isRetiradaCof ? 'Efetivado' : isDepositoCof ? 'Efetivado' : 'Pago') : (isRec ? 'Confirmar Recebido' : isRetiradaCof ? 'Confirmar Retirada' : isDepositoCof ? 'Confirmar Depósito' : 'Confirmar Pago')}
                         </button>
                       ) : !isPaid && !isCard && (
                         <span className="mt-1.5 text-[#ed793a] bg-[#ed793a]/10 px-1.5 py-0.5 rounded-[4px] uppercase text-[9px] font-bold inline-block">Pendente</span>
