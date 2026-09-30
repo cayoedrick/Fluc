@@ -653,7 +653,7 @@ export function DashboardView({
                     setIsInvoiceModalOpen(true);
                     setNewInvoiceValue('');
                   }}
-                  className="bg-[var(--bg-tertiary)] hover:opacity-90 text-[var(--text-general)] font-bold text-xs py-2 px-3 rounded-[12px] flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="relative z-10 bg-[var(--bg-tertiary)] hover:opacity-90 text-[var(--text-general)] font-bold text-xs py-2 px-3 rounded-[12px] flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Pencil size={12} />
                   <span>Ajustar</span>
