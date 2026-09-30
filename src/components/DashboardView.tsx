@@ -632,7 +632,7 @@ export function DashboardView({
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-cartao)]/10 rounded-full blur-2xl -mr-8 -mt-8" />
 
             {/* Top row: Invoice value */}
-            <div>
+            <div className="flex justify-between items-start">
               <div 
                 onClick={() => setActivePopup('fatura')}
                 className="cursor-pointer hover:bg-[var(--bg-tertiary)]/30 p-2 -m-2 rounded-[16px] transition-colors inline-block"
@@ -645,6 +645,20 @@ export function DashboardView({
                   R$ {formatCurrency(getTotalInvoicesValue(currentDate, selectedCartaoId === 'all' ? undefined : selectedCartaoId))}
                 </h1>
               </div>
+
+              {selectedCartaoId !== 'all' && (
+                <button
+                  onClick={() => {
+                    setInvoiceAdjustCard(cartoes.find(c => c.id === selectedCartaoId) || null);
+                    setIsInvoiceModalOpen(true);
+                    setNewInvoiceValue('');
+                  }}
+                  className="bg-[var(--bg-tertiary)] hover:opacity-90 text-[var(--text-general)] font-bold text-xs py-2 px-3 rounded-[12px] flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Pencil size={12} />
+                  <span>Ajustar</span>
+                </button>
+              )}
             </div>
 
             {/* Bottom Row: Action Confirm Payment */}
