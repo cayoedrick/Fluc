@@ -120,7 +120,7 @@ export default function App() {
     let baseDate = newLanc.data;
     let originalDataCompra = newLanc.data;
 
-    if (newLanc.tipo === 'despesa_cartao') {
+    if (newLanc.tipo === 'despesa_cartao' && !newLanc.descricao.includes('Ajuste de Fatura')) {
       const card = state.cartoes.find((c) => c.id === newLanc.cartaoId);
       if (card) {
         const [, , day] = newLanc.data.split('-').map(Number);

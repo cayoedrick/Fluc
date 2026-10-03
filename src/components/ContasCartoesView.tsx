@@ -112,13 +112,10 @@ export function ContasCartoesView({
       return;
     }
 
-    // Determine the date of the adjusting transaction
-    const today = new Date();
-    const todayMonthYear = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    let dateStr = `${invoiceMonth}-01`;
-    if (invoiceMonth === todayMonthYear) {
-      dateStr = `${invoiceMonth}-${String(today.getDate()).padStart(2, '0')}`;
-    }
+    // Determine the date of the adjusting transaction: last day of the selected month
+    const [year, month] = invoiceMonth.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
     if (onAddLancamento) {
       onAddLancamento({
@@ -127,6 +124,7 @@ export function ContasCartoesView({
         recebidoPagoEfetivado: true,
         estorno: diff < 0,
         data: dateStr,
+        dataCompra: dateStr,
         descricao: `Ajuste de Fatura: ${invoiceAdjustCard.nome}`,
         cartaoId: invoiceAdjustCard.id,
       });

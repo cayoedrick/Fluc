@@ -378,13 +378,10 @@ export function DashboardView({
       return;
     }
 
-    // Determine the date of the adjusting transaction
-    const today = new Date();
-    const todayMonthYear = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    let dateStr = `${currentDate}-01`;
-    if (currentDate === todayMonthYear) {
-      dateStr = `${currentDate}-${String(today.getDate()).padStart(2, '0')}`;
-    }
+    // Determine the date of the adjusting transaction: last day of the selected month
+    const [year, month] = currentDate.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
     onAddLancamento({
       tipo: 'despesa_cartao',
@@ -392,6 +389,7 @@ export function DashboardView({
       recebidoPagoEfetivado: true,
       estorno: diff < 0,
       data: dateStr,
+      dataCompra: dateStr,
       descricao: `Ajuste de Fatura: ${invoiceAdjustCard.nome}`,
       cartaoId: invoiceAdjustCard.id,
     });
@@ -649,9 +647,14 @@ export function DashboardView({
               {selectedCartaoId !== 'all' && (
                 <button
                   onClick={() => {
-                    setInvoiceAdjustCard(cartoes.find(c => c.id === selectedCartaoId) || null);
+                    const card = cartoes.find(c => c.id === selectedCartaoId) || null;
+                    setInvoiceAdjustCard(card);
+                    if (card) {
+                      setNewInvoiceValue(formatCurrency(getCardInvoiceValue(card.id, currentDate)));
+                    } else {
+                      setNewInvoiceValue('');
+                    }
                     setIsInvoiceModalOpen(true);
-                    setNewInvoiceValue('');
                   }}
                   className="relative z-10 bg-[var(--bg-tertiary)] hover:opacity-90 text-[var(--text-general)] font-bold text-xs py-2 px-3 rounded-[12px] flex items-center gap-1.5 transition-all cursor-pointer"
                 >
