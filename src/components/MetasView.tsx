@@ -19,6 +19,7 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingMetaId, setEditingMetaId] = useState<string | null>(null);
   const [editStep, setEditStep] = useState(1);
+  const [metaToDelete, setMetaToDelete] = useState<MetaFinanceira | null>(null);
 
   // Form states
   const [nome, setNome] = useState('');
@@ -693,12 +694,30 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
           </div>
           
           <div className="p-4 border-t border-[var(--bg-tertiary)] bg-[var(--bg-app)] flex items-center justify-between gap-2">
-            <button 
-              onClick={() => { setIsEditOpen(false); resetForm(); }} 
-              className="px-4 py-2 rounded-[12px] text-xs font-bold text-[var(--text-discreto)] hover:bg-[var(--bg-primary)] transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => { setIsEditOpen(false); resetForm(); }} 
+                className="px-4 py-2 rounded-[12px] text-xs font-bold text-[var(--text-discreto)] hover:bg-[var(--bg-primary)] transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetMeta = state.metas?.find(m => m.id === editingMetaId);
+                  if (targetMeta) {
+                    setIsEditOpen(false);
+                    resetForm();
+                    setMetaToDelete(targetMeta);
+                  }
+                }}
+                className="px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-[12px] transition-colors cursor-pointer flex items-center gap-1"
+                title="Excluir meta"
+              >
+                <Trash2 size={13} />
+                Excluir
+              </button>
+            </div>
             
             <div className="flex items-center gap-2">
               {editStep > 1 && (
@@ -980,6 +999,14 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
                 <Pencil size={14} />
                 Editar
               </button>
+              <button 
+                onClick={() => setMetaToDelete(meta)} 
+                className="px-3.5 py-2.5 bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Excluir meta"
+              >
+                <Trash2 size={14} />
+                Excluir
+              </button>
             </div>
           </div>
 
@@ -1050,11 +1077,7 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
                 Configurações da meta
               </button>
               <button 
-                onClick={() => {
-                  if (window.confirm(`Deseja realmente excluir a meta "${meta.nome}"? As sugestões de todas as outras metas serão reajustadas automaticamente.`)) {
-                    deleteMeta(meta.id);
-                  }
-                }} 
+                onClick={() => setMetaToDelete(meta)} 
                 className="text-[11px] font-bold text-red-500 hover:underline cursor-pointer flex items-center gap-1"
               >
                 <Trash2 size={12} />
@@ -1230,6 +1253,17 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
                           >
                             <Pencil size={14} />
                           </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMetaToDelete(meta);
+                            }}
+                            className="p-1 text-[var(--text-discreto)] hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer opacity-70 group-hover:opacity-100"
+                            title="Excluir meta"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
 
@@ -1293,6 +1327,48 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
             <div className="flex gap-2 mt-2">
               <button onClick={() => setIsContributeOpen(false)} className="flex-1 py-2 rounded-[12px] text-xs font-bold bg-[var(--bg-app)] text-[var(--text-discreto)] hover:bg-[var(--bg-tertiary)]/50 transition-colors cursor-pointer">Cancelar</button>
               <button onClick={handleContribute} className="flex-1 py-2 rounded-[12px] text-xs font-bold bg-[#00cc52] text-white hover:opacity-90 transition-opacity cursor-pointer">Adicionar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Meta Confirmation Modal */}
+      {metaToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-sm bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[24px] overflow-hidden flex flex-col p-6 space-y-4 text-center shadow-2xl">
+            <span className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mx-auto mb-1">
+              <Trash2 size={22} className="stroke-[2.5]" />
+            </span>
+            <div>
+              <h4 className="text-base font-bold text-[var(--text-general)]">
+                Excluir Meta Financeira
+              </h4>
+              <p className="text-xs text-[var(--text-general)] font-semibold mt-2 bg-[var(--bg-app)] py-1.5 px-3 rounded-[10px] border border-[var(--bg-tertiary)] inline-block">
+                {metaToDelete.nome}
+              </p>
+              <p className="text-xs text-[var(--text-discreto)] mt-3 leading-relaxed">
+                Tem certeza que deseja excluir esta meta? As sugestões de economia e os aportes das outras metas serão recalculados automaticamente. Esta ação não poderá ser desfeita.
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                onClick={() => setMetaToDelete(null)}
+                className="flex-1 py-2.5 bg-[var(--bg-app)] hover:bg-[var(--bg-tertiary)] border border-[var(--bg-tertiary)] text-[var(--text-general)] text-xs font-bold rounded-[12px] transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  deleteMeta(metaToDelete.id);
+                  setMetaToDelete(null);
+                  window.showToast?.('Meta excluída com sucesso!', 'sucesso');
+                }}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-[12px] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={14} />
+                Excluir Meta
+              </button>
             </div>
           </div>
         </div>
