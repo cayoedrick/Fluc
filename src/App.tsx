@@ -14,6 +14,7 @@ import { Menu, Plus, Home, CheckCircle2, AlertTriangle, X, Info, PieChart } from
 import { InteractiveTutorial } from './components/InteractiveTutorial';
 import { SyncStatusIcon } from './components/SyncStatusIcon';
 import { SyncStatusModal } from './components/SyncStatusModal';
+import { SyncContext } from './context/SyncContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { formatCurrency } from './utils/currency';
@@ -38,6 +39,11 @@ export default function App() {
     eraseAllData,
     importStateFromJSON,
     isDateInMonthYear,
+    isCloudSyncing,
+    syncError,
+    isOnline,
+    currentUser,
+    forceSync,
     setState
   } = useFlucState();
 
@@ -759,7 +765,18 @@ export default function App() {
   };
 
   return (
-    <div className={`theme-${state.theme} min-h-screen bg-[var(--bg-app)] text-[var(--text-general)] flex`}>
+    <SyncContext.Provider
+      value={{
+        isCloudSyncing,
+        lastSyncUpload: state.lastSyncUpload,
+        lastSyncDownload: state.lastSyncDownload,
+        syncError,
+        forceSync,
+        currentUser,
+        isOnline
+      }}
+    >
+      <div className={`theme-${state.theme} min-h-screen bg-[var(--bg-app)] text-[var(--text-general)] flex`}>
       
       {/* Navigation Panels */}
       <Navigation
@@ -999,6 +1016,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-    </div>
+      </div>
+    </SyncContext.Provider>
   );
 }
