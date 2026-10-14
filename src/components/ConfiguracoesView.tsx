@@ -194,6 +194,13 @@ export function ConfiguracoesView({
           </div>
         </div>
       </div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImportJSON}
+        className="hidden"
+        accept=".json"
+      />
     </div>
   );
 }

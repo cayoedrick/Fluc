@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 declare global {
   interface Window {
     google: any;
+    gapi: any;
   }
 }
 
@@ -17,8 +18,8 @@ export const useGooglePicker = (onFilePicked: (file: any) => void, accessToken: 
       script.src = 'https://apis.google.com/js/api.js';
       script.id = 'google-picker-script';
       script.onload = () => {
-        if (window.google && typeof window.google.load === 'function') {
-          window.google.load('picker', '1', {
+        if (window.gapi && typeof window.gapi.load === 'function') {
+          window.gapi.load('picker', {
             callback: () => setIsScriptLoaded(true),
           });
         } else {
