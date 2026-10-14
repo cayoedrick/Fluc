@@ -7,11 +7,11 @@ import {
   Landmark, 
   PiggyBank, 
   Settings, 
-  PieChart,
   X,
   Sun,
   Moon,
-  Download
+  Download,
+  BookOpen
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -69,11 +69,11 @@ export function Navigation({ currentView, onViewChange, isOpen, onClose, theme, 
   const menuItems = [
     { id: 'dashboard' as ViewType, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'extrato' as ViewType, label: 'Extrato', icon: FileText },
-    { id: 'analise' as ViewType, label: 'Análise Financeira', icon: PieChart },
     { id: 'categorias' as ViewType, label: 'Categorias', icon: Tag },
     { id: 'contas_cartoes' as ViewType, label: 'Contas e Cartões', icon: Landmark },
     { id: 'reservas_cofrinhos' as ViewType, label: 'Reserva e Cofrinhos', icon: PiggyBank },
     { id: 'configuracoes' as ViewType, label: 'Configurações', icon: Settings },
+    { id: 'tutorial' as ViewType, label: 'Tutorial', icon: BookOpen },
   ];
 
   const handleItemClick = (viewId: ViewType) => {

@@ -109,7 +109,7 @@ export interface MetaContribuicao {
   updatedAt?: number;
 }
 
-export type ViewType = 'dashboard' | 'extrato' | 'categorias' | 'contas_cartoes' | 'reservas_cofrinhos' | 'configuracoes' | 'analise';
+export type ViewType = 'dashboard' | 'extrato' | 'categorias' | 'contas_cartoes' | 'reservas_cofrinhos' | 'configuracoes' | 'tutorial';
 
 export interface FlucState {
   contas: Conta[];
