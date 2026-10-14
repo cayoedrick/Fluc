@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
 import { FlucState, Conta, Cartao, Categoria, Lancamento, Cofrinho, CofrinhoHistorico } from '../types';
 import { getDefaultState } from '../data/defaults';
-import { auth } from '../lib/firebase';
-import { subscribeToData, saveData } from '../services/db';
-import { onAuthStateChanged, User } from 'firebase/auth';
 
 export function useFlucState() {
-  const [currentUser, setCurrentUser] = useState<User | null>(auth.currentUser);
-  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   const [state, setState] = useState<FlucState>(() => {
@@ -38,7 +32,6 @@ export function useFlucState() {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      setSyncError(null);
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -51,209 +44,12 @@ export function useFlucState() {
     };
   }, []);
 
-  // Auth State Listener
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      if (!user) {
-        setIsCloudSyncing(false);
-        setSyncError(null);
-      }
-    });
-    return () => unsubscribeAuth();
-  }, []);
 
-  // Helper to merge local and remote states taking newest items by updatedAt
-  const mergeStates = (local: FlucState, remote: FlucState): FlucState => {
-    // 1. Combine deleted IDs (tombstones), keeping last 500
-    const combinedDeletedIds = Array.from(new Set([
-      ...(local.deletedIds || []),
-      ...(remote.deletedIds || [])
-    ])).slice(-500);
-
-    // 2. Initialize merged state
-    const merged: FlucState = { 
-      ...local,
-      deletedIds: combinedDeletedIds 
-    };
-    
-    const collections: (keyof FlucState)[] = ['contas', 'cartoes', 'categorias', 'lancamentos', 'cofrinhos', 'cofrinhoHistorico', 'metas', 'metaContribuicoes'];
-
-    for (const colKey of collections) {
-      const localList = (local[colKey] || []) as any[];
-      const remoteList = (remote[colKey] || []) as any[];
-
-      const resultMap = new Map<string, any>();
-
-      // Load remote items first (skip if in combinedDeletedIds)
-      remoteList.forEach(item => {
-        if (item && item.id && !combinedDeletedIds.includes(item.id)) {
-          resultMap.set(item.id, item);
-        }
-      });
-
-      // Merge local items: prioritize local if newer OR if remote doesn't have it
-      localList.forEach(localItem => {
-        if (!localItem || !localItem.id || combinedDeletedIds.includes(localItem.id)) return;
-        
-        const remoteItem = resultMap.get(localItem.id);
-        if (!remoteItem) {
-          resultMap.set(localItem.id, localItem);
-        } else {
-          const localUpdate = localItem.updatedAt || 0;
-          const remoteUpdate = remoteItem.updatedAt || 0;
-          
-          if (localUpdate > remoteUpdate) {
-            resultMap.set(localItem.id, localItem);
-          }
-        }
-      });
-
-      (merged as any)[colKey] = Array.from(resultMap.values());
-    }
-
-    const localMod = local.lastModifiedAt || 0;
-    const remoteMod = remote.lastModifiedAt || 0;
-    
-    if (remoteMod > localMod && remote.theme) {
-      merged.theme = remote.theme;
-    }
-    
-    merged.lastModifiedAt = Math.max(localMod, remoteMod);
-    merged.lastSyncUpload = Math.max(local.lastSyncUpload || 0, remote.lastSyncUpload || 0);
-    
-    return merged;
-  };
-
-  // Real-time Sync with Firestore
-  useEffect(() => {
-    if (!currentUser) return;
-
-    setIsCloudSyncing(true);
-    // Real-time Firestore listener
-    const unsubscribe = subscribeToData(currentUser.uid, 'state', (remoteState, isSyncing, error) => {
-      if (error) {
-        console.error('[Firestore Sync] Listener encountered error:', error);
-        setSyncError(error.message);
-        setIsCloudSyncing(false);
-        return;
-      }
-
-      setSyncError(null);
-      setIsCloudSyncing(isSyncing);
-      
-      if (remoteState) {
-        setState(prev => {
-          const localMod = prev.lastModifiedAt || 0;
-          const remoteMod = remoteState.lastModifiedAt || 0;
-
-          // Fresh device/login edge case: local was never edited by user (just defaults) and remote has data.
-          // In this case, cleanly adopt remote state without polluting with dummy sample defaults.
-          if (localMod === 0 && remoteMod > 0) {
-            console.log('[Firestore Sync] Fresh login detected: adopting remote state directly.');
-            return {
-              ...remoteState,
-              lastSyncDownload: Date.now()
-            };
-          }
-
-          const merged = mergeStates(prev, remoteState);
-          
-          // Check if remote data brought anything new OR if local data is still ahead
-          const hasChanges = JSON.stringify(merged) !== JSON.stringify(prev);
-          if (!hasChanges) return prev;
-
-          if (localMod > remoteMod) {
-            console.log('[Firestore Sync] Local changes ahead of remote. Reconciling and preparing push.');
-          } else if (remoteMod > localMod) {
-            console.log('[Firestore Sync] Server has newer data. Updating local state.');
-          }
-
-          return {
-            ...merged,
-            lastSyncDownload: Date.now()
-          };
-        });
-      } else {
-        console.log('[Firestore Sync] No remote document found. Ready to initialize.');
-        setIsCloudSyncing(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [currentUser]);
-
-  // Persistence: Save to localStorage and Firestore on change
+  // Persistence: Save to localStorage on change
   useEffect(() => {
     localStorage.setItem('fluc_financial_state', JSON.stringify(state));
+  }, [state]);
 
-    if (currentUser) {
-      const timeout = setTimeout(async () => {
-        if (!currentUser) return;
-        
-        const lastMod = state.lastModifiedAt || 0;
-        const lastUp = state.lastSyncUpload || 0;
-
-        // Only upload if local modifications are newer than the last successful sync
-        if (lastMod <= lastUp) return;
-
-        const now = Date.now();
-        const stateWithUpload = { ...state, lastSyncUpload: now };
-        
-        try {
-          setIsCloudSyncing(true);
-          console.log(`[Firestore Sync] Syncing local changes to cloud... (LocalMod: ${lastMod}, LastUp: ${lastUp})`);
-          await saveData(currentUser.uid, 'state', stateWithUpload);
-          setSyncError(null);
-          
-          setState(prev => {
-            const currentMod = prev.lastModifiedAt || 0;
-            if (currentMod > lastMod) return prev; 
-            return { ...prev, lastSyncUpload: now };
-          });
-          console.log('[Firestore Sync] Cloud sync complete.');
-        } catch (e: any) {
-          console.error('[Firestore Sync] Cloud sync failed:', e);
-          setSyncError(e?.message || 'Falha ao sincronizar com nuvem');
-        } finally {
-          setIsCloudSyncing(false);
-        }
-      }, 1500); // Debounce for stability
-
-      return () => clearTimeout(timeout);
-    }
-  }, [state, currentUser]);
-
-  // Periodic sanity check for unsaved local changes
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const interval = setInterval(async () => {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-
-      setState(prev => {
-        const lastMod = prev.lastModifiedAt || 0;
-        const lastUp = prev.lastSyncUpload || 0;
-        
-        if (lastMod > lastUp) {
-          const now = Date.now();
-          const stateWithUpload = { ...prev, lastSyncUpload: now };
-          console.log('[Firestore Sync] Periodic sanity check: pushing unsaved local changes.');
-          saveData(currentUser.uid, 'state', stateWithUpload)
-            .then(() => setSyncError(null))
-            .catch(err => {
-              console.error('[Firestore Sync] Periodic upload failed', err);
-              setSyncError(err?.message || 'Falha na sincronização periódica');
-            });
-          return stateWithUpload;
-        }
-        return prev;
-      });
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [currentUser]);
 
   const syncSharedExpenses = (lancamentos: Lancamento[], contas: Conta[] = state.contas): Lancamento[] => {
     // 1. Remove all generated reimbursement entries
@@ -900,35 +696,7 @@ export function useFlucState() {
     eraseAllData,
     importStateFromJSON,
     isDateInMonthYear,
-    isCloudSyncing,
-    syncError,
     isOnline,
-    currentUser,
     setState: safeSetState,
-    forceSync: async () => {
-      if (!currentUser) {
-        setSyncError('Usuário não autenticado. Faça login com o Google para sincronizar.');
-        return false;
-      }
-      const now = Date.now();
-      const stateWithUpload = { 
-        ...state, 
-        lastSyncUpload: now, 
-        lastModifiedAt: Math.max(state.lastModifiedAt || 0, now) 
-      };
-      try {
-        setIsCloudSyncing(true);
-        await saveData(currentUser.uid, 'state', stateWithUpload);
-        setSyncError(null);
-        setState(stateWithUpload);
-        return true;
-      } catch (e: any) {
-        console.error('[Firestore Sync] Force sync failed:', e);
-        setSyncError(e?.message || 'Falha na sincronização forçada');
-        return false;
-      } finally {
-        setIsCloudSyncing(false);
-      }
-    }
   };
 }

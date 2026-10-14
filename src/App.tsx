@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useFlucState } from './hooks/useFlucState';
+import { initAuth } from './lib/auth';
 import { ViewType, Lancamento, Conta, Cartao, Categoria, Cofrinho, CofrinhoHistorico } from './types';
+import { SyncProvider } from './context/SyncContext';
 import { Navigation } from './components/Navigation';
 import { DashboardView } from './components/DashboardView';
 import { ExtratoView } from './components/ExtratoView';
@@ -12,9 +14,6 @@ import { TutorialView } from './components/TutorialView';
 import { LancamentoModal } from './components/LancamentoModal';
 import { Menu, Plus, Home, CheckCircle2, AlertTriangle, X, Info } from 'lucide-react';
 import { InteractiveTutorial } from './components/InteractiveTutorial';
-import { SyncStatusIcon } from './components/SyncStatusIcon';
-import { SyncStatusModal } from './components/SyncStatusModal';
-import { SyncContext } from './context/SyncContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { formatCurrency } from './utils/currency';
@@ -39,22 +38,26 @@ export default function App() {
     eraseAllData,
     importStateFromJSON,
     isDateInMonthYear,
-    isCloudSyncing,
-    syncError,
     isOnline,
-    currentUser,
-    forceSync,
     setState
   } = useFlucState();
 
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(() => {
     const hasSeen = localStorage.getItem('fluc_tutorial_shown_or_skipped');
     return !hasSeen;
   });
+
+  const [needsAuth, setNeedsAuth] = useState(false);
+
+  useEffect(() => {
+    initAuth(
+      () => setNeedsAuth(false),
+      () => setNeedsAuth(true)
+    );
+  }, []);
 
   interface ToastItem {
     id: string;
@@ -765,17 +768,7 @@ export default function App() {
   };
 
   return (
-    <SyncContext.Provider
-      value={{
-        isCloudSyncing,
-        lastSyncUpload: state.lastSyncUpload,
-        lastSyncDownload: state.lastSyncDownload,
-        syncError,
-        forceSync,
-        currentUser,
-        isOnline
-      }}
-    >
+    <SyncProvider>
       <div className={`theme-${state.theme} min-h-screen bg-[var(--bg-app)] text-[var(--text-general)] flex`}>
       
       {/* Navigation Panels */}
@@ -818,7 +811,6 @@ export default function App() {
               onOpenMenu={() => setIsSidebarOpen(true)}
               onEditLancamento={handleEditLancamento}
               onDeleteLancamento={handleDeleteLancamento}
-              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -835,7 +827,6 @@ export default function App() {
               onEditLancamento={handleEditLancamento}
               onAddLancamento={handleAddLancamento}
               onOpenMenu={() => setIsSidebarOpen(true)}
-              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -844,7 +835,6 @@ export default function App() {
               categorias={state.categorias}
               onUpdateCategorias={handleUpdateCategorias}
               onOpenMenu={() => setIsSidebarOpen(true)}
-              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -860,7 +850,6 @@ export default function App() {
               onEditConta={handleEditConta}
               onEditCartao={handleEditCartao}
               onOpenMenu={() => setIsSidebarOpen(true)}
-              onOpenSyncModal={() => setIsSyncModalOpen(true)}
               getCardInvoiceValue={getCardInvoiceValue}
               getCardUtilizedLimit={getCardUtilizedLimit}
               getCardAvailableLimit={getCardAvailableLimit}
@@ -881,7 +870,6 @@ export default function App() {
               onDeleteCofrinho={handleDeleteCofrinho}
               onDeleteLancamento={handleDeleteLancamento}
               onOpenMenu={() => setIsSidebarOpen(true)}
-              onOpenSyncModal={() => setIsSyncModalOpen(true)}
               getAccountBalance={getAccountBalance}
               onAddLancamento={handleAddLancamento}
             />
@@ -937,12 +925,6 @@ export default function App() {
       </div>
 
       {/* Floating launchers/popups trigger */}
-      <SyncStatusModal
-        isOpen={isSyncModalOpen}
-        onClose={() => setIsSyncModalOpen(false)}
-        lastUpload={state.lastSyncUpload}
-        lastDownload={state.lastSyncDownload}
-      />
       <LancamentoModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -1001,6 +983,6 @@ export default function App() {
       </div>
 
       </div>
-    </SyncContext.Provider>
+    </SyncProvider>
   );
 }
