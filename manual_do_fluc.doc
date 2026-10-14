@@ -1,0 +1,127 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Manual de Funcionamento - Fluc Financeiro</title>
+<style>
+body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 40px; }
+h1 { color: #1c7ae4; border-bottom: 2px solid #1c7ae4; padding-bottom: 10px; }
+h2 { color: #2d3748; margin-top: 30px; border-bottom: 1px solid #cbd5e0; padding-bottom: 5px; }
+h3 { color: #4a5568; }
+ul { margin-bottom: 20px; }
+li { margin-bottom: 8px; }
+strong { color: #1a202c; }
+</style>
+</head>
+<body>
+<h1>Manual de Funcionamento do Aplicativo Fluc</h1>
+<p>Este documento detalha o funcionamento de todas as funcionalidades, módulos e opções disponíveis no aplicativo <strong>Fluc Financeiro</strong>, organizado por seções do menu lateral e tópicos relacionados.</p>
+
+<h2>1. Dashboard (Visão Geral)</h2>
+<p>O Dashboard é a tela principal de entrada do aplicativo, oferecendo uma radiografia completa da saúde financeira do mês selecionado.</p>
+<ul>
+  <li><strong>Seletor de Mês/Ano:</strong> Permite navegar entre os meses para visualizar dados históricos ou futuros.</li>
+  <li><strong>Cards de Resumo:</strong>
+    <ul>
+      <li><strong>Saldo Atual / Saldo Total:</strong> Soma consolidada das contas bancárias ativas e valores disponíveis.</li>
+      <li><strong>Receitas do Mês:</strong> Total de entradas confirmadas ou previstas no período.</li>
+      <li><strong>Despesas do Mês:</strong> Total de saídas (despesas comuns e faturas de cartão) no período.</li>
+    </ul>
+  </li>
+  <li><strong>Gráficos e Indicadores:</strong>
+    <ul>
+      <li><strong>Gráfico de Gastos por Categoria:</strong> Distribuição visual das despesas para identificar onde o dinheiro está sendo gasto.</li>
+      <li><strong>Resumo de Contas e Cartões:</strong> Acesso rápido aos saldos das contas e status das faturas de cartão.</li>
+    </ul>
+  </li>
+  <li><strong>Ajuste de Fatura Rápido:</strong> Permite ajustar o valor da fatura de um cartão diretamente no mês selecionado. Ao confirmar, o sistema gera automaticamente um lançamento de ajuste posicionado no <strong>último dia do mês selecionado</strong>, garantindo precisão no período contábil.</li>
+</ul>
+
+<h2>2. Extrato (Lançamentos)</h2>
+<p>O módulo de extrato centraliza todas as movimentações financeiras.</p>
+<ul>
+  <li><strong>Filtros e Busca:</strong> Filtre lançamentos por mês, tipo (receita, despesa, transferência, despesa de cartão) e busque por descrição.</li>
+  <li><strong>Adição de Lançamentos:</strong>
+    <ul>
+      <li><strong>Receita / Despesa:</strong> Vinculada a uma conta e categoria, com data e status de efetivação (Recebido/Pago).</li>
+      <li><strong>Transferência:</strong> Movimenta valores entre duas contas cadastradas.</li>
+      <li><strong>Despesa de Cartão:</strong> Lançada diretamente na fatura de um cartão de crédito.</li>
+    </ul>
+  </li>
+  <li><strong>Edição e Exclusão:</strong> Cada lançamento pode ser editado ou excluído a qualquer momento, atualizando automaticamente os saldos das contas ou faturas correspondentes.</li>
+</ul>
+
+<h2>3. Análise Financeira e Metas</h2>
+<p>Ferramentas avançadas para planejamento de longo prazo e análise de comportamento financeiro.</p>
+<ul>
+  <li><strong>Análise por Categoria e Fluxo de Caixa:</strong> Relatórios detalhados com gráficos de evolução mensal.</li>
+  <li><strong>Projeção de Saldo (Forecast):</strong> Projeta a evolução dos saldos das contas com base em receitas e despesas recorrentes.</li>
+  <li><strong>Metas Financeiras:</strong>
+    <ul>
+      <li><strong>Criação de Metas:</strong> Defina objetivos de longo prazo (ex: viagem, reserva de emergência, compra de bem) com valor desejado e prazo.</li>
+      <li><strong>Cálculo de Viabilidade:</strong> O sistema calcula automaticamente o aporte mensal necessário e avalia se a meta é viável, exigente ou em concorrência com outras metas.</li>
+      <li><strong>Edição:</strong> Atualize o valor desejado ou prazo de qualquer meta.</li>
+      <li><strong>Exclusão com Confirmação:</strong> Ao clicar no botão de excluir (ao lado de editar), o sistema exibe um modal de confirmação exigindo validação para evitar exclusões acidentais. Após a confirmação, as sugestões de economia e aportes das demais metas são recalculadas dinamicamente.</li>
+    </ul>
+  </li>
+</ul>
+
+<h2>4. Categorias</h2>
+<p>Gerencie as classificações das suas receitas e despesas.</p>
+<ul>
+  <li><strong>Personalização:</strong> Crie novas categorias, edite nomes, defina ícones e cores para facilitar a visualização nos gráficos e relatórios.</li>
+  <li><strong>Tipos:</strong> Separação clara entre categorias de receita e de despesa.</li>
+</ul>
+
+<h2>5. Contas e Cartões</h2>
+<p>Gerenciamento de instituições financeiras, contas bancárias e cartões de crédito.</p>
+<ul>
+  <li><strong>Contas Bancárias:</strong>
+    <ul>
+      <li>Cadastre contas (ex: Itaú, Nubank, Dinheiro, Carteira).</li>
+      <li>Defina saldo inicial e utilize a opção de ajuste de saldo (que cria automaticamente um lançamento de ajuste se houver diferença).</li>
+      <li>Configure chave PIX e marque a conta principal.</li>
+    </ul>
+  </li>
+  <li><strong>Cartões de Crédito:</strong>
+    <ul>
+      <li>Cadastre cartões informando limite, dia de fechamento e dia de vencimento.</li>
+      <li><strong>Ajustar Fatura:</strong> Permite corrigir o valor total de uma fatura para um determinado mês. O lançamento de ajuste correspondente é gerado automaticamente no <strong>último dia do mês selecionado</strong>.</li>
+      <li><strong>Pagamento de Fatura:</strong> Execute o pagamento da fatura selecionando a conta de origem, gerando a transferência ou débito adequado.</li>
+    </ul>
+  </li>
+</ul>
+
+<h2>6. Reserva e Cofrinhos</h2>
+<p>Organize suas reservas financeiras separadas do saldo livre do dia a dia.</p>
+<ul>
+  <li><strong>Cofrinhos:</strong> Crie objetivos de reserva com valor inicial e meta.</li>
+  <li><strong>Histórico:</strong> Registre depósitos e retiradas em cada cofrinho. O sistema mantém um histórico completo e atualiza o saldo reservado instantaneamente.</li>
+</ul>
+
+<h2>7. Configurações e Sincronização</h2>
+<p>Painel de controle do aplicativo, backup e sincronização multi-dispositivo.</p>
+<ul>
+  <li><strong>Sincronização em Nuvem (Google / Firebase Firestore):</strong>
+    <ul>
+      <li>Conecte sua conta Google para sincronizar seus dados em tempo real entre diferentes dispositivos (celular, tablet, computador).</li>
+      <li><strong>Monitoramento de Conexão:</strong> Indicador visual de status online/offline na barra superior e no ícone de nuvem.</li>
+      <li><strong>Forçar Sincronização:</strong> Botão dedicado para disparar a sincronização manual e verificar o sucesso do upload e download.</li>
+    </ul>
+  </li>
+  <li><strong>Backup e Restauração:</strong>
+    <ul>
+      <li><strong>Exportar JSON:</strong> Baixe um arquivo de backup completo com todos os seus dados financeiros.</li>
+      <li><strong>Importar JSON:</strong> Restaure dados de um backup anterior em segundos.</li>
+    </ul>
+  </li>
+  <li><strong>Limpeza e Redefinição:</strong>
+    <ul>
+      <li>Opção para apagar todos os lançamentos mantendo contas e cartões.</li>
+      <li>Redefinição total para o estado inicial de fábrica.</li>
+    </ul>
+  </li>
+  <li><strong>Alternância de Tema:</strong> Alterne instantaneamente entre o modo Claro (Clean) e o modo Escuro (Dark).</li>
+  <li><strong>Instalação PWA:</strong> Instale o aplicativo no seu dispositivo móvel ou desktop para acesso offline e experiência nativa.</li>
+</ul>
+</body>
+</html>
