@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, getAccessToken, logout } from '../lib/auth';
 import { useFlucState } from '../hooks/useFlucState';
+import { FlucState } from '../types';
 
 export interface SyncContextValue {
   isCloudSyncing: boolean;
@@ -29,8 +30,70 @@ interface SyncProviderProps {
   children: ReactNode;
 }
 
+function mergeStates(local: FlucState, remote: FlucState): FlucState {
+  if (!remote) return local;
+  if (!local) return remote;
+
+  const collections: (keyof FlucState)[] = [
+    'contas',
+    'cartoes',
+    'categorias',
+    'lancamentos',
+    'cofrinhos',
+    'cofrinhoHistorico',
+    'metas',
+    'metaContribuicoes'
+  ];
+
+  const mergedDeletedIds = Array.from(new Set([
+    ...(local.deletedIds || []),
+    ...(remote.deletedIds || [])
+  ]));
+
+  const merged: any = {
+    ...local,
+    theme: (remote.lastModifiedAt || 0) > (local.lastModifiedAt || 0) ? remote.theme : local.theme,
+    deletedIds: mergedDeletedIds,
+    lastModifiedAt: Math.max(local.lastModifiedAt || 0, remote.lastModifiedAt || 0)
+  };
+
+  for (const col of collections) {
+    const localArr = (local[col] || []) as any[];
+    const remoteArr = (remote[col] || []) as any[];
+    const map = new Map<string, any>();
+
+    // Put remote items first
+    remoteArr.forEach((item: any) => {
+      if (item && item.id && !mergedDeletedIds.includes(item.id)) {
+        map.set(item.id, item);
+      }
+    });
+
+    // Merge local items comparing updatedAt
+    localArr.forEach((item: any) => {
+      if (item && item.id && !mergedDeletedIds.includes(item.id)) {
+        const existing = map.get(item.id);
+        if (!existing) {
+          map.set(item.id, item);
+        } else {
+          const localTime = item.updatedAt || 0;
+          const remoteTime = existing.updatedAt || 0;
+          if (localTime >= remoteTime) {
+            map.set(item.id, item);
+          }
+          // otherwise keep existing (remote)
+        }
+      }
+    });
+
+    merged[col] = Array.from(map.values());
+  }
+
+  return merged;
+}
+
 export function SyncProvider({ children }: SyncProviderProps) {
-  const { state } = useFlucState();
+  const { state, updateState } = useFlucState();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -124,6 +187,7 @@ export function SyncProvider({ children }: SyncProviderProps) {
 
       const FILE_NAME = 'fluc_financas_backup.json';
 
+      // 1. Search for remote backup file on Google Drive
       const searchRes = await fetch(
         `https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}' and trashed=false`,
         {
@@ -137,13 +201,37 @@ export function SyncProvider({ children }: SyncProviderProps) {
       const files = searchData.files || [];
 
       let fileId = files.length > 0 ? files[0].id : null;
-      const fileContent = JSON.stringify(state, null, 2);
+      let finalState = state;
+
+      if (fileId) {
+        // 2. Download remote file content
+        const downloadRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+          {
+            headers: { Authorization: `Bearer ${activeToken}` }
+          }
+        );
+        if (downloadRes.ok) {
+          try {
+            const remoteState = await downloadRes.json();
+            // 3. Merge local and remote states intelligently
+            finalState = mergeStates(state, remoteState);
+            // Update local state with merged data
+            updateState(() => finalState);
+          } catch (parseErr) {
+            console.error('Error parsing remote state JSON:', parseErr);
+          }
+        }
+      }
+
+      const fileContent = JSON.stringify(finalState, null, 2);
       const metadata = {
         name: FILE_NAME,
         mimeType: 'application/json'
       };
 
       if (!fileId) {
+        // Create new file on Google Drive
         const form = new FormData();
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         form.append('file', new Blob([fileContent], { type: 'application/json' }));
@@ -163,6 +251,7 @@ export function SyncProvider({ children }: SyncProviderProps) {
         const createdFile = await createRes.json();
         fileId = createdFile.id;
       } else {
+        // Update existing file on Google Drive with merged state
         const updateRes = await fetch(
           `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
           {
@@ -191,11 +280,12 @@ export function SyncProvider({ children }: SyncProviderProps) {
     } catch (err: any) {
       console.error('Google Drive Sync Error:', err);
       setSyncError(err?.message || 'Erro desconhecido na sincronização');
+      window.showToast?.('Erro na sincronização com Google Drive', 'erro');
       return false;
     } finally {
       setIsCloudSyncing(false);
     }
-  }, [state]);
+  }, [state, updateState]);
 
   return (
     <SyncContext.Provider
