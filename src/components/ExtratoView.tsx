@@ -34,7 +34,7 @@ interface ExtratoViewProps {
   lancamentos: Lancamento[];
   cofrinhos: Cofrinho[];
   onOpenAddModal: () => void;
-  onOpenSyncModal: () => void;
+  onOpenSyncModal?: () => void;
   isDateInMonthYear: (dateStr: string, monthYearStr: string) => boolean;
   onDeleteLancamento?: (id: string, mode: 'este' | 'futuros' | 'todos') => void;
   onEditLancamento?: (id: string, updatedFields: Partial<Lancamento>, mode: 'este' | 'futuros' | 'todos') => void;

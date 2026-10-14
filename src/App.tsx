@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useFlucState } from './hooks/useFlucState';
 import { initAuth } from './lib/auth';
 import { ViewType, Lancamento, Conta, Cartao, Categoria, Cofrinho, CofrinhoHistorico } from './types';
-import { SyncProvider } from './context/SyncContext';
+import { SyncProvider, useSyncContext } from './context/SyncContext';
 import { Navigation } from './components/Navigation';
 import { DashboardView } from './components/DashboardView';
 import { ExtratoView } from './components/ExtratoView';
+import { SyncStatusModal } from './components/SyncStatusModal';
 import { CategoriasView } from './components/CategoriasView';
 import { ContasCartoesView } from './components/ContasCartoesView';
 import { ReservasCofrinhosView } from './components/ReservasCofrinhosView';
@@ -18,7 +19,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { formatCurrency } from './utils/currency';
 
-export default function App() {
+function AppContent() {
   const {
     state,
     updateState,
@@ -41,6 +42,9 @@ export default function App() {
     isOnline,
     setState
   } = useFlucState();
+
+  const { lastSyncUpload, lastSyncDownload } = useSyncContext();
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
@@ -768,8 +772,7 @@ export default function App() {
   };
 
   return (
-    <SyncProvider>
-      <div className={`theme-${state.theme} min-h-screen bg-[var(--bg-app)] text-[var(--text-general)] flex`}>
+    <div className={`theme-${state.theme} min-h-screen bg-[var(--bg-app)] text-[var(--text-general)] flex`}>
       
       {/* Navigation Panels */}
       <Navigation
@@ -797,6 +800,7 @@ export default function App() {
               lancamentos={state.lancamentos}
               cofrinhos={state.cofrinhos}
               onOpenAddModal={() => setIsAddModalOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
               getAccountBalance={getAccountBalance}
               getTotalBalance={getTotalBalance}
               getCardInvoiceValue={getCardInvoiceValue}
@@ -822,6 +826,7 @@ export default function App() {
               lancamentos={state.lancamentos}
               cofrinhos={state.cofrinhos}
               onOpenAddModal={() => setIsAddModalOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
               isDateInMonthYear={isDateInMonthYear}
               onDeleteLancamento={handleDeleteLancamento}
               onEditLancamento={handleEditLancamento}
@@ -982,7 +987,20 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      </div>
+      <SyncStatusModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        lastUpload={lastSyncUpload}
+        lastDownload={lastSyncDownload}
+      />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <SyncProvider>
+      <AppContent />
     </SyncProvider>
   );
 }

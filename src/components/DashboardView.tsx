@@ -34,7 +34,7 @@ interface DashboardViewProps {
   lancamentos: Lancamento[];
   cofrinhos: Cofrinho[];
   onOpenAddModal: () => void;
-  onOpenSyncModal: () => void;
+  onOpenSyncModal?: () => void;
   getAccountBalance: (id: string) => number;
   getTotalBalance: () => number;
   getCardInvoiceValue: (id: string, monthYear: string) => number;
