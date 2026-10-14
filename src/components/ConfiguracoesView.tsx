@@ -3,7 +3,7 @@ import { Download, Upload, Trash2, Database, AlertTriangle, Sun, Moon, Palette, 
 import { FlucState } from '../types';
 import { GoogleLoginButton } from './GoogleLoginButton';
 import { useGooglePicker } from '../hooks/useGooglePicker';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 interface ConfiguracoesViewProps {
   state: FlucState;
@@ -30,26 +30,32 @@ export function ConfiguracoesView({
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
+    const savedToken = localStorage.getItem('google_access_token');
+    if (savedToken) {
+      setAccessToken(savedToken);
+    }
+    
     const fetchToken = async () => {
         const user = getAuth().currentUser;
         if (user) {
-            // Tentativa de obter o token de OAuth via gapi se já estiver logado
-            if (window.gapi && window.gapi.auth2) {
-                const authInstance = window.gapi.auth2.getAuthInstance();
-                if (authInstance && authInstance.isSignedIn.get()) {
-                    const token = authInstance.currentUser.get().getAuthResponse().access_token;
-                    setAccessToken(token);
-                }
-            }
-            // Fallback para o ID Token se não houver OAuth token (embora possa não funcionar para o Picker)
-            if (!accessToken) {
-                const token = await user.getIdToken();
-                setAccessToken(token);
+            // Se já temos um token, podemos tentar validar ou apenas usar
+            if (!accessToken && !savedToken) {
+                // Tente obter via Firebase (se necessário)
+                // Nota: O Firebase não fornece o access token facilmente após o login inicial
+                // A melhor prática é salvar o token logo após o login.
             }
         }
     };
     fetchToken();
-  }, [accessToken]);
+  }, []); // Remove accessToken do array de dependências para evitar loops
+
+  const handleLoginSuccess = (result: any) => {
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential && credential.accessToken) {
+      setAccessToken(credential.accessToken);
+      localStorage.setItem('google_access_token', credential.accessToken);
+    }
+  };
 
   const { openPicker } = useGooglePicker((file) => {
       console.log('Selected file:', file);
@@ -140,7 +146,12 @@ export function ConfiguracoesView({
 
       <div id="config-conta-sincronizacao" className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-6 rounded-[24px] space-y-4">
         <h3 className="text-base font-bold text-[var(--text-general)]">Conta</h3>
-        <GoogleLoginButton />
+        <GoogleLoginButton onLoginSuccess={(result) => {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential && credential.accessToken) {
+            setAccessToken(credential.accessToken);
+          }
+        }} />
       </div>
 
       <div id="config-backup-restauracao" className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-6 rounded-[24px] space-y-4">

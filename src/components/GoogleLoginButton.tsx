@@ -4,15 +4,21 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../lib/firebase';
 import { LogIn, LogOut } from 'lucide-react';
 
-export function GoogleLoginButton() {
+export function GoogleLoginButton({ onLoginSuccess }: { onLoginSuccess?: (credential: any) => void }) {
   const [user, loading] = useAuthState(auth);
+  const [isLoggingIn, setIsLoggingIn] = React.useState(false);
 
   const handleLogin = async () => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.file');
     provider.addScope('https://www.googleapis.com/auth/drive.metadata.readonly');
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      if (onLoginSuccess) {
+        onLoginSuccess(result);
+      }
       if (window.showToast) {
         window.showToast('Login realizado com sucesso! Seus dados serão sincronizados.', 'sucesso');
       }
@@ -26,6 +32,8 @@ export function GoogleLoginButton() {
           'erro'
         );
       }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
