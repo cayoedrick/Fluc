@@ -19,9 +19,7 @@ export const useGooglePicker = (onFilePicked: (file: any) => void, accessToken: 
       script.id = 'google-picker-script';
       script.onload = () => {
         if (window.gapi && typeof window.gapi.load === 'function') {
-          window.gapi.load('picker', {
-            callback: () => setIsScriptLoaded(true),
-          });
+          window.gapi.load('picker', () => setIsScriptLoaded(true));
         } else {
           // Fallback or retry
           setTimeout(() => setIsScriptLoaded(true), 500);

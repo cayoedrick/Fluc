@@ -9,6 +9,8 @@ export function GoogleLoginButton() {
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/drive.file');
+    provider.addScope('https://www.googleapis.com/auth/drive.metadata.readonly');
     try {
       await signInWithPopup(auth, provider);
       if (window.showToast) {

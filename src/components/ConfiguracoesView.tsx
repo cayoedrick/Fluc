@@ -33,12 +33,23 @@ export function ConfiguracoesView({
     const fetchToken = async () => {
         const user = getAuth().currentUser;
         if (user) {
-            const token = await user.getIdToken();
-            setAccessToken(token);
+            // Tentativa de obter o token de OAuth via gapi se já estiver logado
+            if (window.gapi && window.gapi.auth2) {
+                const authInstance = window.gapi.auth2.getAuthInstance();
+                if (authInstance && authInstance.isSignedIn.get()) {
+                    const token = authInstance.currentUser.get().getAuthResponse().access_token;
+                    setAccessToken(token);
+                }
+            }
+            // Fallback para o ID Token se não houver OAuth token (embora possa não funcionar para o Picker)
+            if (!accessToken) {
+                const token = await user.getIdToken();
+                setAccessToken(token);
+            }
         }
     };
     fetchToken();
-  }, []);
+  }, [accessToken]);
 
   const { openPicker } = useGooglePicker((file) => {
       console.log('Selected file:', file);
