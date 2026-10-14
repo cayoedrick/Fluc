@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Download, Upload, Trash2, Database, AlertTriangle, Sun, Moon, Palette, ShieldCheck } from 'lucide-react';
+import { Download, Upload, Trash2, Cloud, AlertTriangle, Sun, Moon, Palette, ShieldCheck } from 'lucide-react';
 import { FlucState } from '../types';
 import { GoogleLoginButton } from './GoogleLoginButton';
 import { useGooglePicker } from '../hooks/useGooglePicker';
@@ -29,18 +29,54 @@ export function ConfiguracoesView({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const syncData = async (token: string) => {
     setSyncStatus('syncing');
     try {
-        // Implementação básica de upload para o Google Drive
-        // Necessário integrar com a API de arquivos do Drive (POST /upload/drive/v3/files)
-        // Por ora, simulando o processo
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Obter os dados do estado atual para backup
+        const data = localStorage.getItem('fluc_state'); // Ajustar conforme a estrutura real de persistência
+        const fileContent = data || JSON.stringify({ error: "No data found" });
+        const metadata = {
+            name: 'fluc_backup.json',
+            mimeType: 'application/json',
+        };
+
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', new Blob([fileContent], { type: 'application/json' }));
+
+        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: form,
+        });
+
+        if (!response.ok) {
+            throw new Error('Falha no upload para o Google Drive');
+        }
+
         setSyncStatus('synced');
+        setLastSyncTime(new Date().toLocaleString());
         window.showToast?.('Sincronização concluída com sucesso!', 'sucesso');
     } catch (e) {
         setSyncStatus('error');
+        console.error('Sync error:', e);
         window.showToast?.('Falha na sincronização.', 'erro');
     }
   };
@@ -173,15 +209,68 @@ export function ConfiguracoesView({
             <h4 className="text-xs font-bold text-[var(--text-general)]">Restaurar de Backup</h4>
             <p className="text-[10px] text-[var(--text-secondary)] mt-1">Importe um arquivo .json para restaurar dados.</p>
           </div>
-          <div className="cursor-pointer bg-[var(--bg-app)] p-4 rounded-[18px] border border-[var(--bg-tertiary)] hover:border-indigo-500 transition-all" onClick={() => accessToken && syncData(accessToken)}>
-            <Database size={18} />
+          {/* Card Simplificado */}
+          <div className="cursor-pointer bg-[var(--bg-app)] p-4 rounded-[18px] border border-[var(--bg-tertiary)] hover:border-indigo-500 transition-all" onClick={() => setIsDropdownOpen(true)}>
+            <Cloud size={18} className={`${!isOnline ? 'text-gray-400' : syncStatus === 'synced' ? 'text-green-500' : syncStatus === 'error' ? 'text-red-500' : 'text-gray-500'}`} />
             <h4 className="text-xs font-bold text-[var(--text-general)]">Google Drive</h4>
             <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                {syncStatus === 'syncing' ? 'Sincronizando...' : 
-                 syncStatus === 'synced' ? 'Sincronizado' : 
-                 syncStatus === 'error' ? 'Erro na sincronização' : 'Sincronizar'}
+                {!isOnline ? 'Offline' : syncStatus === 'syncing' ? 'Sincronizando...' : syncStatus === 'synced' ? 'Sincronizado' : syncStatus === 'error' ? 'Erro' : 'Pronto'}
             </p>
           </div>
+
+          {/* Modal Centralizado */}
+          {isDropdownOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsDropdownOpen(false)}>
+              <div className="relative w-full max-w-sm bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[32px] p-6 shadow-2xl z-10 space-y-4" onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-500 flex items-center justify-center">
+                      <Cloud size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-[var(--text-general)]">Sincronização Drive</h3>
+                      <p className="text-[10px] font-semibold text-indigo-500 tracking-wider uppercase">Google Drive</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsDropdownOpen(false)} className="p-1.5 rounded-xl hover:bg-[var(--bg-app)] text-[var(--text-discreto)] transition-colors cursor-pointer">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  </button>
+                </div>
+
+                {/* Connection & Status */}
+                <div className="p-3.5 rounded-2xl bg-[var(--bg-app)] border border-[var(--bg-tertiary)] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[var(--text-discreto)]">Status:</span>
+                    <span className={`font-semibold ${syncStatus === 'synced' ? 'text-emerald-500' : syncStatus === 'error' ? 'text-rose-500' : 'text-amber-500'}`}>
+                      {syncStatus === 'idle' ? 'Pronto' : syncStatus === 'syncing' ? 'Sincronizando...' : syncStatus === 'synced' ? 'Sincronizado' : 'Erro'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-[var(--bg-tertiary)]/50">
+                    <span className="text-[var(--text-discreto)]">Conexão:</span>
+                    <span className={`font-semibold ${isOnline ? 'text-emerald-500' : 'text-amber-500'}`}>
+                      {isOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Last Sync */}
+                <div className="p-3.5 rounded-2xl bg-[var(--bg-app)] border border-[var(--bg-tertiary)]">
+                  <p className="text-[11px] text-[var(--text-discreto)]">Última sincronização:</p>
+                  <p className="text-xs font-bold text-[var(--text-general)] mt-0.5">{lastSyncTime || 'Nunca'}</p>
+                </div>
+
+                {/* Actions */}
+                <button 
+                  className="w-full py-3.5 bg-indigo-500 text-white font-bold text-xs rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-2 hover:bg-indigo-600 shadow-md shadow-indigo-500/20" 
+                  onClick={() => { accessToken && syncData(accessToken); setIsDropdownOpen(false); }}
+                  disabled={syncStatus === 'syncing' || !isOnline}
+                >
+                  {syncStatus === 'syncing' ? 'Sincronizando...' : 'Forçar Sincronização Agora'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
