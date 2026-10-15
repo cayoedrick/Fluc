@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useFlucState } from './hooks/useFlucState';
-import { initAuth } from './lib/auth';
 import { ViewType, Lancamento, Conta, Cartao, Categoria, Cofrinho, CofrinhoHistorico } from './types';
 import { SyncProvider, useSyncContext } from './context/SyncContext';
 import { Navigation } from './components/Navigation';
@@ -53,15 +52,6 @@ function AppContent() {
     const hasSeen = localStorage.getItem('fluc_tutorial_shown_or_skipped');
     return !hasSeen;
   });
-
-  const [needsAuth, setNeedsAuth] = useState(false);
-
-  useEffect(() => {
-    initAuth(
-      () => setNeedsAuth(false),
-      () => setNeedsAuth(true)
-    );
-  }, []);
 
   interface ToastItem {
     id: string;
@@ -840,6 +830,7 @@ function AppContent() {
               categorias={state.categorias}
               onUpdateCategorias={handleUpdateCategorias}
               onOpenMenu={() => setIsSidebarOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
             />
           )}
 
@@ -855,6 +846,7 @@ function AppContent() {
               onEditConta={handleEditConta}
               onEditCartao={handleEditCartao}
               onOpenMenu={() => setIsSidebarOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
               getCardInvoiceValue={getCardInvoiceValue}
               getCardUtilizedLimit={getCardUtilizedLimit}
               getCardAvailableLimit={getCardAvailableLimit}
@@ -875,6 +867,7 @@ function AppContent() {
               onDeleteCofrinho={handleDeleteCofrinho}
               onDeleteLancamento={handleDeleteLancamento}
               onOpenMenu={() => setIsSidebarOpen(true)}
+              onOpenSyncModal={() => setIsSyncModalOpen(true)}
               getAccountBalance={getAccountBalance}
               onAddLancamento={handleAddLancamento}
             />

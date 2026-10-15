@@ -7,7 +7,7 @@ interface CategoriasViewProps {
   categorias: Categoria[];
   onUpdateCategorias: (cats: Categoria[]) => void;
   onOpenMenu?: () => void;
-  onOpenSyncModal: () => void;
+  onOpenSyncModal?: () => void;
 }
 
 export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onOpenSyncModal }: CategoriasViewProps) {

@@ -16,10 +16,10 @@ try {
     localCache: persistentLocalCache({
       tabManager: persistentMultipleTabManager()
     })
-  }, firebaseConfig.firestoreDatabaseId || undefined);
+  }, (firebaseConfig as any).firestoreDatabaseId || undefined);
 } catch {
-  firestoreInstance = firebaseConfig.firestoreDatabaseId
-    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+  firestoreInstance = (firebaseConfig as any).firestoreDatabaseId
+    ? getFirestore(app, (firebaseConfig as any).firestoreDatabaseId)
     : getFirestore(app);
 }
 

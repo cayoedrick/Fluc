@@ -30,7 +30,7 @@ interface ReservasCofrinhosViewProps {
   onDeleteCofrinho: (id: string) => void;
   onDeleteLancamento: (id: string, mode: 'este' | 'futuros' | 'todos') => void;
   onOpenMenu?: () => void;
-  onOpenSyncModal: () => void;
+  onOpenSyncModal?: () => void;
   getAccountBalance: (id: string) => number;
   onAddLancamento: (l: Omit<Lancamento, 'id'>) => void;
 }

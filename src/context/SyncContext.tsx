@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User } from 'firebase/auth';
-import { initAuth, googleSignIn, getAccessToken, logout } from '../lib/auth';
+import { initAuth, googleSignIn, getAccessToken, logout, getSavedUser, auth } from '../lib/auth';
 import { useFlucState } from '../hooks/useFlucState';
 import { FlucState } from '../types';
 
@@ -94,7 +94,11 @@ function mergeStates(local: FlucState, remote: FlucState): FlucState {
 
 export function SyncProvider({ children }: SyncProviderProps) {
   const { state, updateState } = useFlucState();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (auth.currentUser) return auth.currentUser;
+    const saved = getSavedUser();
+    return saved ? (saved as any as User) : null;
+  });
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncUpload, setLastSyncUpload] = useState<number | undefined>(() => {
@@ -133,6 +137,20 @@ export function SyncProvider({ children }: SyncProviderProps) {
     };
   }, []);
 
+  useEffect(() => {
+    // Initial background sync when user is connected and token is available
+    if (currentUser && isOnline) {
+      const timer = setTimeout(() => {
+        getAccessToken().then((token) => {
+          if (token && !isCloudSyncing) {
+            forceSync();
+          }
+        });
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser?.email, isOnline]);
+
   const signIn = async () => {
     try {
       setSyncError(null);
@@ -163,8 +181,8 @@ export function SyncProvider({ children }: SyncProviderProps) {
       setSyncError('Dispositivo offline. Conecte-se à internet para sincronizar.');
       return false;
     }
-    const token = await getAccessToken();
-    if (!token) {
+    let activeToken = await getAccessToken();
+    if (!activeToken) {
       try {
         const res = await googleSignIn();
         if (!res) {
@@ -172,6 +190,7 @@ export function SyncProvider({ children }: SyncProviderProps) {
           return false;
         }
         setCurrentUser(res.user);
+        activeToken = res.accessToken;
       } catch (e: any) {
         setSyncError('Falha ao autenticar com Google Drive: ' + (e?.message || ''));
         return false;
@@ -181,18 +200,44 @@ export function SyncProvider({ children }: SyncProviderProps) {
     setIsCloudSyncing(true);
     setSyncError(null);
 
+    const fetchDrive = async (url: string, init?: RequestInit): Promise<Response> => {
+      let res = await fetch(url, {
+        ...init,
+        headers: {
+          ...(init?.headers || {}),
+          Authorization: `Bearer ${activeToken}`
+        }
+      });
+
+      if (res.status === 401) {
+        try {
+          const fresh = await googleSignIn();
+          if (fresh?.accessToken) {
+            activeToken = fresh.accessToken;
+            setCurrentUser(fresh.user);
+            res = await fetch(url, {
+              ...init,
+              headers: {
+                ...(init?.headers || {}),
+                Authorization: `Bearer ${activeToken}`
+              }
+            });
+          }
+        } catch (reauthErr) {
+          console.warn('Silent reauth failed:', reauthErr);
+        }
+      }
+      return res;
+    };
+
     try {
-      const activeToken = await getAccessToken();
       if (!activeToken) throw new Error('Token de acesso não disponível.');
 
       const FILE_NAME = 'fluc_financas_backup.json';
 
       // 1. Search for remote backup file on Google Drive
-      const searchRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}' and trashed=false`,
-        {
-          headers: { Authorization: `Bearer ${activeToken}` }
-        }
+      const searchRes = await fetchDrive(
+        `https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}' and trashed=false`
       );
       if (!searchRes.ok) {
         throw new Error('Erro ao buscar arquivo no Google Drive');
@@ -205,11 +250,8 @@ export function SyncProvider({ children }: SyncProviderProps) {
 
       if (fileId) {
         // 2. Download remote file content
-        const downloadRes = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-          {
-            headers: { Authorization: `Bearer ${activeToken}` }
-          }
+        const downloadRes = await fetchDrive(
+          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
         );
         if (downloadRes.ok) {
           try {
@@ -236,11 +278,10 @@ export function SyncProvider({ children }: SyncProviderProps) {
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         form.append('file', new Blob([fileContent], { type: 'application/json' }));
 
-        const createRes = await fetch(
+        const createRes = await fetchDrive(
           'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
           {
             method: 'POST',
-            headers: { Authorization: `Bearer ${activeToken}` },
             body: form
           }
         );
@@ -252,12 +293,11 @@ export function SyncProvider({ children }: SyncProviderProps) {
         fileId = createdFile.id;
       } else {
         // Update existing file on Google Drive with merged state
-        const updateRes = await fetch(
+        const updateRes = await fetchDrive(
           `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
           {
             method: 'PATCH',
             headers: {
-              Authorization: `Bearer ${activeToken}`,
               'Content-Type': 'application/json'
             },
             body: fileContent

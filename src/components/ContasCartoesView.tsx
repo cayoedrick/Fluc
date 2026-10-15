@@ -16,7 +16,7 @@ interface ContasCartoesViewProps {
   onEditConta: (id: string, c: Partial<Conta>, newSaldoAtual?: number) => void;
   onEditCartao: (id: string, c: Partial<Cartao>) => void;
   onOpenMenu?: () => void;
-  onOpenSyncModal: () => void;
+  onOpenSyncModal?: () => void;
   getCardInvoiceValue?: (cartaoId: string, monthYearStr: string) => number;
   getCardUtilizedLimit?: (cartaoId: string) => number;
   getCardAvailableLimit?: (cartaoId: string) => number;
