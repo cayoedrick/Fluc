@@ -167,6 +167,8 @@ export const getDefaultState = () => {
     cofrinhoHistorico,
     metas: [],
     metaContribuicoes: [],
+    deletedIds: [],
+    lastModifiedAt: Date.now(),
     theme: 'clean' as const
   };
 };

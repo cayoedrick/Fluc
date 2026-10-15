@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { formatCurrency } from './utils/currency';
 
-function AppContent() {
+function AppContent({ fluc }: { fluc: ReturnType<typeof useFlucState> }) {
   const {
     state,
     updateState,
@@ -40,7 +40,7 @@ function AppContent() {
     isDateInMonthYear,
     isOnline,
     setState
-  } = useFlucState();
+  } = fluc;
 
   const { lastSyncUpload, lastSyncDownload } = useSyncContext();
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -991,9 +991,11 @@ function AppContent() {
 }
 
 export default function App() {
+  const flucState = useFlucState();
+
   return (
-    <SyncProvider>
-      <AppContent />
+    <SyncProvider state={flucState.state} updateState={flucState.updateState}>
+      <AppContent fluc={flucState} />
     </SyncProvider>
   );
 }

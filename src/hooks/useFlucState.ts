@@ -174,7 +174,7 @@ export function useFlucState() {
       ...(next.metas || []).map(i => i.id),
       ...(next.metaContribuicoes || []).map(i => i.id)
     ]);
-    newDeletedIds = newDeletedIds.filter(id => !allNextIds.has(id)).slice(-500);
+    newDeletedIds = newDeletedIds.filter(id => !allNextIds.has(id)).slice(-2000);
 
     let deletedChanged = newDeletedIds.length !== (prev.deletedIds || []).length;
 
@@ -190,6 +190,9 @@ export function useFlucState() {
       const nextIds = new Set(nextList.map(item => item.id));
       prevList.forEach(item => {
         if (!nextIds.has(item.id) && !newDeletedIds.includes(item.id)) {
+          if (typeof item.id === 'string' && item.id.startsWith('reimb-')) {
+            return;
+          }
           newDeletedIds.push(item.id);
           deletedChanged = true;
           changed = true;
@@ -623,7 +626,15 @@ export function useFlucState() {
 
   // BACKUP & RESTORE / DATA MUTATIONS
   const clearLancamentos = () => {
-    updateState({ lancamentos: [] });
+    updateState((prev) => {
+      const allLancIds = prev.lancamentos.map(l => l.id);
+      return {
+        ...prev,
+        lancamentos: [],
+        deletedIds: Array.from(new Set([...(prev.deletedIds || []), ...allLancIds])),
+        lastModifiedAt: Date.now()
+      };
+    });
   };
 
   const resetAllData = () => {
@@ -632,13 +643,27 @@ export function useFlucState() {
 
   const eraseAllData = () => {
     const defaultState = getDefaultState();
-    updateState({
-      contas: [],
-      cartoes: [],
-      categorias: defaultState.categorias,
-      lancamentos: [],
-      cofrinhos: [],
-      cofrinhoHistorico: []
+    updateState((prev) => {
+      const allIds = [
+        ...prev.contas.map(i => i.id),
+        ...prev.cartoes.map(i => i.id),
+        ...prev.lancamentos.map(i => i.id),
+        ...prev.cofrinhos.map(i => i.id),
+        ...prev.cofrinhoHistorico.map(i => i.id)
+      ];
+      return {
+        ...prev,
+        contas: [],
+        cartoes: [],
+        categorias: defaultState.categorias,
+        lancamentos: [],
+        cofrinhos: [],
+        cofrinhoHistorico: [],
+        metas: [],
+        metaContribuicoes: [],
+        deletedIds: Array.from(new Set([...(prev.deletedIds || []), ...allIds])),
+        lastModifiedAt: Date.now()
+      };
     });
   };
 

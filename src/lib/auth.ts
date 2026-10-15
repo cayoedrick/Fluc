@@ -76,15 +76,20 @@ export const initAuth = (
         onAuthSuccess(user, cachedAccessToken);
       }
     } else {
-      // User is truly logged out
-      cachedAccessToken = null;
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(TOKEN_EXPIRY_KEY);
-        localStorage.removeItem(USER_STORAGE_KEY);
-      }
-      if (onAuthFailure) {
-        onAuthFailure();
+      // If there is already a saved user in localStorage (e.g. page refresh), preserve the session
+      const savedUser = getSavedUser();
+      const savedToken = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+      if (savedUser && savedToken) {
+        cachedAccessToken = savedToken;
+        if (onAuthSuccess) {
+          onAuthSuccess(savedUser as any as User, savedToken);
+        }
+      } else {
+        // Only trigger failure if truly logged out and no saved session exists
+        cachedAccessToken = null;
+        if (onAuthFailure) {
+          onAuthFailure();
+        }
       }
     }
   });
@@ -117,7 +122,11 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 
     return { user: result.user, accessToken: credential.accessToken };
   } catch (error: any) {
-    console.error('Sign in error:', error);
+    if (error?.code === 'auth/popup-blocked') {
+      console.warn('Google sign-in popup was blocked by browser.');
+    } else {
+      console.error('Sign in error:', error);
+    }
     throw error;
   } finally {
     isSigningIn = false;

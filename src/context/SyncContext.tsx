@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { User } from 'firebase/auth';
-import { initAuth, googleSignIn, getAccessToken, logout, getSavedUser, auth } from '../lib/auth';
-import { useFlucState } from '../hooks/useFlucState';
+import { initAuth, googleSignIn, getAccessToken, setCachedAccessToken, logout, getSavedUser, auth } from '../lib/auth';
 import { FlucState } from '../types';
 
 export interface SyncContextValue {
@@ -28,6 +27,8 @@ export function useSyncContext(): SyncContextValue {
 
 interface SyncProviderProps {
   children: ReactNode;
+  state: FlucState;
+  updateState: (updater: Partial<FlucState> | ((prev: FlucState) => FlucState)) => void;
 }
 
 function mergeStates(local: FlucState, remote: FlucState): FlucState {
@@ -48,13 +49,15 @@ function mergeStates(local: FlucState, remote: FlucState): FlucState {
   const mergedDeletedIds = Array.from(new Set([
     ...(local.deletedIds || []),
     ...(remote.deletedIds || [])
-  ]));
+  ])).slice(-2000);
+
+  const deletedSet = new Set(mergedDeletedIds);
 
   const merged: any = {
     ...local,
     theme: (remote.lastModifiedAt || 0) > (local.lastModifiedAt || 0) ? remote.theme : local.theme,
     deletedIds: mergedDeletedIds,
-    lastModifiedAt: Math.max(local.lastModifiedAt || 0, remote.lastModifiedAt || 0)
+    lastModifiedAt: Math.max(local.lastModifiedAt || 0, remote.lastModifiedAt || 0, Date.now())
   };
 
   for (const col of collections) {
@@ -62,16 +65,16 @@ function mergeStates(local: FlucState, remote: FlucState): FlucState {
     const remoteArr = (remote[col] || []) as any[];
     const map = new Map<string, any>();
 
-    // Put remote items first
+    // Put remote items first (ignoring any deleted IDs)
     remoteArr.forEach((item: any) => {
-      if (item && item.id && !mergedDeletedIds.includes(item.id)) {
+      if (item && item.id && !deletedSet.has(item.id)) {
         map.set(item.id, item);
       }
     });
 
-    // Merge local items comparing updatedAt
+    // Merge local items comparing updatedAt (ignoring any deleted IDs)
     localArr.forEach((item: any) => {
-      if (item && item.id && !mergedDeletedIds.includes(item.id)) {
+      if (item && item.id && !deletedSet.has(item.id)) {
         const existing = map.get(item.id);
         if (!existing) {
           map.set(item.id, item);
@@ -92,8 +95,12 @@ function mergeStates(local: FlucState, remote: FlucState): FlucState {
   return merged;
 }
 
-export function SyncProvider({ children }: SyncProviderProps) {
-  const { state, updateState } = useFlucState();
+export function SyncProvider({ children, state, updateState }: SyncProviderProps) {
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     if (auth.currentUser) return auth.currentUser;
     const saved = getSavedUser();
@@ -161,8 +168,13 @@ export function SyncProvider({ children }: SyncProviderProps) {
         setTimeout(() => forceSync(), 500);
       }
     } catch (err: any) {
-      setSyncError(err?.message || 'Erro ao autenticar com Google');
-      window.showToast?.('Erro ao autenticar com Google Drive', 'erro');
+      if (err?.code === 'auth/popup-blocked') {
+        setSyncError('O pop-up de login foi bloqueado pelo navegador. Por favor, permita pop-ups para este site.');
+        window.showToast?.('Pop-up bloqueado. Permita pop-ups nas configurações do navegador.', 'erro');
+      } else {
+        setSyncError(err?.message || 'Erro ao autenticar com Google');
+        window.showToast?.('Erro ao autenticar com Google Drive', 'erro');
+      }
     }
   };
 
@@ -181,27 +193,17 @@ export function SyncProvider({ children }: SyncProviderProps) {
       setSyncError('Dispositivo offline. Conecte-se à internet para sincronizar.');
       return false;
     }
-    let activeToken = await getAccessToken();
+    const activeToken = await getAccessToken();
     if (!activeToken) {
-      try {
-        const res = await googleSignIn();
-        if (!res) {
-          setSyncError('Autenticação necessária com o Google Drive.');
-          return false;
-        }
-        setCurrentUser(res.user);
-        activeToken = res.accessToken;
-      } catch (e: any) {
-        setSyncError('Falha ao autenticar com Google Drive: ' + (e?.message || ''));
-        return false;
-      }
+      setSyncError('Conecte sua conta do Google Drive para sincronizar.');
+      return false;
     }
 
     setIsCloudSyncing(true);
     setSyncError(null);
 
     const fetchDrive = async (url: string, init?: RequestInit): Promise<Response> => {
-      let res = await fetch(url, {
+      const res = await fetch(url, {
         ...init,
         headers: {
           ...(init?.headers || {}),
@@ -210,22 +212,8 @@ export function SyncProvider({ children }: SyncProviderProps) {
       });
 
       if (res.status === 401) {
-        try {
-          const fresh = await googleSignIn();
-          if (fresh?.accessToken) {
-            activeToken = fresh.accessToken;
-            setCurrentUser(fresh.user);
-            res = await fetch(url, {
-              ...init,
-              headers: {
-                ...(init?.headers || {}),
-                Authorization: `Bearer ${activeToken}`
-              }
-            });
-          }
-        } catch (reauthErr) {
-          console.warn('Silent reauth failed:', reauthErr);
-        }
+        setCachedAccessToken(null);
+        setSyncError('Sessão expirada. Clique no botão de sincronização para reconectar.');
       }
       return res;
     };
@@ -246,7 +234,18 @@ export function SyncProvider({ children }: SyncProviderProps) {
       const files = searchData.files || [];
 
       let fileId = files.length > 0 ? files[0].id : null;
-      let finalState = state;
+      let currentState = stateRef.current;
+      try {
+        const saved = localStorage.getItem('fluc_financial_state');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if ((parsed.lastModifiedAt || 0) > (currentState.lastModifiedAt || 0)) {
+            currentState = parsed;
+          }
+        }
+      } catch {}
+
+      let finalState = currentState;
 
       if (fileId) {
         // 2. Download remote file content
@@ -257,7 +256,7 @@ export function SyncProvider({ children }: SyncProviderProps) {
           try {
             const remoteState = await downloadRes.json();
             // 3. Merge local and remote states intelligently
-            finalState = mergeStates(state, remoteState);
+            finalState = mergeStates(currentState, remoteState);
             // Update local state with merged data
             updateState(() => finalState);
           } catch (parseErr) {
@@ -325,7 +324,40 @@ export function SyncProvider({ children }: SyncProviderProps) {
     } finally {
       setIsCloudSyncing(false);
     }
-  }, [state, updateState]);
+  }, [updateState]);
+
+  // Debounced auto-sync whenever data changes locally
+  const prevModifiedRef = useRef<number>(state.lastModifiedAt || 0);
+  useEffect(() => {
+    if (!currentUser || !isOnline) return;
+    if (!state.lastModifiedAt || state.lastModifiedAt === prevModifiedRef.current) return;
+
+    if (lastSyncUpload && lastSyncUpload >= state.lastModifiedAt) {
+      prevModifiedRef.current = state.lastModifiedAt;
+      return;
+    }
+
+    prevModifiedRef.current = state.lastModifiedAt;
+
+    const timer = setTimeout(() => {
+      if (!isCloudSyncing) {
+        forceSync();
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [state.lastModifiedAt, currentUser, isOnline, isCloudSyncing, lastSyncUpload, forceSync]);
+
+  // Sync when returning to tab or app
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && currentUser && navigator.onLine) {
+        forceSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [currentUser, forceSync]);
 
   return (
     <SyncContext.Provider
