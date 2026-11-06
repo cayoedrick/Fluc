@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Categoria } from '../types';
-import { Plus, Trash2, Edit2, Check, X, ArrowUp, ArrowDown, Tag } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { SyncStatusIcon } from './SyncStatusIcon';
 import { CategoryIcon } from './CategoryIcon';
 
@@ -16,6 +16,10 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
   const [newCatName, setNewCatName] = useState<string>('');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingCatName, setEditingCatName] = useState<string>('');
+
+  // Drag and drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleAddCategory = () => {
     if (!newCatName.trim()) return;
@@ -64,7 +68,7 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
     }
   };
 
-  // Reordering function
+  // Up/down buttons reordering
   const handleMoveCategory = (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= categorias.length) return;
@@ -84,8 +88,45 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
     }
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const updated = [...categorias];
+    const [removed] = updated.splice(draggedIndex, 1);
+    updated.splice(targetIndex, 0, removed);
+
+    onUpdateCategorias(updated);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   return (
-    <div id="categorias-container" className="w-full flex-1 flex flex-col space-y-6">
+    <div id="categorias-container" className="w-full flex-1 flex flex-col space-y-6 select-none">
       
       {/* 1. Header */}
       <div className="flex items-center justify-between pb-2">
@@ -133,19 +174,41 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
           <h3 className="text-xs font-bold text-[var(--text-discreto)] uppercase tracking-wider">
             Categorias Cadastradas ({categorias.length})
           </h3>
-          <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase">Ordem de Exibição</span>
+          <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase">Arraste para Reordenar</span>
         </div>
 
         <div className="space-y-2">
           {categorias.map((cat, idx) => {
             const isEditing = editingCatId === cat.id;
+            const isDragging = draggedIndex === idx;
+            const isDragOver = dragOverIndex === idx && draggedIndex !== idx;
+
             return (
               <div
                 key={cat.id}
-                className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] p-3.5 flex items-center justify-between gap-4"
+                draggable={!isEditing}
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDrop={(e) => handleDrop(e, idx)}
+                onDragEnd={handleDragEnd}
+                className={`bg-[var(--bg-primary)] border rounded-[20px] p-3.5 flex items-center justify-between gap-4 transition-all ${
+                  isDragging 
+                    ? 'opacity-40 border-dashed border-[var(--bg-secondary)] scale-[0.99]' 
+                    : isDragOver
+                      ? 'border-[var(--bg-secondary)] bg-[var(--bg-secondary)]/10 shadow-md scale-[1.01]'
+                      : 'border-[var(--bg-tertiary)] hover:border-[var(--bg-secondary)]/40'
+                }`}
               >
                 <div className="flex-1 flex items-center gap-3">
-                  <div className="p-2 rounded-[12px] bg-[var(--bg-secondary)]/15 text-[var(--text-general)]">
+                  {/* Drag handle handle */}
+                  <div 
+                    className="cursor-grab active:cursor-grabbing text-[var(--text-discreto)] hover:text-[var(--text-general)] p-1 rounded-md"
+                    title="Clique e arraste para reordenar"
+                  >
+                    <GripVertical size={18} />
+                  </div>
+
+                  <div className="p-2 rounded-[12px] bg-[var(--bg-secondary)]/15 text-[var(--text-general)] shrink-0">
                     <CategoryIcon name={cat.nome} icon={cat.icone} size={18} />
                   </div>
 
