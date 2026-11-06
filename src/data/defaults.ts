@@ -35,6 +35,7 @@ export const OFFICIAL_CATEGORIES: { id: string; nome: string; icone: string }[] 
   { id: 'cat-seguros', nome: 'Seguros', icone: 'seguros' },
   { id: 'cat-transferencia', nome: 'Transferência', icone: 'transferencia' },
   { id: 'cat-transporte', nome: 'Transporte', icone: 'transporte' },
+  { id: 'cat-combustivel', nome: 'Combustível', icone: 'combustivel' },
   { id: 'cat-vendas', nome: 'Vendas', icone: 'vendas' },
   { id: 'cat-vestuario-acessorios', nome: 'Vestuário e Acessórios', icone: 'vestuario-acessorios' },
 ];

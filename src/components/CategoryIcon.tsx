@@ -17,6 +17,7 @@ import {
   HeartPulse, 
   GraduationCap, 
   Car, 
+  Fuel,
   AlertTriangle, 
   PawPrint, 
   UtensilsCrossed, 
@@ -78,7 +79,8 @@ export function normalizeCategoryKey(nameOrIcon?: string): string {
   if (clean.includes('alimentacao')) return 'alimentacao';
   if (clean.includes('saude')) return 'saude';
   if (clean.includes('educacao')) return 'educacao';
-  if (clean.includes('transporte') || clean.includes('combustivel')) return 'transporte';
+  if (clean.includes('combustivel')) return 'combustivel';
+  if (clean.includes('transporte')) return 'transporte';
   if (clean.includes('imprevisto') || clean.includes('outros')) return 'imprevistos';
   if (clean.includes('pet')) return 'pets';
   if (clean.includes('comer fora') || clean.includes('restaurante')) return 'comer-fora';
@@ -132,6 +134,7 @@ export function CategoryIcon({
     case 'saude': return <HeartPulse {...iconProps} />;
     case 'educacao': return <GraduationCap {...iconProps} />;
     case 'transporte': return <Car {...iconProps} />;
+    case 'combustivel': return <Fuel {...iconProps} />;
     case 'imprevistos': return <AlertTriangle {...iconProps} />;
     case 'pets': return <PawPrint {...iconProps} />;
     case 'comer-fora': return <UtensilsCrossed {...iconProps} />;
