@@ -22,7 +22,8 @@ import {
   Share2,
   Info,
   Pencil,
-  HandHelping
+  HandHelping,
+  Wrench
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
 import { SyncStatusIcon } from './SyncStatusIcon';
@@ -813,6 +814,7 @@ export function DashboardView({
             {sortedLancamentos.map((l, idx) => {
               const cat = categorias.find((c) => c.id === l.categoriaId);
               const isReimb = Boolean(l.isReimbursement || l.id?.startsWith('reimb-') || l.descricao?.startsWith('Reembolso:'));
+              const isAjuste = Boolean(l.descricao?.toLowerCase().includes('ajuste') || cat?.nome?.toLowerCase() === 'ajuste' || l.categoriaId === 'cat-ajuste');
               const isRec = l.tipo === 'receita';
               const isRetiradaCof = l.tipo === 'retirada_cofrinho';
               const isDepositoCof = l.tipo === 'deposito_cofrinho';
@@ -823,6 +825,7 @@ export function DashboardView({
 
               let typeColor = 'text-[var(--text-general)]';
               if (isReimb) typeColor = 'text-indigo-500';
+              else if (isAjuste) typeColor = 'text-[#ed793a]';
               else if (isRec) typeColor = 'text-[#00cc52]';
               else if (isRetiradaCof) typeColor = 'text-[#1c7ae4]';
               else if (isDepositoCof) typeColor = 'text-[#1c7ae4]';
@@ -852,6 +855,7 @@ export function DashboardView({
                     {/* Icon container */}
                     <div className={`p-3 rounded-[14px] ${
                       isReimb ? 'bg-indigo-500/20 text-indigo-500' :
+                      isAjuste ? 'bg-[#ed793a]/20 text-[#ed793a]' :
                       isRec ? 'bg-[#00cc52]/20 text-[#00cc52]' :
                       isCof ? 'bg-[#1c7ae4]/20 text-[#1c7ae4]' :
                       isCard ? (
@@ -864,6 +868,8 @@ export function DashboardView({
                     }`}>
                       {isReimb ? (
                         <HandHelping size={22} strokeWidth={2.3} />
+                      ) : isAjuste ? (
+                        <Wrench size={22} strokeWidth={2.3} />
                       ) : isCof ? (
                         <PiggyBank size={22} strokeWidth={2.3} />
                       ) : (

@@ -21,7 +21,8 @@ import {
   Share2,
   HelpCircle,
   PiggyBank,
-  HandHelping
+  HandHelping,
+  Wrench
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
 import { FloatingInfoModal } from './FloatingInfoModal';
@@ -922,6 +923,7 @@ export function ExtratoView({
             {sortedLancamentos.map((l, idx) => {
               const cat = categorias.find((c) => c.id === l.categoriaId);
               const isReimb = Boolean(l.isReimbursement || l.id?.startsWith('reimb-') || l.descricao?.startsWith('Reembolso:'));
+              const isAjuste = Boolean(l.descricao?.toLowerCase().includes('ajuste') || cat?.nome?.toLowerCase() === 'ajuste' || l.categoriaId === 'cat-ajuste');
               const isRec = l.tipo === 'receita';
               const isRetiradaCof = l.tipo === 'retirada_cofrinho';
               const isDepositoCof = l.tipo === 'deposito_cofrinho';
@@ -932,6 +934,7 @@ export function ExtratoView({
 
               let textClass = 'text-[var(--text-general)]';
               if (isReimb) textClass = 'text-indigo-500';
+              else if (isAjuste) textClass = 'text-[#ed793a]';
               else if (isRec) textClass = 'text-[#00cc52]';
               else if (isRetiradaCof) textClass = 'text-[#1c7ae4]';
               else if (isDepositoCof) textClass = 'text-[#1c7ae4]';
@@ -959,6 +962,7 @@ export function ExtratoView({
                   <div className="flex items-center gap-3">
                     <div className={`p-3 rounded-[14px] ${
                       isReimb ? 'bg-indigo-500/20 text-indigo-500' :
+                      isAjuste ? 'bg-[#ed793a]/20 text-[#ed793a]' :
                       isRec ? 'bg-[#00cc52]/20 text-[#00cc52]' :
                       isCof ? 'bg-[#1c7ae4]/20 text-[#1c7ae4]' :
                       isCard ? (
@@ -971,6 +975,8 @@ export function ExtratoView({
                     }`}>
                       {isReimb ? (
                         <HandHelping size={22} strokeWidth={2.3} />
+                      ) : isAjuste ? (
+                        <Wrench size={22} strokeWidth={2.3} />
                       ) : isCof ? (
                         <PiggyBank size={22} strokeWidth={2.3} />
                       ) : (
