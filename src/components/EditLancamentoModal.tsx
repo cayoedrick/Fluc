@@ -4,11 +4,13 @@ import { X, Calendar, Check, Wallet, CreditCard, ArrowRight, Share2, Users, Perc
 import { ParticipanteDespesa } from '../types';
 
 import { formatCurrency, parseCurrencyInput, formatCurrencyInput } from '../utils/currency';
+import { getLancamentoPrimaryDate } from '../utils/dateUtils';
 
 interface EditLancamentoModalProps {
   isOpen: boolean;
   onClose: () => void;
   lancamento: Lancamento | null;
+  lancamentos?: Lancamento[];
   contas: Conta[];
   cartoes: Cartao[];
   categorias: Categoria[];
@@ -19,6 +21,7 @@ export function EditLancamentoModal({
   isOpen,
   onClose,
   lancamento,
+  lancamentos,
   contas,
   cartoes,
   categorias,
@@ -47,7 +50,7 @@ export function EditLancamentoModal({
       setValor(formatCurrency(lancamento.valor));
       setRecebidoPagoEfetivado(lancamento.recebidoPagoEfetivado);
       setEstorno(lancamento.estorno || false);
-      setData((lancamento.tipo === 'despesa_cartao' && lancamento.dataCompra) ? lancamento.dataCompra : lancamento.data);
+      setData(getLancamentoPrimaryDate(lancamento, lancamentos));
       setDescricao(lancamento.descricao);
       setCategoriaId(lancamento.categoriaId || '');
       setContaId(lancamento.contaId || '');
@@ -68,9 +71,7 @@ export function EditLancamentoModal({
   const isCofDep = lancamento.tipo === 'deposito_cofrinho';
   const isCofRet = lancamento.tipo === 'retirada_cofrinho';
 
-  const filteredCategorias = categorias.filter(
-    c => c.tipo === (isIncome ? 'receita' : 'despesa')
-  );
+  const filteredCategorias = categorias;
 
   const handlePreSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -259,6 +260,25 @@ export function EditLancamentoModal({
                       <span
                         className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white rounded-full transition-transform ${
                           estorno ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </>
+                )}
+
+                {isCard && lancamento.fixoRecorrente && (
+                  <>
+                    <span className="text-[10px] font-semibold text-[var(--text-discreto)] block mb-1">EFETIVADO</span>
+                    <button
+                      type="button"
+                      onClick={() => setRecebidoPagoEfetivado(!recebidoPagoEfetivado)}
+                      className={`toggle-switch rounded-full transition-colors ${
+                        recebidoPagoEfetivado ? 'bg-[#d03c4d]' : 'bg-[var(--bg-tertiary)]'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white rounded-full transition-transform ${
+                          recebidoPagoEfetivado ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
                     </button>

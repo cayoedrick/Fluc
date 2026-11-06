@@ -8,6 +8,7 @@ import { Lancamento, Conta } from '../types';
 import { generatePixPayload } from '../utils/pix';
 
 import { formatCurrency } from '../utils/currency';
+import { getLancamentoPrimaryDate, getLancamentoSortDate } from '../utils/dateUtils';
 
 interface SharedLancamentoDetailsModalProps {
   isOpen: boolean;
@@ -64,8 +65,8 @@ function SharedLancamentoDetailsModalContent({
         l.data.startsWith(monthYear) &&
         l.participantes?.some(p => p.nome === combinedParticipantName)
       ).sort((a, b) => {
-        const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
-        const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+        const aDateStr = getLancamentoSortDate(a);
+        const bDateStr = getLancamentoSortDate(b);
         const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
         const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
         return (aTime - bTime) || aDateStr.localeCompare(bDateStr);
@@ -80,8 +81,8 @@ function SharedLancamentoDetailsModalContent({
         l.data.startsWith(monthYear) &&
         l.participantes?.some(p => p.nome === combinedParticipantName)
       ).sort((a, b) => {
-        const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
-        const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+        const aDateStr = getLancamentoSortDate(a);
+        const bDateStr = getLancamentoSortDate(b);
         const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
         const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
         return (aTime - bTime) || aDateStr.localeCompare(bDateStr);
@@ -104,8 +105,8 @@ function SharedLancamentoDetailsModalContent({
         ? allLancamentos
             .filter(l => l.grupoId === targetLanc.grupoId && !l.isReimbursement)
             .sort((a, b) => {
-              const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
-              const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+              const aDateStr = getLancamentoSortDate(a);
+              const bDateStr = getLancamentoSortDate(b);
               const aTime = new Date(aDateStr.includes('T') ? aDateStr : `${aDateStr}T00:00:00`).getTime();
               const bTime = new Date(bDateStr.includes('T') ? bDateStr : `${bDateStr}T00:00:00`).getTime();
               return (aTime - bTime) || aDateStr.localeCompare(bDateStr);
@@ -243,7 +244,7 @@ function SharedLancamentoDetailsModalContent({
     return {
       id: item.id,
       descricao: item.descricao,
-      data: item.tipo === 'despesa_cartao' && item.dataCompra ? item.dataCompra : item.data,
+      data: getLancamentoPrimaryDate(item, allLancamentos),
       valor: itemVal
     };
   });
@@ -1005,7 +1006,7 @@ function SharedLancamentoDetailsModalContent({
                 {item.descricao}
               </span>
               <span className="text-[10px] text-[var(--text-discreto)] block mt-0.5">
-                Data: {formatDate(item.tipo === 'despesa_cartao' && item.dataCompra ? item.dataCompra : item.data)}
+                Data: {formatDate(getLancamentoPrimaryDate(item, allLancamentos))}
               </span>
             </div>
           </div>

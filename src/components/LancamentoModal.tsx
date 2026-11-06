@@ -53,8 +53,7 @@ export function LancamentoModal({
   const [showValorParcelaInfo, setShowValorParcelaInfo] = useState<boolean>(false);
 
   // Categories filtered by type
-  const isIncome = tipo === 'receita';
-  const filteredCategorias = categorias.filter(c => c.tipo === (isIncome ? 'receita' : 'despesa'));
+  const filteredCategorias = categorias;
 
   // Default selections when modal type shifts
   const handleTipoChange = (newTipo: LancamentoType) => {
@@ -65,12 +64,9 @@ export function LancamentoModal({
     setFixoRecorrente(false);
     setParcelado(false);
 
-    // Auto select first category of correct type
-    const cats = categorias.filter(c => c.tipo === (newTipo === 'receita' ? 'receita' : 'despesa'));
-    if (cats.length > 0) {
-      setCategoriaId(cats[0].id);
-    } else {
-      setCategoriaId('');
+    // Auto select first category
+    if (categorias.length > 0 && !categoriaId) {
+      setCategoriaId(categorias[0].id);
     }
 
     if (newTipo === 'despesa_cartao' && cartoes.length > 0) {
@@ -232,8 +228,8 @@ export function LancamentoModal({
         payload.numParcelas = p;
         payload.isValorParcela = valorEhPorParcela;
       }
-      // despesa_cartao doesn't use the standard received flag but we default it to true
-      payload.recebidoPagoEfetivado = true;
+      // despesa_cartao: fixed recurring starts deactivated by default unless user explicitly marked it
+      payload.recebidoPagoEfetivado = fixoRecorrente ? recebidoPagoEfetivado : true;
     } else if (tipo === 'transferencia') {
       payload.contaId = contaId; // "da conta"
       payload.paraContaId = paraContaId; // "para conta"
@@ -370,6 +366,24 @@ export function LancamentoModal({
                     <span
                       className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white rounded-full transition-transform ${
                         estorno ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </>
+              )}
+
+              {tipo === 'despesa_cartao' && fixoRecorrente && (
+                <>
+                  <span className="text-[10px] font-semibold text-[var(--text-discreto)] block mb-1">EFETIVADO</span>
+                  <button
+                    onClick={() => setRecebidoPagoEfetivado(!recebidoPagoEfetivado)}
+                    className={`toggle-switch rounded-full transition-colors ${
+                      recebidoPagoEfetivado ? 'bg-[#d03c4d]' : 'bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white rounded-full transition-transform ${
+                        recebidoPagoEfetivado ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>

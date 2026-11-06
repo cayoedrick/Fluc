@@ -1,29 +1,54 @@
 import { Conta, Cartao, Categoria, Lancamento, Cofrinho, CofrinhoHistorico } from '../types';
 
-export const DEFAULT_CATEGORIES_RECEITA: string[] = [
-  'Ajuste', 'Estorno', 'Extras', 'Férias', 'Outras Receitas', 
-  'Reembolso', 'Rendimentos', 'Restituição', 'Salário', 'Transferências'
+export const OFFICIAL_CATEGORIES: { id: string; nome: string; icone: string }[] = [
+  { id: 'cat-ajuste', nome: 'Ajuste', icone: 'ajuste' },
+  { id: 'cat-alugueis', nome: 'Aluguéis', icone: 'alugueis' },
+  { id: 'cat-alimentacao', nome: 'Alimentação', icone: 'alimentacao' },
+  { id: 'cat-supermercado', nome: 'Supermercado', icone: 'supermercado' },
+  { id: 'cat-assinaturas', nome: 'Assinaturas', icone: 'assinaturas' },
+  { id: 'cat-comer-fora', nome: 'Comer Fora', icone: 'comer-fora' },
+  { id: 'cat-delivery', nome: 'Delivery', icone: 'delivery' },
+  { id: 'cat-compras', nome: 'Compras', icone: 'compras' },
+  { id: 'cat-contas-basicas', nome: 'Contas Básicas', icone: 'contas-basicas' },
+  { id: 'cat-cuidados-pessoais', nome: 'Cuidados Pessoais', icone: 'cuidados-pessoais' },
+  { id: 'cat-dividas-emprestimos', nome: 'Dívidas e Empréstimos', icone: 'dividas-emprestimos' },
+  { id: 'cat-doacoes', nome: 'Doações', icone: 'doacoes' },
+  { id: 'cat-dividendos', nome: 'Dividendos', icone: 'dividendos' },
+  { id: 'cat-educacao', nome: 'Educação', icone: 'educacao' },
+  { id: 'cat-estorno', nome: 'Estorno', icone: 'estorno' },
+  { id: 'cat-extras', nome: 'Extras', icone: 'extras' },
+  { id: 'cat-ferias', nome: 'Férias', icone: 'ferias' },
+  { id: 'cat-habitacao', nome: 'Habitação', icone: 'habitacao' },
+  { id: 'cat-impostos-taxas', nome: 'Impostos e Taxas', icone: 'impostos-taxas' },
+  { id: 'cat-imprevistos', nome: 'Imprevistos', icone: 'imprevistos' },
+  { id: 'cat-investimentos-aplicacoes', nome: 'Investimentos e Aplicações', icone: 'investimentos-aplicacoes' },
+  { id: 'cat-lazer', nome: 'Lazer', icone: 'lazer' },
+  { id: 'cat-loteria', nome: 'Loteria', icone: 'loteria' },
+  { id: 'cat-outras-receitas', nome: 'Outras Receitas', icone: 'outras-receitas' },
+  { id: 'cat-outros-gastos', nome: 'Outros Gastos', icone: 'outros-gastos' },
+  { id: 'cat-pets', nome: 'Pets', icone: 'pets' },
+  { id: 'cat-presentes-receitas', nome: 'Presentes Receitas', icone: 'presentes-receitas' },
+  { id: 'cat-reembolsos', nome: 'Reembolsos', icone: 'reembolsos' },
+  { id: 'cat-rendimentos', nome: 'Rendimentos', icone: 'rendimentos' },
+  { id: 'cat-salario', nome: 'Salário', icone: 'salario' },
+  { id: 'cat-saude', nome: 'Saúde', icone: 'saude' },
+  { id: 'cat-seguros', nome: 'Seguros', icone: 'seguros' },
+  { id: 'cat-transferencia', nome: 'Transferência', icone: 'transferencia' },
+  { id: 'cat-transporte', nome: 'Transporte', icone: 'transporte' },
+  { id: 'cat-vendas', nome: 'Vendas', icone: 'vendas' },
+  { id: 'cat-vestuario-acessorios', nome: 'Vestuário e Acessórios', icone: 'vestuario-acessorios' },
 ];
 
-export const DEFAULT_CATEGORIES_DESPESA: string[] = [
-  'Ajuste', 'Alimentação', 'Assinaturas', 'Combustível', 'Compras', 
-  'Delivery', 'Lazer', 'Moradia', 'Outros Gastos', 'Presente', 
-  'Saúde', 'Serviços', 'Supermercado', 'Transporte'
-];
+export const DEFAULT_CATEGORIES_RECEITA: string[] = OFFICIAL_CATEGORIES.map(c => c.nome);
+export const DEFAULT_CATEGORIES_DESPESA: string[] = OFFICIAL_CATEGORIES.map(c => c.nome);
 
 export const getDefaultState = () => {
-  const categorias: Categoria[] = [
-    ...DEFAULT_CATEGORIES_RECEITA.map((nome, index) => ({
-      id: `cat-rec-${index}`,
-      nome,
-      tipo: 'receita' as const
-    })),
-    ...DEFAULT_CATEGORIES_DESPESA.map((nome, index) => ({
-      id: `cat-desp-${index}`,
-      nome,
-      tipo: 'despesa' as const
-    }))
-  ];
+  const categorias: Categoria[] = OFFICIAL_CATEGORIES.map(c => ({
+    id: c.id,
+    nome: c.nome,
+    icone: c.icone,
+    tipo: 'geral' as const
+  }));
 
   const contas: Conta[] = [
     { id: 'conta-1', nome: 'Conta Corrente Itaú', saldoInicial: 3500.00, cor: '#1c7ae4' },
@@ -60,101 +85,70 @@ export const getDefaultState = () => {
     { id: 'cof-3', nome: 'Novo Computador', saldoAtual: 450.00, meta: 5000.00, cor: '#ed793a', valorInicial: 450.00 }
   ];
 
-  const cofrinhoHistorico: CofrinhoHistorico[] = [
-    {
-      id: 'h-1',
-      cofrinhoId: 'cof-1',
-      tipo: 'deposito',
-      valor: 500.00,
-      data: '2026-06-15',
-      contaId: 'conta-1'
-    },
-    {
-      id: 'h-2',
-      cofrinhoId: 'cof-2',
-      tipo: 'rendimento_adicionar',
-      valor: 15.50,
-      data: '2026-06-20',
-      periodo: '30 dias'
-    }
-  ];
-
-  // Some default realistic launches
   const lancamentos: Lancamento[] = [
     {
       id: 'lanc-1',
       tipo: 'receita',
-      valor: 4500.00,
+      valor: 5500.00,
       recebidoPagoEfetivado: true,
-      data: '2026-06-05',
+      data: '2026-06-01',
       descricao: 'Salário Mensal',
-      categoriaId: categorias.find(c => c.nome === 'Salário' && c.tipo === 'receita')?.id || 'cat-rec-8',
+      categoriaId: 'cat-salario',
       contaId: 'conta-1'
     },
     {
       id: 'lanc-2',
       tipo: 'despesa',
-      valor: 1200.00,
+      valor: 1800.00,
       recebidoPagoEfetivado: true,
-      data: '2026-06-10',
-      descricao: 'Aluguel do Apartamento',
-      categoriaId: categorias.find(c => c.nome === 'Moradia' && c.tipo === 'despesa')?.id || 'cat-desp-7',
+      data: '2026-06-05',
+      descricao: 'Aluguel do Mês',
+      categoriaId: 'cat-alugueis',
       contaId: 'conta-1',
       fixoRecorrente: true
     },
     {
       id: 'lanc-3',
       tipo: 'despesa',
-      valor: 185.50,
+      valor: 350.00,
       recebidoPagoEfetivado: true,
-      data: '2026-06-12',
+      data: '2026-06-08',
       descricao: 'Supermercado Mensal',
-      categoriaId: categorias.find(c => c.nome === 'Supermercado' && c.tipo === 'despesa')?.id || 'cat-desp-12',
+      categoriaId: 'cat-alimentacao',
       contaId: 'conta-2'
     },
     {
       id: 'lanc-4',
       tipo: 'despesa_cartao',
-      valor: 89.90,
+      valor: 120.00,
       recebidoPagoEfetivado: true,
-      estorno: false,
-      data: '2026-06-14',
-      dataCompra: '2026-06-14',
-      descricao: 'Assinatura Netflix & Spotify',
-      categoriaId: categorias.find(c => c.nome === 'Assinaturas' && c.tipo === 'despesa')?.id || 'cat-desp-2',
+      data: '2026-06-10',
+      dataCompra: '2026-06-10',
+      descricao: 'Jantar Restaurante',
+      categoriaId: 'cat-comer-fora',
       cartaoId: 'cartao-1'
     },
     {
       id: 'lanc-5',
       tipo: 'despesa_cartao',
-      valor: 240.00,
+      valor: 200.00,
       recebidoPagoEfetivado: true,
-      estorno: false,
-      data: '2026-06-18',
-      dataCompra: '2026-05-18',
-      descricao: 'Jantar com Amigos',
-      categoriaId: categorias.find(c => c.nome === 'Lazer' && c.tipo === 'despesa')?.id || 'cat-desp-6',
+      data: '2026-06-12',
+      dataCompra: '2026-06-12',
+      descricao: 'Combustível Carro',
+      categoriaId: 'cat-transporte',
       cartaoId: 'cartao-2'
-    },
+    }
+  ];
+
+  const cofrinhoHistorico: CofrinhoHistorico[] = [
     {
-      id: 'lanc-6',
-      tipo: 'transferencia',
-      valor: 300.00,
-      recebidoPagoEfetivado: true,
-      data: '2026-06-21',
-      descricao: 'Reposição Carteira',
-      contaId: 'conta-1', // da conta
-      paraContaId: 'conta-3' // para conta
-    },
-    {
-      id: 'lanc-cof-dep-1',
-      tipo: 'deposito_cofrinho',
+      id: 'hist-1',
+      cofrinhoId: 'cof-1',
+      tipo: 'deposito',
       valor: 500.00,
-      recebidoPagoEfetivado: true,
-      data: '2026-06-15',
-      descricao: 'Reserva: Reserva de Emergência',
-      contaId: 'conta-1',
-      cofrinhoId: 'cof-1'
+      data: '2026-06-02',
+      motivo: 'Depósito inicial reserva'
     }
   ];
 
@@ -168,7 +162,7 @@ export const getDefaultState = () => {
     metas: [],
     metaContribuicoes: [],
     deletedIds: [],
-    lastModifiedAt: Date.now(),
-    theme: 'clean' as const
+    theme: 'clean' as const,
+    lastModifiedAt: Date.now()
   };
 };

@@ -17,6 +17,13 @@ import { InteractiveTutorial } from './components/InteractiveTutorial';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { formatCurrency } from './utils/currency';
+import { 
+  addMonthsToDateStr, 
+  getLancamentoPrimaryDate, 
+  getLancamentoSortDate, 
+  formatDisplayDate, 
+  isLancamentoParcelado 
+} from './utils/dateUtils';
 
 function AppContent({ fluc }: { fluc: ReturnType<typeof useFlucState> }) {
   const {
@@ -103,17 +110,6 @@ function AppContent({ fluc }: { fluc: ReturnType<typeof useFlucState> }) {
       theme: state.theme === 'dark' ? 'clean' : 'dark'
     });
   };
-  const addMonthsToDateStr = (dateStr: string, monthsToAdd: number): string => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const targetMonthIndex = month - 1 + monthsToAdd;
-    const targetDate = new Date(year, targetMonthIndex, 1);
-    const maxDayInTargetMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
-    const finalDay = Math.min(day, maxDayInTargetMonth);
-    
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(finalDay)}`;
-  };
-
   // Add a standard transaction/entry (with support for recurring & installments)
   const handleAddLancamento = (newLanc: Omit<Lancamento, 'id'>) => {
     // Se for despesa de cartão (despesa_cartao), calcula a data de cobrança com base na data da compra e no dia de fechamento do cartão.
@@ -157,9 +153,9 @@ function AppContent({ fluc }: { fluc: ReturnType<typeof useFlucState> }) {
       const group = `grupo-${Date.now()}`;
       const entries: Lancamento[] = [];
 
-      const isCard = adjustedLanc.tipo === 'despesa_cartao';
       let sumOfInstallments = 0;
       const isValorParcela = adjustedLanc.isValorParcela;
+      const primaryDate = originalDataCompra || adjustedLanc.data;
 
       for (let i = 0; i < num; i++) {
         let installmentValor = adjustedLanc.valor;
@@ -181,7 +177,7 @@ function AppContent({ fluc }: { fluc: ReturnType<typeof useFlucState> }) {
           id: `lanc-${Date.now()}-${i}`,
           descricao: `${adjustedLanc.descricao} (${i + 1}/${num})`,
           data: installmentDate,
-          dataCompra: adjustedLanc.tipo === 'despesa_cartao' ? (adjustedLanc.dataCompra || originalDataCompra) : adjustedLanc.dataCompra,
+          dataCompra: primaryDate,
           valor: installmentValor,
           grupoId: group
         });
@@ -204,7 +200,7 @@ function AppContent({ fluc }: { fluc: ReturnType<typeof useFlucState> }) {
 
         entries.push({
           ...adjustedLanc,
-          recebidoPagoEfetivado: adjustedLanc.tipo === 'despesa_cartao' ? true : (i === 0 && adjustedLanc.recebidoPagoEfetivado),
+          recebidoPagoEfetivado: i === 0 && Boolean(adjustedLanc.recebidoPagoEfetivado),
           id: `lanc-${Date.now()}-${i}`,
           data: recurringDate,
           dataCompra: recurringDataCompra,
@@ -371,7 +367,28 @@ function AppContent({ fluc }: { fluc: ReturnType<typeof useFlucState> }) {
             let instanceData = l.data;
             let instanceDataCompra = l.dataCompra;
 
-            if (l.tipo === 'despesa_cartao' && l.dataCompra && target.dataCompra && finalUpdated.dataCompra) {
+            if (isLancamentoParcelado(l)) {
+              if (finalUpdated.data) {
+                instanceDataCompra = finalUpdated.data;
+                const oldDay = Number((target.dataCompra || target.data).split('-')[2]);
+                const newDay = Number(finalUpdated.data.split('-')[2]);
+                if (newDay !== oldDay) {
+                  const [y, m] = l.data.split('-');
+                  const maxD = new Date(Number(y), Number(m), 0).getDate();
+                  const adjustedDay = Math.min(newDay, maxD);
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  instanceData = `${y}-${m}-${pad(adjustedDay)}`;
+                  
+                  if (l.tipo === 'despesa_cartao') {
+                    const cartaoId = finalUpdated.cartaoId || l.cartaoId;
+                    const card = state.cartoes.find((c) => c.id === cartaoId);
+                    if (card && adjustedDay > card.diaFechamento) {
+                      instanceData = addMonthsToDateStr(instanceData, 1);
+                    }
+                  }
+                }
+              }
+            } else if (l.tipo === 'despesa_cartao' && l.dataCompra && target.dataCompra && finalUpdated.dataCompra) {
               const oldDay = Number(target.dataCompra.split('-')[2]);
               const newDay = Number(finalUpdated.dataCompra.split('-')[2]);
               if (newDay !== oldDay) {

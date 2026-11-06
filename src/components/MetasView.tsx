@@ -51,7 +51,7 @@ export function MetasView({ state, setState, currentDate }: MetasViewProps) {
       
       const receitasMes = state.lancamentos.filter(l => l.tipo === 'receita' && l.data.startsWith(prefix) && (!l.isShared || l.id.startsWith('reimb-'))).reduce((acc, l) => acc + l.valor, 0);
       const despesasLanc = state.lancamentos.filter(l => l.tipo === 'despesa' && l.data.startsWith(prefix)).reduce((acc, l) => acc + l.valor, 0);
-      const despesasCartao = state.lancamentos.filter(l => l.tipo === 'despesa_cartao' && !l.estorno && l.dataCompra?.startsWith(prefix)).reduce((acc, l) => acc + l.valor, 0);
+      const despesasCartao = state.lancamentos.filter(l => l.tipo === 'despesa_cartao' && !l.estorno && !(l.fixoRecorrente && !l.recebidoPagoEfetivado) && l.dataCompra?.startsWith(prefix)).reduce((acc, l) => acc + l.valor, 0);
       
       totalReceitas += receitasMes;
       totalDespesas += despesasLanc + despesasCartao;

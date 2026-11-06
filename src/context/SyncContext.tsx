@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, getAccessToken, setCachedAccessToken, logout, getSavedUser, auth } from '../lib/auth';
-import { FlucState } from '../types';
+import { FlucState, Lancamento } from '../types';
+import { isLancamentoParcelado, getLancamentoPrimaryDate } from '../utils/dateUtils';
 
 export interface SyncContextValue {
   isCloudSyncing: boolean;
@@ -90,6 +91,19 @@ function mergeStates(local: FlucState, remote: FlucState): FlucState {
     });
 
     merged[col] = Array.from(map.values());
+  }
+
+  if (merged.lancamentos) {
+    const raw: Lancamento[] = merged.lancamentos;
+    merged.lancamentos = raw.map((l: Lancamento) => {
+      if (isLancamentoParcelado(l) && !l.dataCompra) {
+        return {
+          ...l,
+          dataCompra: getLancamentoPrimaryDate(l, raw)
+        };
+      }
+      return l;
+    });
   }
 
   return merged;

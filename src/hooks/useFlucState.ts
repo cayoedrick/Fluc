@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
 import { FlucState, Conta, Cartao, Categoria, Lancamento, Cofrinho, CofrinhoHistorico } from '../types';
 import { getDefaultState } from '../data/defaults';
+import { isLancamentoParcelado, getLancamentoPrimaryDate } from '../utils/dateUtils';
 
 export function useFlucState() {
   const [isOnline, setIsOnline] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -11,14 +12,36 @@ export function useFlucState() {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.contas && parsed.cartoes && parsed.categorias && parsed.lancamentos && parsed.cofrinhos) {
+          const rawLancamentos: Lancamento[] = parsed.lancamentos || [];
+          const normalizedLancamentos = rawLancamentos.map(l => {
+            if (isLancamentoParcelado(l) && !l.dataCompra) {
+              return {
+                ...l,
+                dataCompra: getLancamentoPrimaryDate(l, rawLancamentos)
+              };
+            }
+            return l;
+          });
+
+          const rawCategorias: Categoria[] = parsed.categorias || [];
+          const seenNames = new Set<string>();
+          const uniqueCategorias = rawCategorias.filter(c => {
+            const nameLower = c.nome.toLowerCase().trim();
+            if (seenNames.has(nameLower)) return false;
+            seenNames.add(nameLower);
+            return true;
+          });
+
           return {
             ...getDefaultState(),
             ...parsed,
+            categorias: uniqueCategorias.length > 0 ? uniqueCategorias : getDefaultState().categorias,
+            lancamentos: normalizedLancamentos,
             cofrinhoHistorico: parsed.cofrinhoHistorico || [],
             metas: parsed.metas || [],
             metaContribuicoes: parsed.metaContribuicoes || [],
             deletedIds: parsed.deletedIds || [],
-            theme: parsed.theme || 'clean'
+            theme: (parsed.theme || 'clean') as 'clean' | 'dark'
           };
         }
       } catch (e) {
@@ -384,6 +407,10 @@ export function useFlucState() {
     let sum = 0;
     state.lancamentos.forEach((l) => {
       if (l.tipo === 'despesa_cartao' && l.cartaoId === cartaoId) {
+        // Fixed card expenses only count towards invoice when user activates them (efetivado)
+        if (l.fixoRecorrente && !l.recebidoPagoEfetivado) {
+          return;
+        }
         // Match the same month and year period (e.g. "2026-06")
         if (isDateInMonthYear(l.data, monthYearStr)) {
           if (l.estorno) {
@@ -412,6 +439,10 @@ export function useFlucState() {
 
     state.lancamentos.forEach((l) => {
       if (l.tipo === 'despesa_cartao' && l.cartaoId === cartaoId) {
+        // Fixed card expenses only utilize limit when efectivado
+        if (l.fixoRecorrente && !l.recebidoPagoEfetivado) {
+          return;
+        }
         hasTransactions = true;
         if (l.estorno) {
           if (l.recebidoPagoEfetivado) {
@@ -469,6 +500,7 @@ export function useFlucState() {
       } else if (cartaoId) {
         // credit card specific stats inside the calendar month
         if (l.tipo === 'despesa_cartao' && l.cartaoId === cartaoId) {
+          if (l.fixoRecorrente && !l.recebidoPagoEfetivado) return;
           if (l.estorno) {
             despesas -= l.valor;
           } else {
@@ -483,6 +515,7 @@ export function useFlucState() {
           despesas += l.valor;
         } else if (l.tipo === 'despesa_cartao') {
           // Add credit card expenses into total despesas as well for visual clarity
+          if (l.fixoRecorrente && !l.recebidoPagoEfetivado) return;
           if (l.estorno) {
             despesas -= l.valor;
           } else {
@@ -679,6 +712,17 @@ export function useFlucState() {
         Array.isArray(parsed.cofrinhos)
       ) {
         const now = Date.now();
+        const rawLancamentos: Lancamento[] = parsed.lancamentos || [];
+        const normalizedLancamentos = rawLancamentos.map(l => {
+          if (isLancamentoParcelado(l) && !l.dataCompra) {
+            return {
+              ...l,
+              dataCompra: getLancamentoPrimaryDate(l, rawLancamentos)
+            };
+          }
+          return l;
+        });
+
         // Freshen timestamps so imported data takes precedence over cloud data
         const freshen = (arr: any[]) => arr.map(item => ({ ...item, updatedAt: now }));
 
@@ -686,7 +730,7 @@ export function useFlucState() {
           contas: freshen(parsed.contas),
           cartoes: freshen(parsed.cartoes),
           categorias: freshen(parsed.categorias),
-          lancamentos: freshen(parsed.lancamentos),
+          lancamentos: freshen(normalizedLancamentos),
           cofrinhos: freshen(parsed.cofrinhos),
           cofrinhoHistorico: freshen(parsed.cofrinhoHistorico || []),
           deletedIds: parsed.deletedIds || [],

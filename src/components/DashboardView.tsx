@@ -21,11 +21,18 @@ import {
   Trash2,
   Share2,
   Info,
-  Pencil
+  Pencil,
+  HandHelping
 } from 'lucide-react';
 import { EditLancamentoModal } from './EditLancamentoModal';
 import { SyncStatusIcon } from './SyncStatusIcon';
 import { SharedLancamentoDetailsModal } from './SharedLancamentoDetailsModal';
+import { CategoryIcon } from './CategoryIcon';
+import { 
+  getLancamentoPrimaryDate, 
+  getLancamentoSortDate, 
+  formatDisplayDate 
+} from '../utils/dateUtils';
 
 interface DashboardViewProps {
   contas: Conta[];
@@ -311,8 +318,8 @@ export function DashboardView({
 
   // Sorting logic with full chronological date comparison
   const sortedLancamentos = [...filteredLancamentos].sort((a, b) => {
-    const aDateStr = a.tipo === 'despesa_cartao' && a.dataCompra ? a.dataCompra : a.data;
-    const bDateStr = b.tipo === 'despesa_cartao' && b.dataCompra ? b.dataCompra : b.data;
+    const aDateStr = getLancamentoSortDate(a);
+    const bDateStr = getLancamentoSortDate(b);
 
     let comparison = 0;
     if (sortBy === 'data') {
@@ -805,6 +812,7 @@ export function DashboardView({
           <div className="space-y-2.5">
             {sortedLancamentos.map((l, idx) => {
               const cat = categorias.find((c) => c.id === l.categoriaId);
+              const isReimb = Boolean(l.isReimbursement || l.id?.startsWith('reimb-') || l.descricao?.startsWith('Reembolso:'));
               const isRec = l.tipo === 'receita';
               const isRetiradaCof = l.tipo === 'retirada_cofrinho';
               const isDepositoCof = l.tipo === 'deposito_cofrinho';
@@ -814,12 +822,17 @@ export function DashboardView({
               const isPaid = l.recebidoPagoEfetivado;
 
               let typeColor = 'text-[var(--text-general)]';
-              if (isRec) typeColor = 'text-[#00cc52]';
-              if (isRetiradaCof) typeColor = 'text-[#1c7ae4]';
-              if (isDepositoCof) typeColor = 'text-[#1c7ae4]';
-              if (l.tipo === 'despesa') typeColor = 'text-[#d03c4d]';
-              if (isCard) typeColor = 'text-[#ed793a]';
-              if (isTransf) typeColor = 'text-[#1c7ae4]';
+              if (isReimb) typeColor = 'text-indigo-500';
+              else if (isRec) typeColor = 'text-[#00cc52]';
+              else if (isRetiradaCof) typeColor = 'text-[#1c7ae4]';
+              else if (isDepositoCof) typeColor = 'text-[#1c7ae4]';
+              else if (l.tipo === 'despesa') typeColor = 'text-[#d03c4d]';
+              else if (isCard) {
+                typeColor = l.fixoRecorrente 
+                  ? (l.recebidoPagoEfetivado ? 'text-[#d03c4d]' : 'text-[#1c7ae4]')
+                  : 'text-[#ed793a]';
+              }
+              else if (isTransf) typeColor = 'text-[#1c7ae4]';
 
               // Get readable origin-destination accounts for transfer
               const accountName = isTransf
@@ -831,23 +844,31 @@ export function DashboardView({
               return (
                 <div 
                   key={`${l.id}-${idx}`}
-                  className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] p-4 flex items-center justify-between gap-4 transition-transform hover:scale-[1.01]"
+                  className={`bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] p-4 flex items-center justify-between gap-4 transition-transform hover:scale-[1.01] ${
+                    isCard && l.fixoRecorrente && !l.recebidoPagoEfetivado ? 'opacity-75 border-dashed border-[#1c7ae4]/40 bg-[var(--bg-primary)]/80' : ''
+                  }`}
                 >
                   <div className="flex items-center gap-3">
                     {/* Icon container */}
-                    <div className={`p-2.5 rounded-[14px] ${
-                      isRec ? 'bg-[#00cc52]/10 text-[#00cc52]' :
-                      isCof ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
-                      isCard ? 'bg-[#ed793a]/10 text-[#ed793a]' :
-                      isTransf ? 'bg-[#1c7ae4]/10 text-[#1c7ae4]' :
-                      'bg-[#d03c4d]/10 text-[#d03c4d]'
+                    <div className={`p-3 rounded-[14px] ${
+                      isReimb ? 'bg-indigo-500/20 text-indigo-500' :
+                      isRec ? 'bg-[#00cc52]/20 text-[#00cc52]' :
+                      isCof ? 'bg-[#1c7ae4]/20 text-[#1c7ae4]' :
+                      isCard ? (
+                        l.fixoRecorrente
+                          ? (l.recebidoPagoEfetivado ? 'bg-[#d03c4d]/20 text-[#d03c4d]' : 'bg-[#1c7ae4]/20 text-[#1c7ae4]')
+                          : 'bg-[#ed793a]/20 text-[#ed793a]'
+                      ) :
+                      isTransf ? 'bg-[#1c7ae4]/20 text-[#1c7ae4]' :
+                      'bg-[#d03c4d]/20 text-[#d03c4d]'
                     }`}>
-                      {l.isShared || l.isReimbursement ? <Share2 size={16} /> :
-                       isRec ? <TrendingUp size={16} /> :
-                       isCof ? <PiggyBank size={16} /> :
-                       isCard ? <CreditCard size={16} /> :
-                       isTransf ? <ArrowRightLeft size={16} /> :
-                       <TrendingDown size={16} />}
+                      {isReimb ? (
+                        <HandHelping size={22} strokeWidth={2.3} />
+                      ) : isCof ? (
+                        <PiggyBank size={22} strokeWidth={2.3} />
+                      ) : (
+                        <CategoryIcon name={cat?.nome} icon={cat?.icone} size={22} strokeWidth={2.3} />
+                      )}
                     </div>
                     
                     <div>
@@ -894,6 +915,13 @@ export function DashboardView({
                               </span>
                             </div>
                           )}
+                          {isCard && l.fixoRecorrente && (
+                            l.recebidoPagoEfetivado ? (
+                              <span className="text-[#d03c4d] bg-[#d03c4d]/10 px-1.5 py-0.5 rounded-[4px] uppercase text-[8px] font-bold">Efetivado</span>
+                            ) : (
+                              <span className="text-[#1c7ae4] bg-[#1c7ae4]/10 px-1.5 py-0.5 rounded-[4px] uppercase text-[8px] font-bold">Aguardando Confirmação</span>
+                            )
+                          )}
                           {l.fixoRecorrente && (
                             <span className="bg-[var(--bg-tertiary)] text-[var(--text-discreto)] px-1 py-0.5 rounded-[4px] uppercase text-[8px] font-bold">Fixo</span>
                           )}
@@ -933,7 +961,7 @@ export function DashboardView({
                       {isRec || isRetiradaCof || (isCard && l.estorno) ? '+' : '-'} R$ {formatCurrency(l.valor)}
                     </p>
                     <span className="text-[10px] font-bold text-[var(--text-discreto)]">
-                      {(l.tipo === 'despesa_cartao' && l.dataCompra ? l.dataCompra : l.data).split('-').reverse().join('/')}
+                      {formatDisplayDate(getLancamentoPrimaryDate(l, lancamentos))}
                     </span>
                     
                     <div className="flex items-center gap-1 mt-1">
@@ -944,6 +972,31 @@ export function DashboardView({
                           title="Detalhes do compartilhamento"
                         >
                           <Info size={12} />
+                        </button>
+                      )}
+                      {isCard && l.fixoRecorrente && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onEditLancamento) {
+                              const nextStatus = !l.recebidoPagoEfetivado;
+                              onEditLancamento(l.id, { recebidoPagoEfetivado: nextStatus }, 'este');
+                              window.showToast?.(
+                                nextStatus ? 'Lançamento de cartão efetivado na fatura!' : 'Lançamento de cartão desativado (aguardando confirmação).',
+                                nextStatus ? 'sucesso' : 'info'
+                              );
+                            }
+                          }}
+                          className={`px-2.5 py-1 rounded-[8px] text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center gap-1.5 cursor-pointer hover:scale-[1.03] active:scale-[0.97] select-none ${
+                            l.recebidoPagoEfetivado
+                              ? 'bg-[#d03c4d]/15 border-[#d03c4d]/30 text-[#d03c4d] hover:bg-[#d03c4d]/25'
+                              : 'bg-[#1c7ae4]/15 border-[#1c7ae4]/30 text-[#1c7ae4] hover:bg-[#1c7ae4]/25'
+                          }`}
+                          title={l.recebidoPagoEfetivado ? 'Lançamento efetivado na fatura. Clique para desativar.' : 'Lançamento desativado. Clique para efetivar na fatura.'}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${l.recebidoPagoEfetivado ? 'bg-[#d03c4d]' : 'bg-[#1c7ae4]'}`} />
+                          <span>Efetivado</span>
                         </button>
                       )}
                       {!l.isReimbursement && (
@@ -1376,6 +1429,7 @@ export function DashboardView({
             setEditingLancamento(null);
           }}
           lancamento={editingLancamento}
+          lancamentos={lancamentos}
           contas={contas}
           cartoes={cartoes}
           categorias={categorias}

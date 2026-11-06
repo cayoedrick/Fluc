@@ -23,7 +23,8 @@ export interface Cartao {
 export interface Categoria {
   id: string;
   nome: string;
-  tipo: 'receita' | 'despesa';
+  tipo?: 'receita' | 'despesa' | 'geral';
+  icone?: string;
   updatedAt?: number;
 }
 

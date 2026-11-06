@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan for unifying categories without receipt/expense separation, sorting alphabetically with custom reordering, and rendering official reference icons across Categories, Extrato, Dashboard, LancamentoModal, and EditLancamentoModal.",
+  "updatedAt": "2026-11-06T14:02:04.470847784Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

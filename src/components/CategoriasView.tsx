@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Categoria } from '../types';
-import { Plus, Trash2, Edit2, Check, X, ArrowUp, ArrowDown, Tag, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, ArrowUp, ArrowDown, Tag } from 'lucide-react';
 import { SyncStatusIcon } from './SyncStatusIcon';
+import { CategoryIcon } from './CategoryIcon';
 
 interface CategoriasViewProps {
   categorias: Categoria[];
@@ -11,20 +12,16 @@ interface CategoriasViewProps {
 }
 
 export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onOpenSyncModal }: CategoriasViewProps) {
-  const [activeTab, setActiveTab] = useState<'receita' | 'despesa'>('receita');
-  
   // States for adding / editing
   const [newCatName, setNewCatName] = useState<string>('');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingCatName, setEditingCatName] = useState<string>('');
 
-  const filteredCats = categorias.filter(c => c.tipo === activeTab);
-
   const handleAddCategory = () => {
     if (!newCatName.trim()) return;
     
     // Check duplication
-    const duplicate = categorias.some(c => c.tipo === activeTab && c.nome.toLowerCase() === newCatName.trim().toLowerCase());
+    const duplicate = categorias.some(c => c.nome.toLowerCase() === newCatName.trim().toLowerCase());
     if (duplicate) {
       window.showToast?.('Já existe uma categoria com este nome.', 'erro');
       return;
@@ -33,7 +30,7 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
     const newCat: Categoria = {
       id: `cat-custom-${Date.now()}`,
       nome: newCatName.trim(),
-      tipo: activeTab
+      tipo: 'geral'
     };
 
     onUpdateCategorias([...categorias, newCat]);
@@ -48,7 +45,7 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
   const handleSaveEdit = (catId: string) => {
     if (!editingCatName.trim()) return;
 
-    const duplicate = categorias.some(c => c.id !== catId && c.tipo === activeTab && c.nome.toLowerCase() === editingCatName.trim().toLowerCase());
+    const duplicate = categorias.some(c => c.id !== catId && c.nome.toLowerCase() === editingCatName.trim().toLowerCase());
     if (duplicate) {
       window.showToast?.('Já existe uma categoria com este nome.', 'erro');
       return;
@@ -67,23 +64,18 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
     }
   };
 
-  // Reordering function: "organizar a ordem das categorias"
+  // Reordering function
   const handleMoveCategory = (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= filteredCats.length) return;
+    if (targetIndex < 0 || targetIndex >= categorias.length) return;
 
-    // We need to reorder them in the original full array, preserving the order of other types
-    // Let's copy the full list
     const updatedFull = [...categorias];
-    
-    // Find the elements in the full array
-    const element1 = filteredCats[index];
-    const element2 = filteredCats[targetIndex];
+    const element1 = categorias[index];
+    const element2 = categorias[targetIndex];
     
     const fullIndex1 = updatedFull.findIndex(c => c.id === element1.id);
     const fullIndex2 = updatedFull.findIndex(c => c.id === element2.id);
 
-    // Swap
     if (fullIndex1 !== -1 && fullIndex2 !== -1) {
       const temp = updatedFull[fullIndex1];
       updatedFull[fullIndex1] = updatedFull[fullIndex2];
@@ -111,42 +103,10 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
         <SyncStatusIcon onClick={onOpenSyncModal} />
       </div>
 
-      {/* 2. Toggle Tabbing (Receitas vs Despesas) */}
-      <div className="flex bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-1.5 rounded-[18px] text-sm font-semibold max-w-sm">
-        <button
-          onClick={() => {
-            setActiveTab('receita');
-            setEditingCatId(null);
-          }}
-          className={`flex-1 py-2.5 px-4 rounded-[14px] flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            activeTab === 'receita'
-              ? 'bg-[#00cc52] text-white'
-              : 'text-[var(--text-discreto)] hover:text-[var(--text-general)]'
-          }`}
-        >
-          <TrendingUp size={16} />
-          <span>Receitas</span>
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab('despesa');
-            setEditingCatId(null);
-          }}
-          className={`flex-1 py-2.5 px-4 rounded-[14px] flex items-center justify-center gap-2 transition-all cursor-pointer ${
-            activeTab === 'despesa'
-              ? 'bg-[#d03c4d] text-white'
-              : 'text-[var(--text-discreto)] hover:text-[var(--text-general)]'
-          }`}
-        >
-          <TrendingDown size={16} />
-          <span>Despesas</span>
-        </button>
-      </div>
-
-      {/* 3. Add New Category Input Block */}
+      {/* 2. Add New Category Input Block */}
       <div className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] p-5 rounded-[24px] space-y-3">
         <span className="text-xs font-bold text-[var(--text-discreto)] uppercase tracking-wider block">
-          Nova Categoria de {activeTab === 'receita' ? 'Receita' : 'Despesa'}
+          Nova Categoria
         </span>
         <div className="flex gap-2">
           <input
@@ -167,17 +127,17 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
         </div>
       </div>
 
-      {/* 4. List of Categories */}
+      {/* 3. List of Categories */}
       <div className="space-y-2.5">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-xs font-bold text-[var(--text-discreto)] uppercase tracking-wider">
-            Categorias Cadastradas ({filteredCats.length})
+            Categorias Cadastradas ({categorias.length})
           </h3>
           <span className="text-[10px] font-bold text-[var(--text-discreto)] uppercase">Ordem de Exibição</span>
         </div>
 
         <div className="space-y-2">
-          {filteredCats.map((cat, idx) => {
+          {categorias.map((cat, idx) => {
             const isEditing = editingCatId === cat.id;
             return (
               <div
@@ -185,8 +145,8 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
                 className="bg-[var(--bg-primary)] border border-[var(--bg-tertiary)] rounded-[20px] p-3.5 flex items-center justify-between gap-4"
               >
                 <div className="flex-1 flex items-center gap-3">
-                  <div className={`p-2 rounded-[12px] ${activeTab === 'receita' ? 'bg-[#00cc52]/15 text-[#00cc52]' : 'bg-[#d03c4d]/15 text-[#d03c4d]'}`}>
-                    <Tag size={16} />
+                  <div className="p-2 rounded-[12px] bg-[var(--bg-secondary)]/15 text-[var(--text-general)]">
+                    <CategoryIcon name={cat.nome} icon={cat.icone} size={18} />
                   </div>
 
                   {isEditing ? (
@@ -207,7 +167,6 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
 
                 {/* Actions: Reordering up/down, Edit, Delete */}
                 <div className="flex items-center gap-1">
-                  {/* Reorder Arrows */}
                   <button
                     onClick={() => handleMoveCategory(idx, 'up')}
                     disabled={idx === 0}
@@ -223,9 +182,9 @@ export function CategoriasView({ categorias, onUpdateCategorias, onOpenMenu, onO
 
                   <button
                     onClick={() => handleMoveCategory(idx, 'down')}
-                    disabled={idx === filteredCats.length - 1}
+                    disabled={idx === categorias.length - 1}
                     className={`p-1.5 rounded-[8px] transition-colors ${
-                      idx === filteredCats.length - 1 
+                      idx === categorias.length - 1 
                         ? 'text-transparent cursor-default' 
                         : 'text-[var(--text-discreto)] hover:text-[var(--text-general)] hover:bg-[var(--bg-app)]'
                     }`}
